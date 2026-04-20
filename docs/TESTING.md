@@ -12,6 +12,7 @@
 
 - `./gradlew test` runs the repository test suite
 - `./gradlew verify` is the canonical guardrail and currently covers compile and test checks
+- GitHub Actions runs the default verify lane on `blacksmith-2vcpu-ubuntu-2404`
 - request and response behavior is exercised with `MockWebServer`
 - `./gradlew liveTest` runs an opt-in live suite against the real put.io API and is excluded from the default `test` and `verify` tasks
 
