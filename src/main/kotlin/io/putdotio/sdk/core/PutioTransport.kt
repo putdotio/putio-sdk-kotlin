@@ -1,0 +1,208 @@
+package io.putdotio.sdk.core
+
+import io.putdotio.sdk.PutioConfig
+import io.putdotio.sdk.errors.PutioApiException
+import io.putdotio.sdk.errors.PutioConfigurationException
+import io.putdotio.sdk.errors.PutioRequestData
+import io.putdotio.sdk.errors.PutioSerializationException
+import io.putdotio.sdk.errors.PutioTransportException
+import kotlinx.coroutines.suspendCancellableCoroutine
+import kotlinx.serialization.KSerializer
+import kotlinx.serialization.Serializable
+import kotlinx.serialization.json.Json
+import okhttp3.FormBody
+import okhttp3.OkHttpClient
+import okhttp3.Request
+import okhttp3.Response
+import okhttp3.HttpUrl.Companion.toHttpUrl
+import kotlin.coroutines.resume
+import kotlin.coroutines.resumeWithException
+
+internal sealed interface PutioAuth {
+    data object ConfigToken : PutioAuth
+
+    data class Token(val value: String) : PutioAuth
+
+    data object None : PutioAuth
+}
+
+@Serializable
+private data class PutioApiErrorEnvelope(
+    val message: String? = null,
+    val status: String? = null,
+    val status_code: Int? = null,
+    val error_type: String? = null,
+)
+
+internal class PutioTransport(
+    internal val config: PutioConfig,
+    private val httpClient: OkHttpClient,
+    private val json: Json,
+) {
+    companion object {
+        val defaultJson = Json {
+            ignoreUnknownKeys = true
+            explicitNulls = false
+        }
+    }
+
+    suspend fun <T> get(
+        path: String,
+        serializer: KSerializer<T>,
+        query: Map<String, String> = emptyMap(),
+        auth: PutioAuth = PutioAuth.ConfigToken,
+    ): T = execute(
+        method = "GET",
+        path = path,
+        serializer = serializer,
+        query = query,
+        auth = auth,
+    )
+
+    suspend fun <T> post(
+        path: String,
+        serializer: KSerializer<T>,
+        query: Map<String, String> = emptyMap(),
+        form: Map<String, String> = emptyMap(),
+        auth: PutioAuth = PutioAuth.ConfigToken,
+    ): T = execute(
+        method = "POST",
+        path = path,
+        serializer = serializer,
+        query = query,
+        form = form,
+        auth = auth,
+    )
+
+    fun buildUrl(path: String, query: Map<String, String> = emptyMap(), baseUrl: String = config.baseUrl): String {
+        val builder = baseUrl.toHttpUrl().newBuilder()
+        for (segment in path.removePrefix("/").split("/")) {
+            if (segment.isNotEmpty()) {
+                builder.addPathSegment(segment)
+            }
+        }
+
+        for ((key, value) in query) {
+            builder.addQueryParameter(key, value)
+        }
+
+        return builder.build().toString()
+    }
+
+    private suspend fun <T> execute(
+        method: String,
+        path: String,
+        serializer: KSerializer<T>,
+        query: Map<String, String> = emptyMap(),
+        form: Map<String, String> = emptyMap(),
+        auth: PutioAuth = PutioAuth.ConfigToken,
+    ): T {
+        val url = buildUrl(path = path, query = query)
+        val requestData = PutioRequestData(method = method, url = url)
+        val request = buildRequest(method = method, url = url, form = form, auth = auth)
+        val response = try {
+            httpClient.newCall(request).await()
+        } catch (cause: Exception) {
+            throw PutioTransportException(requestData, cause)
+        }
+
+        response.use {
+            val body = response.body.string()
+
+            if (!response.isSuccessful) {
+                throw decodeApiException(requestData, response, body)
+            }
+
+            return try {
+                json.decodeFromString(serializer, body)
+            } catch (cause: Exception) {
+                throw PutioSerializationException(requestData, body, cause)
+            }
+        }
+    }
+
+    private fun buildRequest(
+        method: String,
+        url: String,
+        form: Map<String, String>,
+        auth: PutioAuth,
+    ): Request {
+        val builder = Request.Builder()
+            .url(url)
+            .header("Accept", "application/json")
+            .header("User-Agent", config.userAgent)
+
+        resolveAuthorization(auth)?.let { builder.header("Authorization", it) }
+
+        return when (method) {
+            "GET" -> builder.get().build()
+            "POST" -> builder.post(buildFormBody(form)).build()
+            else -> error("Unsupported method $method")
+        }
+    }
+
+    private fun buildFormBody(form: Map<String, String>): FormBody {
+        val builder = FormBody.Builder()
+        for ((key, value) in form) {
+            builder.add(key, value)
+        }
+
+        return builder.build()
+    }
+
+    private fun resolveAuthorization(auth: PutioAuth): String? =
+        when (auth) {
+            PutioAuth.None -> null
+            PutioAuth.ConfigToken -> {
+                val token = config.accessToken
+                    ?: throw PutioConfigurationException(
+                        "This endpoint requires an access token, but PutioConfig.accessToken is missing",
+                    )
+                "Token $token"
+            }
+            is PutioAuth.Token -> "Token ${auth.value}"
+        }
+
+    private fun decodeApiException(
+        request: PutioRequestData,
+        response: Response,
+        body: String,
+    ): PutioApiException {
+        val envelope = runCatching {
+            json.decodeFromString(PutioApiErrorEnvelope.serializer(), body)
+        }.getOrNull()
+
+        val statusCode = envelope?.status_code ?: response.code
+        val errorType = envelope?.error_type
+        val message = envelope?.message ?: "put.io returned HTTP $statusCode"
+
+        return PutioApiException(
+            request = request,
+            statusCode = statusCode,
+            errorType = errorType,
+            responseBody = body,
+            message = message,
+        )
+    }
+}
+
+private suspend fun okhttp3.Call.await(): Response =
+    suspendCancellableCoroutine { continuation ->
+        enqueue(
+            object : okhttp3.Callback {
+                override fun onFailure(call: okhttp3.Call, e: java.io.IOException) {
+                    if (continuation.isCancelled) {
+                        return
+                    }
+
+                    continuation.resumeWithException(e)
+                }
+
+                override fun onResponse(call: okhttp3.Call, response: Response) {
+                    continuation.resume(response)
+                }
+            },
+        )
+
+        continuation.invokeOnCancellation { cancel() }
+    }
