@@ -1,5 +1,6 @@
 package io.putdotio.sdk.account
 
+import io.putdotio.sdk.OkResponse
 import io.putdotio.sdk.core.PutioTransport
 
 class AccountApi internal constructor(
@@ -17,5 +18,11 @@ class AccountApi internal constructor(
             path = "/account/settings",
             serializer = AccountSettingsEnvelope.serializer(),
         ).settings
-}
 
+    suspend fun saveSettings(update: AccountSettingsUpdate): OkResponse =
+        transport.postJson(
+            path = "/account/settings",
+            serializer = OkResponse.serializer(),
+            body = transport.encodeJson(AccountSettingsUpdate.serializer(), update),
+        )
+}

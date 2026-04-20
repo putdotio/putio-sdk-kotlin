@@ -26,8 +26,17 @@ This repository is in its first bootstrap phase. The initial public surface is i
 - `account`
 - `auth`
 - `files`
+- `history`
+- `trash`
 
 The design goal is to stay closer to the TypeScript SDK than the legacy Swift SDK: coroutine-first APIs, typed errors, and explicit boundary parsing.
+
+The current expansion is shaped around the real mobile and TV app surfaces in `apps/ios` and `apps/web/apps/tv-native`, especially:
+
+- account settings updates for playback and trash/history preferences
+- file search, subtitles, and playback resume helpers
+- history event listing and deletion flows
+- trash listing, restore, delete, and empty flows
 
 ## Installation
 

@@ -75,3 +75,19 @@ internal fun AccountInfoQuery.toQueryMap(): Map<String, String> =
         if (pushToken) put("push_token", "1")
     }
 
+@Serializable
+data class AccountTwoFactorSettings(
+    val code: String,
+    val enable: Boolean,
+)
+
+@Serializable
+data class AccountSettingsUpdate(
+    @SerialName("history_enabled") val historyEnabled: Boolean? = null,
+    @SerialName("trash_enabled") val trashEnabled: Boolean? = null,
+    @SerialName("hide_subtitles") val hideSubtitles: Boolean? = null,
+    @SerialName("dont_autoselect_subtitles") val dontAutoselectSubtitles: Boolean? = null,
+    @SerialName("tunnel_route_name") val tunnelRouteName: String? = null,
+    @SerialName("show_optimistic_usage") val showOptimisticUsage: Boolean? = null,
+    @SerialName("two_factor_enabled") val twoFactorEnabled: AccountTwoFactorSettings? = null,
+)

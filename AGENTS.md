@@ -4,7 +4,7 @@
 
 - Standalone Kotlin SDK repo for the put.io API
 - Public package bootstrap focused on Android-friendly Kotlin consumers
-- Current namespace scope: `account`, `auth`, and `files`
+- Current namespace scope: `account`, `auth`, `files`, `history`, and `trash`
 
 ## Start Here
 
@@ -28,4 +28,3 @@
 - Use `./gradlew verify` as the canonical local and CI guardrail
 - Update docs when the public surface, verification flow, or publishing story changes
 - Keep `README.md` consumer-facing and use `docs/*` for repo-operator detail
-

@@ -46,7 +46,24 @@ class FilesApiTest {
 
     @Test
     fun `createFolder sends form data`() = withServer { server ->
-        server.enqueue(MockResponse.Builder().body("""{"status":"OK"}""").build())
+        server.enqueue(
+            MockResponse.Builder().body(
+                """
+                {
+                  "status": "OK",
+                  "file": {
+                    "id": 1,
+                    "name": "Movies",
+                    "size": 0,
+                    "created_at": "2026-04-20T10:00:00Z",
+                    "updated_at": "2026-04-20T10:00:00Z",
+                    "file_type": "FOLDER",
+                    "folder_type": "REGULAR"
+                  }
+                }
+                """.trimIndent(),
+            ).build(),
+        )
 
         runBlocking {
             PutioClient(

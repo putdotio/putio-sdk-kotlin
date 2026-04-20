@@ -26,18 +26,25 @@ class FilesApi internal constructor(
             query = query.toQueryMap(),
         ).file
 
+    suspend fun search(query: FilesSearchQuery): FileSearchResponse =
+        transport.get(
+            path = "/files/search",
+            serializer = FileSearchResponse.serializer(),
+            query = query.toQueryMap(),
+        )
+
     suspend fun createFolder(
         name: String,
         parentId: Long,
-    ): OkResponse =
+    ): PutioFile =
         transport.post(
             path = "/files/create-folder",
-            serializer = OkResponse.serializer(),
+            serializer = FileEnvelope.serializer(),
             form = mapOf(
                 "name" to name,
                 "parent_id" to parentId.toString(),
             ),
-        )
+        ).file
 
     suspend fun delete(
         fileIds: List<Long>,
@@ -67,6 +74,39 @@ class FilesApi internal constructor(
             ),
         )
 
+    suspend fun getStartFrom(fileId: Long): Double =
+        transport.get(
+            path = "/files/$fileId/start-from",
+            serializer = FileStartFromResponse.serializer(),
+        ).startFrom
+
+    suspend fun setStartFrom(
+        fileId: Long,
+        time: Double,
+    ): OkResponse =
+        transport.post(
+            path = "/files/$fileId/start-from/set",
+            serializer = OkResponse.serializer(),
+            form = mapOf("time" to time.toString()),
+        )
+
+    suspend fun resetStartFrom(fileId: Long): OkResponse =
+        transport.get(
+            path = "/files/$fileId/start-from/delete",
+            serializer = OkResponse.serializer(),
+        )
+
+    suspend fun listSubtitles(
+        fileId: Long,
+        languages: List<String> = emptyList(),
+    ): FileSubtitlesResponse =
+        transport.get(
+            path = "/files/$fileId/subtitles",
+            serializer = FileSubtitlesResponse.serializer(),
+            query = languages.takeIf { it.isNotEmpty() }?.let { mapOf("languages" to it.joinToString(",")) }
+                ?: emptyMap(),
+        )
+
     fun buildDownloadUrl(
         fileId: Long,
         accessToken: String,
@@ -86,4 +126,3 @@ class FilesApi internal constructor(
         ),
     )
 }
-

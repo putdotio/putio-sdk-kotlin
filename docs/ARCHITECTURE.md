@@ -12,9 +12,13 @@ graph LR
   Client --> Account["account namespace"]
   Client --> Auth["auth namespace"]
   Client --> Files["files namespace"]
+  Client --> History["history namespace"]
+  Client --> Trash["trash namespace"]
   Account --> Transport["shared transport"]
   Auth --> Transport
   Files --> Transport
+  History --> Transport
+  Trash --> Transport
   Transport --> Errors["typed SDK errors"]
   Transport --> Json["kotlinx.serialization"]
   Transport --> API["put.io API"]
@@ -51,10 +55,24 @@ graph LR
 - `files`
   - `list`
   - `get`
+  - `search`
   - `createFolder`
   - `delete`
   - `move`
+  - `listSubtitles`
+  - `getStartFrom`
+  - `setStartFrom`
+  - `resetStartFrom`
   - direct download and stream URL builders
+- `history`
+  - `list`
+  - `delete`
+  - `clear`
+- `trash`
+  - `list`
+  - `restore`
+  - `delete`
+  - `empty`
 
 ## What This Package Is Not
 
@@ -62,4 +80,3 @@ graph LR
 - not a callback-oriented wrapper around the old Swift SDK
 - not a full namespace-by-namespace parity port on day one
 - not tied to Android UI code or app lifecycle types
-

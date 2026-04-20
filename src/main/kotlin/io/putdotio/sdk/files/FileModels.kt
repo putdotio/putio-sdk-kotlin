@@ -76,6 +76,25 @@ data class FilesListResponse(
     val status: String,
 )
 
+@Serializable
+data class FileSearchResponse(
+    val cursor: String? = null,
+    val files: List<PutioFile> = emptyList(),
+    val total: Int = 0,
+    val status: String,
+)
+
+data class FilesSearchQuery(
+    val keyword: String,
+    val perPage: Int? = null,
+)
+
+internal fun FilesSearchQuery.toQueryMap(): Map<String, String> =
+    buildMap {
+        put("query", keyword)
+        if (perPage != null) put("per_page", perPage.toString())
+    }
+
 data class FilesListQuery(
     val perPage: Int? = null,
     val total: Boolean = false,
@@ -115,3 +134,25 @@ internal fun FileDetailsQuery.toQueryMap(): Map<String, String> =
         if (mp4StreamUrl) put("mp4_stream_url", "1")
     }
 
+@Serializable
+data class FileSubtitle(
+    val key: String,
+    val language: String,
+    @SerialName("language_code") val languageCode: String,
+    val name: String,
+    val source: String,
+    val url: String,
+)
+
+@Serializable
+data class FileSubtitlesResponse(
+    @SerialName("default") val defaultKey: String? = null,
+    val subtitles: List<FileSubtitle> = emptyList(),
+    val status: String,
+)
+
+@Serializable
+internal data class FileStartFromResponse(
+    @SerialName("start_from") val startFrom: Double,
+    val status: String,
+)

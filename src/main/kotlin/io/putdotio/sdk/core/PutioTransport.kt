@@ -11,9 +11,11 @@ import kotlinx.serialization.KSerializer
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 import okhttp3.FormBody
+import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.Response
+import okhttp3.RequestBody.Companion.toRequestBody
 import okhttp3.HttpUrl.Companion.toHttpUrl
 import kotlin.coroutines.resume
 import kotlin.coroutines.resumeWithException
@@ -74,6 +76,21 @@ internal class PutioTransport(
         auth = auth,
     )
 
+    suspend fun <T> postJson(
+        path: String,
+        serializer: KSerializer<T>,
+        body: String,
+        query: Map<String, String> = emptyMap(),
+        auth: PutioAuth = PutioAuth.ConfigToken,
+    ): T = execute(
+        method = "POST",
+        path = path,
+        serializer = serializer,
+        query = query,
+        jsonBody = body,
+        auth = auth,
+    )
+
     fun buildUrl(path: String, query: Map<String, String> = emptyMap(), baseUrl: String = config.baseUrl): String {
         val builder = baseUrl.toHttpUrl().newBuilder()
         for (segment in path.removePrefix("/").split("/")) {
@@ -95,11 +112,12 @@ internal class PutioTransport(
         serializer: KSerializer<T>,
         query: Map<String, String> = emptyMap(),
         form: Map<String, String> = emptyMap(),
+        jsonBody: String? = null,
         auth: PutioAuth = PutioAuth.ConfigToken,
     ): T {
         val url = buildUrl(path = path, query = query)
         val requestData = PutioRequestData(method = method, url = url)
-        val request = buildRequest(method = method, url = url, form = form, auth = auth)
+        val request = buildRequest(method = method, url = url, form = form, jsonBody = jsonBody, auth = auth)
         val response = try {
             httpClient.newCall(request).await()
         } catch (cause: Exception) {
@@ -125,6 +143,7 @@ internal class PutioTransport(
         method: String,
         url: String,
         form: Map<String, String>,
+        jsonBody: String?,
         auth: PutioAuth,
     ): Request {
         val builder = Request.Builder()
@@ -136,10 +155,15 @@ internal class PutioTransport(
 
         return when (method) {
             "GET" -> builder.get().build()
-            "POST" -> builder.post(buildFormBody(form)).build()
+            "POST" -> builder.post(jsonBody?.toRequestBody(JSON_MEDIA_TYPE) ?: buildFormBody(form)).build()
             else -> error("Unsupported method $method")
         }
     }
+
+    fun <T> encodeJson(
+        serializer: KSerializer<T>,
+        value: T,
+    ): String = json.encodeToString(serializer, value)
 
     private fun buildFormBody(form: Map<String, String>): FormBody {
         val builder = FormBody.Builder()
@@ -185,6 +209,8 @@ internal class PutioTransport(
         )
     }
 }
+
+private val JSON_MEDIA_TYPE = "application/json; charset=utf-8".toMediaType()
 
 private suspend fun okhttp3.Call.await(): Response =
     suspendCancellableCoroutine { continuation ->
