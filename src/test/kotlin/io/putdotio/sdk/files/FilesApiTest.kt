@@ -7,6 +7,7 @@ import kotlinx.coroutines.runBlocking
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
+import kotlin.test.assertFalse
 import mockwebserver3.MockResponse
 import mockwebserver3.MockWebServer
 
@@ -79,6 +80,110 @@ class FilesApiTest {
         val request = server.takeRequest()
         assertEquals("/v2/files/create-folder", request.target)
         assertEquals("name=Movies&parent_id=0", request.body!!.utf8())
+    }
+
+    @Test
+    fun `list preserves unknown backend file types`() = withServer { server ->
+        server.enqueue(
+            MockResponse.Builder().body(
+                """
+                {
+                  "status": "OK",
+                  "parent": null,
+                  "files": [
+                    {
+                      "id": 1,
+                      "name": "Mystery",
+                      "size": 0,
+                      "created_at": "2026-04-20T10:00:00Z",
+                      "updated_at": "2026-04-20T10:00:00Z",
+                      "file_type": "BOOK",
+                      "folder_type": "MAGIC_SHELF"
+                    }
+                  ],
+                  "cursor": null
+                }
+                """.trimIndent(),
+            ).build(),
+        )
+
+        runBlocking {
+            PutioClient(
+                PutioConfig(
+                    accessToken = "token",
+                    baseUrl = server.url("/v2/").toString(),
+                ),
+            ).use { sdk ->
+                val files = sdk.files.list(parentId = 0).files
+                assertEquals("BOOK", files.first().fileType.raw)
+                assertFalse(files.first().fileType.isKnown)
+                assertEquals("MAGIC_SHELF", files.first().folderType.raw)
+                assertFalse(files.first().folderType.isKnown)
+            }
+        }
+    }
+
+    @Test
+    fun `delete returns typed result envelope`() = withServer { server ->
+        server.enqueue(
+            MockResponse.Builder().body(
+                """
+                {
+                  "status": "OK",
+                  "cursor": "next-page",
+                  "skipped": 2
+                }
+                """.trimIndent(),
+            ).build(),
+        )
+
+        runBlocking {
+            PutioClient(
+                PutioConfig(
+                    accessToken = "token",
+                    baseUrl = server.url("/v2/").toString(),
+                ),
+            ).use { sdk ->
+                val result = sdk.files.delete(fileIds = listOf(1, 2))
+                assertEquals("next-page", result.cursor)
+                assertEquals(2, result.skipped)
+            }
+        }
+    }
+
+    @Test
+    fun `move returns per-file errors`() = withServer { server ->
+        server.enqueue(
+            MockResponse.Builder().body(
+                """
+                {
+                  "status": "OK",
+                  "errors": [
+                    {
+                      "error_type": "NOT_FOUND",
+                      "id": 2,
+                      "name": "Missing.mkv",
+                      "status_code": 404
+                    }
+                  ]
+                }
+                """.trimIndent(),
+            ).build(),
+        )
+
+        runBlocking {
+            PutioClient(
+                PutioConfig(
+                    accessToken = "token",
+                    baseUrl = server.url("/v2/").toString(),
+                ),
+            ).use { sdk ->
+                val errors = sdk.files.move(fileIds = listOf(1, 2), parentId = 9)
+                assertEquals(1, errors.size)
+                assertEquals("NOT_FOUND", errors.first().errorType)
+                assertEquals(2L, errors.first().id)
+            }
+        }
     }
 
     @Test

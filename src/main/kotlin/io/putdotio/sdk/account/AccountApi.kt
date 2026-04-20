@@ -23,6 +23,7 @@ class AccountApi internal constructor(
         transport.postJson(
             path = "/account/settings",
             serializer = OkResponse.serializer(),
-            body = transport.encodeJson(AccountSettingsUpdate.serializer(), update),
+            body = update,
+            bodySerializer = AccountSettingsUpdate.serializer(),
         )
 }

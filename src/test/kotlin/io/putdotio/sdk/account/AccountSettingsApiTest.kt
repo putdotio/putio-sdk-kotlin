@@ -21,7 +21,7 @@ class AccountSettingsApiTest {
                 ),
             ).use { sdk ->
                 sdk.account.saveSettings(
-                    AccountSettingsUpdate(
+                    AccountSettingsPatch(
                         historyEnabled = false,
                         hideSubtitles = true,
                     ),
@@ -42,4 +42,3 @@ class AccountSettingsApiTest {
         }
     }
 }
-

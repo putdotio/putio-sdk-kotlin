@@ -29,7 +29,7 @@ This repository is in its first bootstrap phase. The initial public surface is i
 - `history`
 - `trash`
 
-The design goal is to stay closer to the TypeScript SDK than the legacy Swift SDK: coroutine-first APIs, typed errors, and explicit boundary parsing.
+The design goal is to stay closer to the TypeScript SDK than the legacy Swift SDK: coroutine-first APIs, typed errors, explicit boundary parsing, and forward-compatible value types at the API edge.
 
 The current expansion is shaped around the real mobile and TV app surfaces in `apps/ios` and `apps/web/apps/tv-native`, especially:
 
@@ -93,11 +93,14 @@ The repo exposes one canonical verification command:
 
 ```bash
 ./gradlew verify
+./gradlew liveTest
 ```
 
 The repository targets JDK `21` and includes [.java-version](./.java-version) to make local toolchain selection less ambiguous.
 
 This currently runs compile and test guardrails for the bootstrap surface. Tests use `MockWebServer` to verify request shaping, auth handling, and response decoding.
+
+An opt-in live suite is also available through `./gradlew liveTest`. It follows the TypeScript SDK convention of keeping real API verification separate from the default unit suite.
 
 ## Docs
 

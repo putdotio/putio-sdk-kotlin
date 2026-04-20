@@ -1,5 +1,6 @@
 package io.putdotio.sdk.files
 
+import io.putdotio.sdk.core.RawStringValueSerializer
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 
@@ -9,24 +10,78 @@ data class FileBreadcrumb(
     val name: String,
 )
 
-@Serializable
-enum class PutioFileType {
-    FOLDER,
-    FILE,
-    AUDIO,
-    VIDEO,
-    IMAGE,
-    ARCHIVE,
-    PDF,
-    TEXT,
-    SWF,
+@Serializable(with = PutioFileType.Serializer::class)
+@JvmInline
+value class PutioFileType(val raw: String) {
+    val isKnown: Boolean
+        get() = this in knownValues
+
+    override fun toString(): String = raw
+
+    companion object {
+        val FOLDER = PutioFileType("FOLDER")
+        val FILE = PutioFileType("FILE")
+        val AUDIO = PutioFileType("AUDIO")
+        val VIDEO = PutioFileType("VIDEO")
+        val IMAGE = PutioFileType("IMAGE")
+        val ARCHIVE = PutioFileType("ARCHIVE")
+        val PDF = PutioFileType("PDF")
+        val TEXT = PutioFileType("TEXT")
+        val SWF = PutioFileType("SWF")
+
+        private val knownValues = setOf(FOLDER, FILE, AUDIO, VIDEO, IMAGE, ARCHIVE, PDF, TEXT, SWF)
+
+        fun fromRaw(raw: String): PutioFileType =
+            when (raw) {
+                FOLDER.raw -> FOLDER
+                FILE.raw -> FILE
+                AUDIO.raw -> AUDIO
+                VIDEO.raw -> VIDEO
+                IMAGE.raw -> IMAGE
+                ARCHIVE.raw -> ARCHIVE
+                PDF.raw -> PDF
+                TEXT.raw -> TEXT
+                SWF.raw -> SWF
+                else -> PutioFileType(raw)
+            }
+    }
+
+    object Serializer : RawStringValueSerializer<PutioFileType>("PutioFileType") {
+        override fun fromRaw(raw: String): PutioFileType = Companion.fromRaw(raw)
+
+        override fun toRaw(value: PutioFileType): String = value.raw
+    }
 }
 
-@Serializable
-enum class PutioFolderType {
-    REGULAR,
-    SHARED_ROOT,
-    SHARED_FRIEND,
+@Serializable(with = PutioFolderType.Serializer::class)
+@JvmInline
+value class PutioFolderType(val raw: String) {
+    val isKnown: Boolean
+        get() = this in knownValues
+
+    override fun toString(): String = raw
+
+    companion object {
+        val REGULAR = PutioFolderType("REGULAR")
+        val SHARED_ROOT = PutioFolderType("SHARED_ROOT")
+        val SHARED_FRIEND = PutioFolderType("SHARED_FRIEND")
+
+        private val knownValues = setOf(REGULAR, SHARED_ROOT, SHARED_FRIEND)
+
+        fun fromRaw(raw: String): PutioFolderType =
+            when (raw) {
+                REGULAR.raw -> REGULAR
+                SHARED_ROOT.raw -> SHARED_ROOT
+                SHARED_FRIEND.raw -> SHARED_FRIEND
+                else -> PutioFolderType(raw)
+            }
+    }
+
+    object Serializer : RawStringValueSerializer<PutioFolderType>("PutioFolderType") {
+        override fun fromRaw(raw: String): PutioFolderType = Companion.fromRaw(raw)
+
+        override fun toRaw(value: PutioFolderType): String = value.raw
+    }
 }
 
 @Serializable
@@ -87,12 +142,14 @@ data class FileSearchResponse(
 data class FilesSearchQuery(
     val keyword: String,
     val perPage: Int? = null,
+    val type: List<PutioFileType> = emptyList(),
 )
 
 internal fun FilesSearchQuery.toQueryMap(): Map<String, String> =
     buildMap {
         put("query", keyword)
         if (perPage != null) put("per_page", perPage.toString())
+        if (type.isNotEmpty()) put("type", type.joinToString(",") { it.raw })
     }
 
 data class FilesListQuery(
@@ -101,7 +158,7 @@ data class FilesListQuery(
     val hidden: Boolean = false,
     val noCursor: Boolean = false,
     val contentType: String? = null,
-    val fileType: String? = null,
+    val fileType: PutioFileType? = null,
 )
 
 internal fun FilesListQuery.toQueryMap(parentId: Long): Map<String, String> =
@@ -116,7 +173,7 @@ internal fun FilesListQuery.toQueryMap(parentId: Long): Map<String, String> =
         if (hidden) put("hidden", "1")
         if (noCursor) put("no_cursor", "1")
         if (contentType != null) put("content_type", contentType)
-        if (fileType != null) put("file_type", fileType)
+        if (fileType != null) put("file_type", fileType.raw)
     }
 
 data class FileDetailsQuery(
@@ -154,5 +211,26 @@ data class FileSubtitlesResponse(
 @Serializable
 internal data class FileStartFromResponse(
     @SerialName("start_from") val startFrom: Double,
+    val status: String,
+)
+
+@Serializable
+data class FileDeleteResult(
+    val cursor: String? = null,
+    val skipped: Int = 0,
+    val status: String,
+)
+
+@Serializable
+data class FileMoveError(
+    @SerialName("error_type") val errorType: String,
+    val id: Long,
+    val name: String? = null,
+    @SerialName("status_code") val statusCode: Int,
+)
+
+@Serializable
+internal data class FileMoveEnvelope(
+    val errors: List<FileMoveError> = emptyList(),
     val status: String,
 )

@@ -76,10 +76,11 @@ internal class PutioTransport(
         auth = auth,
     )
 
-    suspend fun <T> postJson(
+    suspend fun <T, TBody> postJson(
         path: String,
         serializer: KSerializer<T>,
-        body: String,
+        body: TBody,
+        bodySerializer: KSerializer<TBody>,
         query: Map<String, String> = emptyMap(),
         auth: PutioAuth = PutioAuth.ConfigToken,
     ): T = execute(
@@ -87,7 +88,7 @@ internal class PutioTransport(
         path = path,
         serializer = serializer,
         query = query,
-        jsonBody = body,
+        jsonBody = json.encodeToString(bodySerializer, body),
         auth = auth,
     )
 
@@ -159,11 +160,6 @@ internal class PutioTransport(
             else -> error("Unsupported method $method")
         }
     }
-
-    fun <T> encodeJson(
-        serializer: KSerializer<T>,
-        value: T,
-    ): String = json.encodeToString(serializer, value)
 
     private fun buildFormBody(form: Map<String, String>): FormBody {
         val builder = FormBody.Builder()

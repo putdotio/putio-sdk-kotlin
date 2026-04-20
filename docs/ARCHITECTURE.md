@@ -39,6 +39,7 @@ graph LR
 - keep the public surface closer to `putio-sdk-typescript` than the legacy Swift SDK
 - use coroutine-first suspend APIs for network operations
 - parse response JSON at the boundary with `kotlinx.serialization`
+- preserve unknown backend string values in public value types instead of failing whole payloads
 - keep namespaces small and explicit until app needs prove expansion
 - prefer transport helpers and typed models over generic JSON bags
 

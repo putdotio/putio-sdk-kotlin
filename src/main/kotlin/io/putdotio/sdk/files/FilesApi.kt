@@ -50,10 +50,10 @@ class FilesApi internal constructor(
         fileIds: List<Long>,
         skipNonexistents: Boolean = true,
         skipOwnerCheck: Boolean = false,
-    ): OkResponse =
+    ): FileDeleteResult =
         transport.post(
             path = "/files/delete",
-            serializer = OkResponse.serializer(),
+            serializer = FileDeleteResult.serializer(),
             query = mapOf(
                 "skip_nonexistents" to skipNonexistents.toString(),
                 "skip_owner_check" to skipOwnerCheck.toString(),
@@ -64,15 +64,15 @@ class FilesApi internal constructor(
     suspend fun move(
         fileIds: List<Long>,
         parentId: Long,
-    ): OkResponse =
+    ): List<FileMoveError> =
         transport.post(
             path = "/files/move",
-            serializer = OkResponse.serializer(),
+            serializer = FileMoveEnvelope.serializer(),
             form = mapOf(
                 "file_ids" to fileIds.joinToString(","),
                 "parent_id" to parentId.toString(),
             ),
-        )
+        ).errors
 
     suspend fun getStartFrom(fileId: Long): Double =
         transport.get(

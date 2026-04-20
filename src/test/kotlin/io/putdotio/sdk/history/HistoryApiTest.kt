@@ -5,6 +5,7 @@ import io.putdotio.sdk.PutioConfig
 import kotlinx.coroutines.runBlocking
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
 import mockwebserver3.MockResponse
 import mockwebserver3.MockWebServer
 
@@ -64,6 +65,40 @@ class HistoryApiTest {
         assertEquals("/v2/events/delete", server.takeRequest().target)
     }
 
+    @Test
+    fun `list preserves unknown history event types`() = withServer { server ->
+        server.enqueue(
+            MockResponse.Builder().body(
+                """
+                {
+                  "status": "OK",
+                  "events": [
+                    {
+                      "id": 7,
+                      "user_id": 42,
+                      "type": "FUTURE_EVENT",
+                      "created_at": "2026-04-20T10:00:00Z"
+                    }
+                  ]
+                }
+                """.trimIndent(),
+            ).build(),
+        )
+
+        runBlocking {
+            PutioClient(
+                PutioConfig(
+                    accessToken = "token",
+                    baseUrl = server.url("/v2/").toString(),
+                ),
+            ).use { sdk ->
+                val event = sdk.history.list().first()
+                assertEquals("FUTURE_EVENT", event.type.raw)
+                assertFalse(event.type.isKnown)
+            }
+        }
+    }
+
     private fun withServer(block: (MockWebServer) -> Unit) {
         MockWebServer().use { server ->
             server.start()
@@ -71,4 +106,3 @@ class HistoryApiTest {
         }
     }
 }
-

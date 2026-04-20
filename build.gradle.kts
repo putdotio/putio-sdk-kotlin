@@ -1,4 +1,5 @@
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
+import org.gradle.api.tasks.testing.Test
 
 plugins {
     kotlin("jvm") version "2.3.20"
@@ -27,6 +28,14 @@ java {
     targetCompatibility = JavaVersion.VERSION_1_8
 }
 
+val liveTestSourceSet = sourceSets.create("liveTest") {
+    compileClasspath += sourceSets["main"].output + configurations.testRuntimeClasspath.get()
+    runtimeClasspath += output + compileClasspath
+}
+
+configurations[liveTestSourceSet.implementationConfigurationName].extendsFrom(configurations.testImplementation.get())
+configurations[liveTestSourceSet.runtimeOnlyConfigurationName].extendsFrom(configurations.testRuntimeOnly.get())
+
 dependencies {
     implementation(platform("com.squareup.okhttp3:okhttp-bom:5.3.0"))
     implementation("com.squareup.okhttp3:okhttp")
@@ -35,10 +44,22 @@ dependencies {
 
     testImplementation(kotlin("test"))
     testImplementation("com.squareup.okhttp3:mockwebserver3")
+
+    add(liveTestSourceSet.implementationConfigurationName, kotlin("test"))
+    add(liveTestSourceSet.implementationConfigurationName, "org.jetbrains.kotlinx:kotlinx-coroutines-core:1.10.2")
 }
 
 tasks.test {
     useJUnitPlatform()
+}
+
+val liveTest by tasks.registering(Test::class) {
+    description = "Run opt-in live SDK verification against the real put.io API"
+    group = "verification"
+    testClassesDirs = liveTestSourceSet.output.classesDirs
+    classpath = liveTestSourceSet.runtimeClasspath
+    useJUnitPlatform()
+    shouldRunAfter(tasks.test)
 }
 
 tasks.register("verify") {
