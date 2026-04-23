@@ -33,7 +33,17 @@ data class TrashListQuery(
     val perPage: Int? = null,
 )
 
+data class TrashContinueQuery(
+    val perPage: Int? = null,
+)
+
 internal fun TrashListQuery.toQueryMap(): Map<String, String> =
+    toPerPageQueryMap(perPage)
+
+internal fun TrashContinueQuery.toQueryMap(): Map<String, String> =
+    toPerPageQueryMap(perPage)
+
+private fun toPerPageQueryMap(perPage: Int?): Map<String, String> =
     buildMap {
         if (perPage != null) put("per_page", perPage.toString())
     }
@@ -52,4 +62,3 @@ data class TrashBulkInput(
 internal fun TrashBulkInput.toFormMap(): Map<String, String> =
     cursor?.takeIf { it.isNotBlank() }?.let { mapOf("cursor" to it) }
         ?: mapOf("file_ids" to ids.joinToString(","))
-

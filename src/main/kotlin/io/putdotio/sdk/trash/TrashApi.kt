@@ -18,6 +18,19 @@ class TrashApi internal constructor(
             )
         }
 
+    suspend fun continueList(
+        cursor: String,
+        query: TrashContinueQuery = TrashContinueQuery(),
+    ): TrashListResponse =
+        putioOperation(LIST_TRASH_ERROR_SPEC) {
+            transport.post(
+                path = "/trash/list/continue",
+                serializer = TrashListResponse.serializer(),
+                query = query.toQueryMap(),
+                form = mapOf("cursor" to cursor),
+            )
+        }
+
     suspend fun restore(input: TrashBulkInput): OkResponse =
         putioOperation(RESTORE_TRASH_ERROR_SPEC) {
             transport.post(

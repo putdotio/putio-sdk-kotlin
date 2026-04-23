@@ -152,6 +152,15 @@ internal fun FilesSearchQuery.toQueryMap(): Map<String, String> =
         if (type.isNotEmpty()) put("type", type.joinToString(",") { it.raw })
     }
 
+data class FilesContinueQuery(
+    val perPage: Int? = null,
+)
+
+internal fun FilesContinueQuery.toQueryMap(): Map<String, String> =
+    buildMap {
+        if (perPage != null) put("per_page", perPage.toString())
+    }
+
 data class FilesListQuery(
     val perPage: Int? = null,
     val total: Boolean = false,

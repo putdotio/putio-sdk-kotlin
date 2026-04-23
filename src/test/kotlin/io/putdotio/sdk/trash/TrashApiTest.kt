@@ -55,6 +55,61 @@ class TrashApiTest {
     }
 
     @Test
+    fun `continueList posts cursor and keeps pagination typed`() = withServer { server ->
+        server.enqueue(
+            MockResponse.Builder().body(
+                """
+                {
+                  "status": "OK",
+                  "cursor": "done",
+                  "trash_size": 0,
+                  "files": []
+                }
+                """.trimIndent(),
+            ).build(),
+        )
+
+        runBlocking {
+            PutioClient(
+                PutioConfig(
+                    accessToken = "token",
+                    baseUrl = server.url("/v2/").toString(),
+                ),
+            ).use { sdk ->
+                val response = sdk.trash.continueList(
+                    cursor = "trash-cursor-123",
+                    query = TrashContinueQuery(perPage = 10),
+                )
+                assertEquals("done", response.cursor)
+            }
+        }
+
+        val request = server.takeRequest()
+        assertEquals("/v2/trash/list/continue?per_page=10", request.target)
+        assertEquals("cursor=trash-cursor-123", request.body!!.utf8())
+    }
+
+    @Test
+    fun `continueList can omit pagination query`() = withServer { server ->
+        server.enqueue(MockResponse.Builder().body("""{"status":"OK","cursor":null,"trash_size":0,"files":[]}""").build())
+
+        runBlocking {
+            PutioClient(
+                PutioConfig(
+                    accessToken = "token",
+                    baseUrl = server.url("/v2/").toString(),
+                ),
+            ).use { sdk ->
+                sdk.trash.continueList(cursor = "trash-cursor")
+            }
+        }
+
+        val request = server.takeRequest()
+        assertEquals("/v2/trash/list/continue", request.target)
+        assertEquals("cursor=trash-cursor", request.body!!.utf8())
+    }
+
+    @Test
     fun `restore can use ids`() = withServer { server ->
         server.enqueue(MockResponse.Builder().body("""{"status":"OK"}""").build())
 

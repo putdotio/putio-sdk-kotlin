@@ -42,6 +42,32 @@ class FilesApi internal constructor(
             )
         }
 
+    suspend fun continueList(
+        cursor: String,
+        query: FilesContinueQuery = FilesContinueQuery(),
+    ): FilesListResponse =
+        putioOperation(LIST_FILES_ERROR_SPEC) {
+            transport.post(
+                path = "/files/list/continue",
+                serializer = FilesListResponse.serializer(),
+                query = query.toQueryMap(),
+                form = mapOf("cursor" to cursor),
+            )
+        }
+
+    suspend fun continueSearch(
+        cursor: String,
+        query: FilesContinueQuery = FilesContinueQuery(),
+    ): FileSearchResponse =
+        putioOperation(SEARCH_FILES_ERROR_SPEC) {
+            transport.post(
+                path = "/files/search/continue",
+                serializer = FileSearchResponse.serializer(),
+                query = query.toQueryMap(),
+                form = mapOf("cursor" to cursor),
+            )
+        }
+
     suspend fun createFolder(
         name: String,
         parentId: Long,

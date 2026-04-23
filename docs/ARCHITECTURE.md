@@ -56,8 +56,10 @@ graph LR
   - `validateToken`
 - `files`
   - `list`
+  - `continueList`
   - `get`
   - `search`
+  - `continueSearch`
   - `createFolder`
   - `delete`
   - `move`
@@ -72,6 +74,7 @@ graph LR
   - `clear`
 - `trash`
   - `list`
+  - `continueList`
   - `restore`
   - `delete`
   - `empty`

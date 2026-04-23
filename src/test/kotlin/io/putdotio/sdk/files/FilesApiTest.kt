@@ -48,6 +48,101 @@ class FilesApiTest {
     }
 
     @Test
+    fun `continueList posts cursor and keeps pagination typed`() = withServer { server ->
+        server.enqueue(
+            MockResponse.Builder().body(
+                """
+                {
+                  "status": "OK",
+                  "parent": null,
+                  "files": [],
+                  "cursor": "next-page"
+                }
+                """.trimIndent(),
+            ).build(),
+        )
+
+        runBlocking {
+            PutioClient(
+                PutioConfig(
+                    accessToken = "token",
+                    baseUrl = server.url("/v2/").toString(),
+                ),
+            ).use { sdk ->
+                val response = sdk.files.continueList(
+                    cursor = "cursor-123",
+                    query = FilesContinueQuery(perPage = 25),
+                )
+                assertEquals("next-page", response.cursor)
+            }
+        }
+
+        val request = server.takeRequest()
+        assertEquals("/v2/files/list/continue?per_page=25", request.target)
+        assertEquals("cursor=cursor-123", request.body!!.utf8())
+    }
+
+    @Test
+    fun `continueSearch posts cursor and keeps pagination typed`() = withServer { server ->
+        server.enqueue(
+            MockResponse.Builder().body(
+                """
+                {
+                  "status": "OK",
+                  "files": [],
+                  "cursor": "next-search-page",
+                  "total": 0
+                }
+                """.trimIndent(),
+            ).build(),
+        )
+
+        runBlocking {
+            PutioClient(
+                PutioConfig(
+                    accessToken = "token",
+                    baseUrl = server.url("/v2/").toString(),
+                ),
+            ).use { sdk ->
+                val response = sdk.files.continueSearch(
+                    cursor = "search-cursor-123",
+                    query = FilesContinueQuery(perPage = 10),
+                )
+                assertEquals("next-search-page", response.cursor)
+            }
+        }
+
+        val request = server.takeRequest()
+        assertEquals("/v2/files/search/continue?per_page=10", request.target)
+        assertEquals("cursor=search-cursor-123", request.body!!.utf8())
+    }
+
+    @Test
+    fun `continue calls can omit pagination query`() = withServer { server ->
+        server.enqueue(MockResponse.Builder().body("""{"status":"OK","files":[],"cursor":null}""").build())
+        server.enqueue(MockResponse.Builder().body("""{"status":"OK","files":[],"cursor":null,"total":0}""").build())
+
+        runBlocking {
+            PutioClient(
+                PutioConfig(
+                    accessToken = "token",
+                    baseUrl = server.url("/v2/").toString(),
+                ),
+            ).use { sdk ->
+                sdk.files.continueList(cursor = "list-cursor")
+                sdk.files.continueSearch(cursor = "search-cursor")
+            }
+        }
+
+        val listRequest = server.takeRequest()
+        val searchRequest = server.takeRequest()
+        assertEquals("/v2/files/list/continue", listRequest.target)
+        assertEquals("cursor=list-cursor", listRequest.body!!.utf8())
+        assertEquals("/v2/files/search/continue", searchRequest.target)
+        assertEquals("cursor=search-cursor", searchRequest.body!!.utf8())
+    }
+
+    @Test
     fun `createFolder sends form data`() = withServer { server ->
         server.enqueue(
             MockResponse.Builder().body(
