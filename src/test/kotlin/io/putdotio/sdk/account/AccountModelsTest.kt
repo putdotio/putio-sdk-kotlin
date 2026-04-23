@@ -104,4 +104,113 @@ class AccountModelsTest {
             json.decodeFromString(AccountSettingsUpdateSerializer, """["bad-shape"]""")
         }
     }
+
+    @Test
+    fun `account models decode full info and settings payloads`() {
+        val settings = json.decodeFromString(
+            AccountSettings.serializer(),
+            """
+            {
+              "sort_by": "NAME_ASC",
+              "tunnel_route_name": "eu-west",
+              "next_episode": true,
+              "start_from": true,
+              "history_enabled": true,
+              "trash_enabled": true,
+              "show_optimistic_usage": false,
+              "two_factor_enabled": true,
+              "hide_subtitles": true,
+              "dont_autoselect_subtitles": false
+            }
+            """.trimIndent(),
+        )
+        val info = json.decodeFromString(
+            AccountInfo.serializer(),
+            """
+            {
+              "user_id": 42,
+              "username": "altay",
+              "mail": "altay@put.io",
+              "avatar_url": "https://static.put.io/avatar.png",
+              "account_status": "active",
+              "trash_size": 12,
+              "account_active": true,
+              "download_token": "download-token",
+              "features": {
+                "beta": true
+              },
+              "files_will_be_deleted_at": "2026-05-01T10:00:00Z",
+              "password_last_changed_at": "2026-04-20T10:00:00Z",
+              "user_hash": "user-hash",
+              "disk": {
+                "avail": 90,
+                "size": 100,
+                "used": 10
+              },
+              "settings": {
+                "sort_by": "NAME_ASC",
+                "next_episode": true,
+                "start_from": true,
+                "history_enabled": true,
+                "trash_enabled": true,
+                "show_optimistic_usage": false,
+                "two_factor_enabled": false,
+                "hide_subtitles": false,
+                "dont_autoselect_subtitles": false
+              }
+            }
+            """.trimIndent(),
+        )
+
+        assertEquals("eu-west", settings.tunnelRouteName)
+        assertEquals(true, settings.historyEnabled)
+        assertEquals(42L, info.userId)
+        assertEquals(90L, info.disk.available)
+        assertEquals("download-token", info.downloadToken)
+        assertEquals(true, info.features["beta"])
+        assertEquals("user-hash", info.userHash)
+    }
+
+    @Test
+    fun `account models fill sensible defaults when optional fields are omitted`() {
+        val settings = json.decodeFromString(
+            AccountSettings.serializer(),
+            """
+            {
+              "sort_by": "UPDATED_AT_DESC"
+            }
+            """.trimIndent(),
+        )
+        val info = json.decodeFromString(
+            AccountInfo.serializer(),
+            """
+            {
+              "user_id": 7,
+              "username": "sdk-user",
+              "mail": "sdk@put.io",
+              "avatar_url": "https://static.put.io/avatar.png",
+              "account_status": "active",
+              "disk": {
+                "avail": 50,
+                "size": 75,
+                "used": 25
+              },
+              "settings": {
+                "sort_by": "UPDATED_AT_DESC"
+              }
+            }
+            """.trimIndent(),
+        )
+
+        assertEquals(null, settings.tunnelRouteName)
+        assertEquals(false, settings.nextEpisode)
+        assertEquals(false, settings.historyEnabled)
+        assertEquals(false, settings.hideSubtitles)
+        assertEquals(0L, info.trashSize)
+        assertEquals(null, info.accountActive)
+        assertEquals(null, info.downloadToken)
+        assertEquals(emptyMap(), info.features)
+        assertEquals(null, info.filesWillBeDeletedAt)
+        assertEquals(null, info.userHash)
+    }
 }

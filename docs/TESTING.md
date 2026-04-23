@@ -13,7 +13,7 @@ Install a Java `21` runtime with your preferred version manager or system packag
 ## Current Verification Shape
 
 - `./gradlew test` runs the repository test suite
-- `./gradlew verify` is the canonical guardrail and currently covers compile, test, jar, and unit-coverage verification
+- `./gradlew verify` is the canonical guardrail and currently covers compile, test, jar, and a `90%` line coverage floor
 - GitHub Actions runs the default verify lane on `blacksmith-2vcpu-ubuntu-2404`
 - request and response behavior is exercised with `MockWebServer`
 - the unit suite also exercises the localized user-facing error mapping layer

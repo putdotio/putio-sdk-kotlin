@@ -85,4 +85,35 @@ class FileModelsTest {
         assertTrue(folderType.isKnown)
         assertEquals(PutioFolderType.REGULAR, folderType)
     }
+
+    @Test
+    fun `list and subtitle envelopes keep optional fields nullable by default`() {
+        val list = json.decodeFromString(
+            FilesListResponse.serializer(),
+            """{"status":"OK"}""",
+        )
+        val search = json.decodeFromString(
+            FileSearchResponse.serializer(),
+            """{"status":"OK"}""",
+        )
+        val subtitles = json.decodeFromString(
+            FileSubtitlesResponse.serializer(),
+            """{"status":"OK"}""",
+        )
+        val metadata = json.decodeFromString(
+            PutioVideoMetadata.serializer(),
+            """{}""",
+        )
+
+        assertEquals(null, list.parent)
+        assertTrue(list.files.isEmpty())
+        assertEquals(null, list.cursor)
+        assertEquals(null, list.total)
+        assertTrue(search.files.isEmpty())
+        assertEquals(0, search.total)
+        assertEquals(null, subtitles.defaultKey)
+        assertTrue(subtitles.subtitles.isEmpty())
+        assertEquals(null, metadata.height)
+        assertEquals(null, metadata.aspectRatio)
+    }
 }

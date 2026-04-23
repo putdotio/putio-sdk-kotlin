@@ -70,6 +70,24 @@ class HistoryApiTest {
     }
 
     @Test
+    fun `delete posts to scoped delete endpoint`() = withServer { server ->
+        server.enqueue(MockResponse.Builder().body("""{"status":"OK"}""").build())
+
+        runBlocking {
+            PutioClient(
+                PutioConfig(
+                    accessToken = "token",
+                    baseUrl = server.url("/v2/").toString(),
+                ),
+            ).use { sdk ->
+                sdk.history.delete(eventId = 17)
+            }
+        }
+
+        assertEquals("/v2/events/delete/17", server.takeRequest().target)
+    }
+
+    @Test
     fun `list preserves unknown history event types`() = withServer { server ->
         server.enqueue(
             MockResponse.Builder().body(

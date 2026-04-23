@@ -1,0 +1,54 @@
+package io.putdotio.sdk.history
+
+import kotlinx.serialization.decodeFromString
+import kotlinx.serialization.json.Json
+import kotlin.test.Test
+import kotlin.test.assertEquals
+import kotlin.test.assertFalse
+import kotlin.test.assertTrue
+
+class HistoryModelsTest {
+    private val json = Json { ignoreUnknownKeys = true }
+
+    @Test
+    fun `history models decode full payloads and preserve unknown types`() {
+        val event = json.decodeFromString(
+            HistoryEvent.serializer(),
+            """
+            {
+              "id": 7,
+              "user_id": 42,
+              "type": "FUTURE_EVENT",
+              "created_at": "2026-04-20T10:00:00Z",
+              "file_id": 99,
+              "file_name": "Movie.mkv",
+              "transfer_id": 55,
+              "transfer_name": "Transfer",
+              "rss_filter_title": "Weekly feed",
+              "zip_id": 4,
+              "icon": "video"
+            }
+            """.trimIndent(),
+        )
+
+        assertEquals("FUTURE_EVENT", event.type.raw)
+        assertFalse(event.type.isKnown)
+        assertEquals(99L, event.fileId)
+        assertEquals("Transfer", event.transferName)
+        assertEquals("Weekly feed", event.rssFilterTitle)
+        assertEquals(4L, event.zipId)
+        assertEquals("video", event.icon)
+    }
+
+    @Test
+    fun `history helpers build expected queries and keep known values canonical`() {
+        assertEquals(
+            mapOf("per_page" to "25", "page" to "2"),
+            HistoryListQuery(perPage = 25, page = 2).toQueryMap(),
+        )
+
+        val known = HistoryEventType.fromRaw("TRANSFER_COMPLETED")
+        assertTrue(known.isKnown)
+        assertEquals(HistoryEventType.TRANSFER_COMPLETED, known)
+    }
+}

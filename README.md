@@ -98,7 +98,7 @@ The repo exposes one canonical verification command:
 
 The repository targets JDK `21`. Install a Java `21` runtime with your preferred version manager or system package manager before running Gradle. The checked-in [.java-version](./.java-version) is only a compatibility hint for tools that choose to honor it.
 
-This currently runs compile and test guardrails for the bootstrap surface. Tests use `MockWebServer` to verify request shaping, auth handling, and response decoding.
+This currently runs compile and test guardrails for the bootstrap surface. Tests use `MockWebServer` to verify request shaping, auth handling, and response decoding. `./gradlew verify` also enforces a `90%` line coverage floor for the current source set.
 
 An opt-in live suite is also available through `./gradlew liveTest`. It follows the TypeScript SDK convention of keeping real API verification separate from the default unit suite.
 
