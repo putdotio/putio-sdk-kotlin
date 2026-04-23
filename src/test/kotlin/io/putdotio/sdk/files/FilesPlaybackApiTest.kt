@@ -41,13 +41,19 @@ class FilesPlaybackApiTest {
                     baseUrl = server.url("/v2/").toString(),
                 ),
             ).use { sdk ->
-                val response = sdk.files.search(FilesSearchQuery(keyword = "example", perPage = 20))
+                val response = sdk.files.search(
+                    FilesSearchQuery(
+                        keyword = "example",
+                        perPage = 20,
+                        type = listOf(PutioFileType.VIDEO, PutioFileType.AUDIO),
+                    ),
+                )
                 assertEquals(1, response.total)
                 assertEquals("Example", response.files.first().name)
             }
         }
 
-        assertEquals("/v2/files/search?query=example&per_page=20", server.takeRequest().target)
+        assertEquals("/v2/files/search?query=example&per_page=20&type=VIDEO%2CAUDIO", server.takeRequest().target)
     }
 
     @Test

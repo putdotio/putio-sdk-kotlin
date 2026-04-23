@@ -48,6 +48,50 @@ class FilesApiTest {
     }
 
     @Test
+    fun `list encodes optional typed filters`() = withServer { server ->
+        server.enqueue(
+            MockResponse.Builder().body(
+                """
+                {
+                  "status": "OK",
+                  "parent": null,
+                  "files": [],
+                  "cursor": null,
+                  "total": 0
+                }
+                """.trimIndent(),
+            ).build(),
+        )
+
+        runBlocking {
+            PutioClient(
+                PutioConfig(
+                    accessToken = "token",
+                    baseUrl = server.url("/v2/").toString(),
+                ),
+            ).use { sdk ->
+                sdk.files.list(
+                    parentId = 42,
+                    query = FilesListQuery(
+                        perPage = 25,
+                        total = true,
+                        hidden = true,
+                        noCursor = true,
+                        contentType = "video",
+                        fileType = PutioFileType.VIDEO,
+                    ),
+                )
+            }
+        }
+
+        val request = server.takeRequest()
+        assertEquals(
+            "/v2/files/list?parent_id=42&mp4_status_parent=1&stream_url_parent=1&mp4_stream_url_parent=1&video_metadata_parent=1&per_page=25&total=1&hidden=1&no_cursor=1&content_type=video&file_type=VIDEO",
+            request.target,
+        )
+    }
+
+    @Test
     fun `continueList posts cursor and keeps pagination typed`() = withServer { server ->
         server.enqueue(
             MockResponse.Builder().body(
@@ -320,6 +364,48 @@ class FilesApiTest {
     }
 
     @Test
+    fun `get can omit file detail flags`() = withServer { server ->
+        server.enqueue(
+            MockResponse.Builder().body(
+                """
+                {
+                  "status": "OK",
+                  "file": {
+                    "id": 9,
+                    "name": "Movie.mkv",
+                    "size": 123,
+                    "created_at": "2026-04-20T10:00:00Z",
+                    "file_type": "VIDEO"
+                  }
+                }
+                """.trimIndent(),
+            ).build(),
+        )
+
+        runBlocking {
+            PutioClient(
+                PutioConfig(
+                    accessToken = "token",
+                    baseUrl = server.url("/v2/").toString(),
+                ),
+            ).use { sdk ->
+                sdk.files.get(
+                    fileId = 9,
+                    query = FileDetailsQuery(
+                        mp4Size = false,
+                        startFrom = false,
+                        streamUrl = false,
+                        mp4StreamUrl = false,
+                    ),
+                )
+            }
+        }
+
+        val request = server.takeRequest()
+        assertEquals("/v2/files/9", request.target)
+    }
+
+    @Test
     fun `getStartFrom decodes numeric offset`() = withServer { server ->
         server.enqueue(
             MockResponse.Builder().body(
@@ -434,6 +520,10 @@ class FilesApiTest {
         assertEquals(
             "https://api.put.io/v2/files/10/download?oauth_token=abc",
             sdk.files.buildDownloadUrl(fileId = 10, accessToken = "abc"),
+        )
+        assertEquals(
+            "https://api.put.io/v2/files/10/hls/media.m3u8?oauth_token=abc&subtitle_key=all",
+            sdk.files.buildHlsStreamUrl(fileId = 10, accessToken = "abc"),
         )
     }
 
