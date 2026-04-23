@@ -8,6 +8,8 @@
 ./gradlew liveTest
 ```
 
+Install a Java `21` runtime with your preferred version manager or system package manager before running these commands. The checked-in `.java-version` is only a compatibility hint for tools that choose to honor it.
+
 ## Current Verification Shape
 
 - `./gradlew test` runs the repository test suite
@@ -32,7 +34,7 @@ Supported environment variables:
 - `PUTIO_1PASSWORD_RUNTIME_ITEM_ID`
 - `PUTIO_1PASSWORD_RUNTIME_VAULT`
 
-The live harness prefers direct env vars first, then falls back to a shared 1Password runtime item when `OP_SERVICE_ACCOUNT_TOKEN` and `PUTIO_1PASSWORD_RUNTIME_ITEM_ID` are set. The default shared vault is `frontend-ci`.
+The live harness prefers direct env vars first, then falls back to a shared 1Password runtime item when `OP_SERVICE_ACCOUNT_TOKEN`, `PUTIO_1PASSWORD_RUNTIME_ITEM_ID`, and `PUTIO_1PASSWORD_RUNTIME_VAULT` are all set.
 
 ## Live Scope
 

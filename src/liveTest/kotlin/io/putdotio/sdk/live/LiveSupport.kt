@@ -19,7 +19,13 @@ internal object LiveSupport {
             ?.trim()
             ?.takeIf { it.isNotEmpty() }
 
-    private fun runtimeItemVault(): String = env("PUTIO_1PASSWORD_RUNTIME_VAULT") ?: "frontend-ci"
+    private fun runtimeItemVault(): String {
+        val vault = env("PUTIO_1PASSWORD_RUNTIME_VAULT")
+        check(vault != null) {
+            "Missing PUTIO_1PASSWORD_RUNTIME_VAULT. Set it explicitly when reading runtime tokens from 1Password."
+        }
+        return vault
+    }
 
     private fun loadRuntimeItem(): JsonObject? {
         val runtimeItemId = env("PUTIO_1PASSWORD_RUNTIME_ITEM_ID") ?: return null

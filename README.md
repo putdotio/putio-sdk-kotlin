@@ -96,7 +96,7 @@ The repo exposes one canonical verification command:
 ./gradlew liveTest
 ```
 
-The repository targets JDK `21` and includes [.java-version](./.java-version) to make local toolchain selection less ambiguous.
+The repository targets JDK `21`. Install a Java `21` runtime with your preferred version manager or system package manager before running Gradle. The checked-in [.java-version](./.java-version) is only a compatibility hint for tools that choose to honor it.
 
 This currently runs compile and test guardrails for the bootstrap surface. Tests use `MockWebServer` to verify request shaping, auth handling, and response decoding.
 
