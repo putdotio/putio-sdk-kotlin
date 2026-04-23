@@ -66,6 +66,50 @@ class AccountApiTest {
         assertEquals("Token secret-token", request.headers["Authorization"])
     }
 
+    @Test
+    fun `getSettings decodes settings envelope`() = withServer { server ->
+        server.enqueue(
+            MockResponse.Builder().body(
+                """
+                {
+                  "status": "OK",
+                  "settings": {
+                    "sort_by": "NAME_ASC",
+                    "tunnel_route_name": "eu-west",
+                    "next_episode": true,
+                    "start_from": true,
+                    "history_enabled": true,
+                    "trash_enabled": true,
+                    "show_optimistic_usage": false,
+                    "two_factor_enabled": true,
+                    "hide_subtitles": true,
+                    "dont_autoselect_subtitles": false
+                  }
+                }
+                """.trimIndent(),
+            ).build(),
+        )
+
+        runBlocking {
+            PutioClient(
+                PutioConfig(
+                    accessToken = "secret-token",
+                    baseUrl = server.url("/v2/").toString(),
+                ),
+            ).use { sdk ->
+                val settings = sdk.account.getSettings()
+
+                assertEquals("NAME_ASC", settings.sortBy)
+                assertEquals("eu-west", settings.tunnelRouteName)
+                assertEquals(true, settings.twoFactorEnabled)
+                assertEquals(true, settings.hideSubtitles)
+            }
+        }
+
+        val request = server.takeRequest()
+        assertEquals("/v2/account/settings", request.target)
+    }
+
     private fun withServer(block: (MockWebServer) -> Unit) {
         MockWebServer().use { server ->
             server.start()

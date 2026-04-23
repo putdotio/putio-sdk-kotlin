@@ -189,6 +189,112 @@ class FilesApiTest {
     }
 
     @Test
+    fun `get sends file detail flags by default`() = withServer { server ->
+        server.enqueue(
+            MockResponse.Builder().body(
+                """
+                {
+                  "status": "OK",
+                  "file": {
+                    "id": 9,
+                    "name": "Movie.mkv",
+                    "size": 123,
+                    "created_at": "2026-04-20T10:00:00Z",
+                    "updated_at": "2026-04-20T10:00:00Z",
+                    "file_type": "VIDEO",
+                    "folder_type": "REGULAR"
+                  }
+                }
+                """.trimIndent(),
+            ).build(),
+        )
+
+        runBlocking {
+            PutioClient(
+                PutioConfig(
+                    accessToken = "token",
+                    baseUrl = server.url("/v2/").toString(),
+                ),
+            ).use { sdk ->
+                sdk.files.get(fileId = 9)
+            }
+        }
+
+        val request = server.takeRequest()
+        assertEquals("/v2/files/9?mp4_size=1&start_from=1&stream_url=1&mp4_stream_url=1", request.target)
+    }
+
+    @Test
+    fun `getStartFrom decodes numeric offset`() = withServer { server ->
+        server.enqueue(
+            MockResponse.Builder().body(
+                """
+                {
+                  "status": "OK",
+                  "start_from": 93.5
+                }
+                """.trimIndent(),
+            ).build(),
+        )
+
+        runBlocking {
+            PutioClient(
+                PutioConfig(
+                    accessToken = "token",
+                    baseUrl = server.url("/v2/").toString(),
+                ),
+            ).use { sdk ->
+                val startFrom = sdk.files.getStartFrom(fileId = 11)
+                assertEquals(93.5, startFrom)
+            }
+        }
+
+        val request = server.takeRequest()
+        assertEquals("/v2/files/11/start-from", request.target)
+    }
+
+    @Test
+    fun `listSubtitles sends languages filter and decodes payload`() = withServer { server ->
+        server.enqueue(
+            MockResponse.Builder().body(
+                """
+                {
+                  "status": "OK",
+                  "default": "en-key",
+                  "subtitles": [
+                    {
+                      "key": "en-key",
+                      "language": "English",
+                      "language_code": "en",
+                      "name": "English",
+                      "source": "opensubtitles",
+                      "url": "https://example.com/subtitles/en.vtt"
+                    }
+                  ]
+                }
+                """.trimIndent(),
+            ).build(),
+        )
+
+        runBlocking {
+            PutioClient(
+                PutioConfig(
+                    accessToken = "token",
+                    baseUrl = server.url("/v2/").toString(),
+                ),
+            ).use { sdk ->
+                val response = sdk.files.listSubtitles(fileId = 7, languages = listOf("en", "tr"))
+                assertEquals("en-key", response.defaultKey)
+                assertEquals(1, response.subtitles.size)
+                assertEquals("en", response.subtitles.first().languageCode)
+            }
+        }
+
+        val request = server.takeRequest()
+        assertEquals("/v2/files/7/subtitles?languages=en%2Ctr", request.target)
+    }
+
+    @Test
     fun `api failures become operation-aware sdk errors`() = withServer { server ->
         server.enqueue(
             MockResponse.Builder()

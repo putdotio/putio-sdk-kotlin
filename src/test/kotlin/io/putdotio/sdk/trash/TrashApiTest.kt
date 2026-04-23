@@ -111,6 +111,46 @@ class TrashApiTest {
         assertEquals(404, underlying.statusCode)
     }
 
+    @Test
+    fun `delete can use cursor input`() = withServer { server ->
+        server.enqueue(MockResponse.Builder().body("""{"status":"OK"}""").build())
+
+        runBlocking {
+            PutioClient(
+                PutioConfig(
+                    accessToken = "token",
+                    baseUrl = server.url("/v2/").toString(),
+                ),
+            ).use { sdk ->
+                sdk.trash.delete(TrashBulkInput(cursor = "cursor-123"))
+            }
+        }
+
+        val request = server.takeRequest()
+        assertEquals("/v2/trash/delete", request.target)
+        assertEquals("cursor=cursor-123", request.body!!.utf8())
+    }
+
+    @Test
+    fun `empty posts without requiring input`() = withServer { server ->
+        server.enqueue(MockResponse.Builder().body("""{"status":"OK"}""").build())
+
+        runBlocking {
+            PutioClient(
+                PutioConfig(
+                    accessToken = "token",
+                    baseUrl = server.url("/v2/").toString(),
+                ),
+            ).use { sdk ->
+                val result = sdk.trash.empty()
+                assertEquals("OK", result.status)
+            }
+        }
+
+        val request = server.takeRequest()
+        assertEquals("/v2/trash/empty", request.target)
+    }
+
     private fun withServer(block: (MockWebServer) -> Unit) {
         MockWebServer().use { server ->
             server.start()

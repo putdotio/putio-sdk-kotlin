@@ -100,4 +100,59 @@ class PutioErrorLocalizerTest {
         assertEquals("Missing access token", localized.failureReason)
         assertIs<PutioRecoverySuggestion.Instruction>(localized.recoverySuggestion)
     }
+
+    @Test
+    fun `localizer handles transport serialization captcha and rate limit cases`() {
+        val transport = PutioErrorLocalizer.localize(
+            PutioTransportException(
+                request = PutioRequestData(method = "GET", url = "https://api.put.io/v2/files/9"),
+                cause = IllegalStateException("offline"),
+            ),
+        )
+        assertEquals("The SDK could not reach put.io", transport.message)
+        assertEquals("GET", transport.meta["method"])
+
+        val serialization = PutioErrorLocalizer.localize(
+            PutioSerializationException(
+                request = PutioRequestData(method = "GET", url = "https://api.put.io/v2/files/9"),
+                responseBody = """{"status":"OK"}""",
+                cause = IllegalArgumentException("bad json"),
+            ),
+        )
+        assertEquals("put.io returned data the SDK could not parse", serialization.message)
+        assertEquals("https://api.put.io/v2/files/9", serialization.meta["url"])
+
+        val captcha = PutioErrorLocalizer.localize(
+            PutioApiException(
+                request = PutioRequestData(method = "POST", url = "https://api.put.io/v2/auth/login"),
+                resolvedStatusCode = 400,
+                resolvedErrorType = "CAPTCHA_REQUIRED",
+                envelope = PutioApiErrorEnvelope(
+                    message = "captcha required",
+                    statusCode = 400,
+                    errorType = "CAPTCHA_REQUIRED",
+                ),
+                responseBody = """{"error_type":"CAPTCHA_REQUIRED"}""",
+                message = "captcha required",
+            ),
+        )
+        assertEquals("put.io needs an additional verification step", captcha.message)
+        assertIs<PutioRecoverySuggestion.Captcha>(captcha.recoverySuggestion)
+
+        val rateLimited = PutioErrorLocalizer.localize(
+            PutioApiException(
+                request = PutioRequestData(method = "GET", url = "https://api.put.io/v2/files/list"),
+                resolvedStatusCode = 429,
+                resolvedErrorType = null,
+                envelope = PutioApiErrorEnvelope(
+                    message = "slow down",
+                    statusCode = 429,
+                ),
+                responseBody = """{"status_code":429}""",
+                message = "slow down",
+            ),
+        )
+        assertEquals("put.io is rate-limiting this request", rateLimited.message)
+        assertIs<PutioRecoverySuggestion.Instruction>(rateLimited.recoverySuggestion)
+    }
 }

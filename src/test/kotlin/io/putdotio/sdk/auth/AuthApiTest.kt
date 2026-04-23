@@ -3,6 +3,7 @@ package io.putdotio.sdk.auth
 import io.putdotio.sdk.PutioClient
 import io.putdotio.sdk.PutioConfig
 import io.putdotio.sdk.errors.PutioApiException
+import io.putdotio.sdk.errors.PutioConfigurationException
 import io.putdotio.sdk.errors.PutioOperationException
 import kotlinx.coroutines.runBlocking
 import kotlin.test.Test
@@ -68,6 +69,39 @@ class AuthApiTest {
     }
 
     @Test
+    fun `getCode sends public auth query without authorization`() = withServer { server ->
+        server.enqueue(
+            MockResponse.Builder().body(
+                """
+                {
+                  "status": "OK",
+                  "code": "ABCD",
+                  "qr_code_url": "https://example.com/qr.png"
+                }
+                """.trimIndent(),
+            ).build(),
+        )
+
+        runBlocking {
+            PutioClient(
+                PutioConfig(
+                    clientId = "android-app",
+                    clientName = "put.io TV",
+                    baseUrl = server.url("/v2/").toString(),
+                ),
+            ).use { sdk ->
+                val result = sdk.auth.getCode()
+                assertEquals("ABCD", result.code)
+                assertEquals("https://example.com/qr.png", result.qrCodeUrl)
+            }
+        }
+
+        val request = server.takeRequest()
+        assertEquals("/v2/oauth2/oob/code?app_id=android-app&client_name=put.io%20TV", request.target)
+        assertEquals(null, request.headers["Authorization"])
+    }
+
+    @Test
     fun `checkCodeMatch returns null when oauth token is absent`() = withServer { server ->
         server.enqueue(
             MockResponse.Builder().body(
@@ -125,6 +159,20 @@ class AuthApiTest {
         assertEquals("checkCodeMatch", error.operation)
         val underlying = assertIs<PutioApiException>(error.underlyingError)
         assertEquals(404, underlying.statusCode)
+    }
+
+    @Test
+    fun `buildLoginUrl requires clientId`() {
+        val sdk = PutioClient(PutioConfig())
+
+        val error = assertFailsWith<PutioConfigurationException> {
+            sdk.auth.buildLoginUrl(
+                redirectUri = "putio://auth/callback",
+                state = "android-state",
+            )
+        }
+
+        assertEquals("PutioConfig.clientId is required to build the auth URL", error.message)
     }
 
     private fun withServer(block: (MockWebServer) -> Unit) {
