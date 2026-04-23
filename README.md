@@ -33,6 +33,7 @@ The design goal is to stay closer to the TypeScript SDK than the legacy Swift SD
 
 The current expansion is shaped around the real mobile and TV app surfaces in `apps/ios` and `apps/web/apps/tv-native`, especially:
 
+- auth login, device/OOB, token validation, and two-factor flows
 - account settings updates for playback and trash/history preferences
 - file listing/search, cursor continuation, subtitles, and playback resume helpers
 - history event listing and deletion flows

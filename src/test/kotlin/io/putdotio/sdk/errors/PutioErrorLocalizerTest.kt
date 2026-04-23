@@ -144,6 +144,54 @@ class PutioErrorLocalizerTest {
     }
 
     @Test
+    fun `localizer covers two-factor auth guidance`() {
+        val alreadyExists = PutioErrorLocalizer.localize(
+            operationError(
+                domain = "auth",
+                operation = "generateTotp",
+                statusCode = 403,
+                errorType = "already_exists",
+                message = "already configured",
+            ),
+        )
+        assertEquals("Two-factor setup already exists", alreadyExists.message)
+
+        val invalidCode = PutioErrorLocalizer.localize(
+            operationError(
+                domain = "auth",
+                operation = "verifyTotp",
+                statusCode = 400,
+                errorType = "code_not_found",
+                message = "invalid totp code",
+            ),
+        )
+        assertEquals("The two-factor code is invalid", invalidCode.message)
+        assertEquals("verifyTotp", invalidCode.meta["operation"])
+
+        val invalidSetup = PutioErrorLocalizer.localize(
+            operationError(
+                domain = "auth",
+                operation = "getRecoveryCodes",
+                statusCode = 400,
+                errorType = "invalid_setup",
+                message = "two-factor is not enabled",
+            ),
+        )
+        assertEquals("Two-factor authentication is not enabled", invalidSetup.message)
+
+        val invalidScope = PutioErrorLocalizer.localize(
+            operationError(
+                domain = "auth",
+                operation = "regenerateRecoveryCodes",
+                statusCode = 401,
+                errorType = "invalid_scope",
+                message = "invalid scope",
+            ),
+        )
+        assertEquals("The token cannot access this two-factor flow", invalidScope.message)
+    }
+
+    @Test
     fun `localizer covers folder creation guidance for common validation failures`() {
         val cases = listOf(
             Triple("EMPTY_NAME", "Folder name is required", "empty folder name"),

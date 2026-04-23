@@ -30,3 +30,48 @@ data class ValidateTokenResult(
     @SerialName("user_id") val userId: Long? = null,
 )
 
+@Serializable
+data class TwoFactorRecoveryCode(
+    val code: String,
+    @SerialName("used_at") val usedAt: String? = null,
+)
+
+@Serializable
+data class TwoFactorRecoveryCodes(
+    val codes: List<TwoFactorRecoveryCode> = emptyList(),
+    @SerialName("created_at") val createdAt: String,
+)
+
+@Serializable
+internal data class GenerateTotpEnvelope(
+    @SerialName("recovery_codes") val recoveryCodes: TwoFactorRecoveryCodes,
+    val secret: String,
+    val status: String,
+    val uri: String,
+)
+
+@Serializable
+data class GenerateTotpResult(
+    val recoveryCodes: TwoFactorRecoveryCodes,
+    val secret: String,
+    val uri: String,
+)
+
+@Serializable
+internal data class VerifyTotpEnvelope(
+    val status: String,
+    val token: String,
+    @SerialName("user_id") val userId: Long,
+)
+
+@Serializable
+data class VerifyTotpResult(
+    val token: String,
+    val userId: Long,
+)
+
+@Serializable
+internal data class RecoveryCodesEnvelope(
+    @SerialName("recovery_codes") val recoveryCodes: TwoFactorRecoveryCodes,
+    val status: String,
+)

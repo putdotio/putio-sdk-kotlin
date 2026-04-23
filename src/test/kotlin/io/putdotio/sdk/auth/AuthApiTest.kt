@@ -69,6 +69,119 @@ class AuthApiTest {
     }
 
     @Test
+    fun `generateTotp and recovery code flows decode typed envelopes`() = withServer { server ->
+        server.enqueue(
+            MockResponse.Builder().body(
+                """
+                {
+                  "status": "OK",
+                  "secret": "secret-123",
+                  "uri": "otpauth://totp/putio",
+                  "recovery_codes": {
+                    "created_at": "2026-04-23T10:00:00Z",
+                    "codes": [
+                      {"code": "rc-1", "used_at": null},
+                      {"code": "rc-2", "used_at": "2026-04-23T11:00:00Z"}
+                    ]
+                  }
+                }
+                """.trimIndent(),
+            ).build(),
+        )
+        server.enqueue(
+            MockResponse.Builder().body(
+                """
+                {
+                  "status": "OK",
+                  "recovery_codes": {
+                    "created_at": "2026-04-23T12:00:00Z",
+                    "codes": [{"code": "rc-3", "used_at": null}]
+                  }
+                }
+                """.trimIndent(),
+            ).build(),
+        )
+        server.enqueue(
+            MockResponse.Builder().body(
+                """
+                {
+                  "status": "OK",
+                  "recovery_codes": {
+                    "created_at": "2026-04-23T13:00:00Z",
+                    "codes": [{"code": "rc-4", "used_at": null}]
+                  }
+                }
+                """.trimIndent(),
+            ).build(),
+        )
+
+        runBlocking {
+            PutioClient(
+                PutioConfig(
+                    accessToken = "token",
+                    baseUrl = server.url("/v2/").toString(),
+                ),
+            ).use { sdk ->
+                val generated = sdk.auth.generateTotp()
+                val recoveryCodes = sdk.auth.getRecoveryCodes()
+                val refreshed = sdk.auth.regenerateRecoveryCodes()
+
+                assertEquals("secret-123", generated.secret)
+                assertEquals("otpauth://totp/putio", generated.uri)
+                assertEquals("rc-1", generated.recoveryCodes.codes.first().code)
+                assertEquals("2026-04-23T11:00:00Z", generated.recoveryCodes.codes[1].usedAt)
+                assertEquals("rc-3", recoveryCodes.codes.first().code)
+                assertEquals("rc-4", refreshed.codes.first().code)
+            }
+        }
+
+        val generateRequest = server.takeRequest()
+        val listRequest = server.takeRequest()
+        val refreshRequest = server.takeRequest()
+        assertEquals("/v2/two_factor/generate/totp", generateRequest.target)
+        assertEquals("/v2/two_factor/recovery_codes", listRequest.target)
+        assertEquals("/v2/two_factor/recovery_codes/refresh", refreshRequest.target)
+        assertEquals("Token token", generateRequest.headers["Authorization"])
+        assertEquals("Token token", listRequest.headers["Authorization"])
+        assertEquals("Token token", refreshRequest.headers["Authorization"])
+    }
+
+    @Test
+    fun `verifyTotp sends scoped token query and code form without configured auth`() = withServer { server ->
+        server.enqueue(
+            MockResponse.Builder().body(
+                """
+                {
+                  "status": "OK",
+                  "token": "verified-token",
+                  "user_id": 42
+                }
+                """.trimIndent(),
+            ).build(),
+        )
+
+        runBlocking {
+            PutioClient(
+                PutioConfig(
+                    baseUrl = server.url("/v2/").toString(),
+                ),
+            ).use { sdk ->
+                val result = sdk.auth.verifyTotp(
+                    twoFactorScopedToken = "two-factor-token",
+                    code = "123456",
+                )
+                assertEquals("verified-token", result.token)
+                assertEquals(42L, result.userId)
+            }
+        }
+
+        val request = server.takeRequest()
+        assertEquals("/v2/two_factor/verify/totp?oauth_token=two-factor-token", request.target)
+        assertEquals("code=123456", request.body!!.utf8())
+        assertEquals(null, request.headers["Authorization"])
+    }
+
+    @Test
     fun `getCode sends public auth query without authorization`() = withServer { server ->
         server.enqueue(
             MockResponse.Builder().body(
@@ -159,6 +272,46 @@ class AuthApiTest {
         assertEquals("checkCodeMatch", error.operation)
         val underlying = assertIs<PutioApiException>(error.underlyingError)
         assertEquals(404, underlying.statusCode)
+    }
+
+    @Test
+    fun `verifyTotp wraps invalid code errors with auth operation context`() = withServer { server ->
+        server.enqueue(
+            MockResponse.Builder()
+                .code(400)
+                .body(
+                    """
+                    {
+                      "status": "ERROR",
+                      "status_code": 400,
+                      "error_type": "code_not_found",
+                      "message": "Invalid TOTP code."
+                    }
+                    """.trimIndent(),
+                )
+                .build(),
+        )
+
+        val error = assertFailsWith<PutioOperationException> {
+            runBlocking {
+                PutioClient(
+                    PutioConfig(
+                        baseUrl = server.url("/v2/").toString(),
+                    ),
+                ).use { sdk ->
+                    sdk.auth.verifyTotp(
+                        twoFactorScopedToken = "two-factor-token",
+                        code = "000000",
+                    )
+                }
+            }
+        }
+
+        assertEquals("auth", error.domain)
+        assertEquals("verifyTotp", error.operation)
+        val underlying = assertIs<PutioApiException>(error.underlyingError)
+        assertEquals(400, underlying.statusCode)
+        assertEquals("code_not_found", underlying.errorType)
     }
 
     @Test

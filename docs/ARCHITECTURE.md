@@ -54,6 +54,10 @@ graph LR
   - `getCode`
   - `checkCodeMatch`
   - `validateToken`
+  - `generateTotp`
+  - `verifyTotp`
+  - `getRecoveryCodes`
+  - `regenerateRecoveryCodes`
 - `files`
   - `list`
   - `continueList`

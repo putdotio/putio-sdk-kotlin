@@ -193,6 +193,48 @@ object PutioErrorLocalizer {
                     ),
                     underlyingError = error,
                 )
+            error.matches(domain = "auth", operation = "generateTotp", errorType = "already_exists") ->
+                PutioLocalizedError(
+                    message = "Two-factor setup already exists",
+                    failureReason = apiMessage(error),
+                    recoverySuggestion = PutioRecoverySuggestion.Instruction(
+                        "Use the existing two-factor setup or disable it before starting setup again.",
+                    ),
+                    underlyingError = error,
+                )
+            error.matches(domain = "auth", operation = "verifyTotp", errorType = "invalid_code") ||
+                error.matches(domain = "auth", operation = "verifyTotp", errorType = "code_not_found") ->
+                PutioLocalizedError(
+                    message = "The two-factor code is invalid",
+                    failureReason = apiMessage(error),
+                    recoverySuggestion = PutioRecoverySuggestion.Instruction(
+                        "Ask for a current TOTP code or unused recovery code, then retry verification.",
+                    ),
+                    underlyingError = error,
+                )
+            error.matches(domain = "auth", operation = "verifyTotp", errorType = "invalid_setup") ||
+                error.matches(domain = "auth", operation = "getRecoveryCodes", errorType = "invalid_setup") ||
+                error.matches(domain = "auth", operation = "regenerateRecoveryCodes", errorType = "invalid_setup") ->
+                PutioLocalizedError(
+                    message = "Two-factor authentication is not enabled",
+                    failureReason = apiMessage(error),
+                    recoverySuggestion = PutioRecoverySuggestion.Instruction(
+                        "Confirm that the account has two-factor authentication enabled before retrying.",
+                    ),
+                    underlyingError = error,
+                )
+            error.matches(domain = "auth", operation = "generateTotp", errorType = "invalid_scope") ||
+                error.matches(domain = "auth", operation = "verifyTotp", errorType = "invalid_scope") ||
+                error.matches(domain = "auth", operation = "getRecoveryCodes", errorType = "invalid_scope") ||
+                error.matches(domain = "auth", operation = "regenerateRecoveryCodes", errorType = "invalid_scope") ->
+                PutioLocalizedError(
+                    message = "The token cannot access this two-factor flow",
+                    failureReason = apiMessage(error),
+                    recoverySuggestion = PutioRecoverySuggestion.Instruction(
+                        "Use a token with the required two-factor or restricted scope, then retry.",
+                    ),
+                    underlyingError = error,
+                )
             error.matches(domain = "files", operation = "get", statusCode = 404) ->
                 PutioLocalizedError(
                     message = "The requested file could not be found",
