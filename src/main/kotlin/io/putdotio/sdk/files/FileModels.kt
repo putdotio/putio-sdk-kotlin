@@ -202,6 +202,7 @@ internal fun FileDetailsQuery.toQueryMap(): Map<String, String> =
 
 @Serializable
 data class FileSubtitle(
+    val format: String? = null,
     val key: String,
     val language: String,
     @SerialName("language_code") val languageCode: String,

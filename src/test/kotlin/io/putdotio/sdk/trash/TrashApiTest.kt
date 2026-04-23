@@ -21,6 +21,7 @@ class TrashApiTest {
                 {
                   "status": "OK",
                   "cursor": "next-page",
+                  "total": 1,
                   "trash_size": 123,
                   "files": [
                     {
@@ -48,6 +49,7 @@ class TrashApiTest {
             ).use { sdk ->
                 val response = sdk.trash.list()
                 assertEquals("next-page", response.cursor)
+                assertEquals(1, response.total)
                 assertEquals(123L, response.trashSize)
                 assertEquals(1, response.files.size)
             }

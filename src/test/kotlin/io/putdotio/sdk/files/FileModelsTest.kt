@@ -56,6 +56,7 @@ class FileModelsTest {
             """
             {
               "key": "en-key",
+              "format": "vtt",
               "language": "English",
               "language_code": "en",
               "name": "English",
@@ -71,6 +72,7 @@ class FileModelsTest {
 
         assertEquals(9L, breadcrumb.id)
         assertEquals("Movies", breadcrumb.name)
+        assertEquals("vtt", subtitle.format)
         assertEquals("en", subtitle.languageCode)
         assertEquals("https://example.com/subtitles/en.vtt", subtitle.url)
         assertEquals(15.25, startFrom.startFrom)

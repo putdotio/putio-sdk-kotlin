@@ -18,6 +18,7 @@ class TrashModelsTest {
             {
               "status": "OK",
               "cursor": "next-page",
+              "total": 1,
               "trash_size": 123,
               "files": [
                 {
@@ -46,6 +47,7 @@ class TrashModelsTest {
 
         val file = response.files.first()
         assertEquals("next-page", response.cursor)
+        assertEquals(1, response.total)
         assertEquals(123L, response.trashSize)
         assertEquals(2L, file.parentId)
         assertEquals("BOOK", file.fileType.raw)
@@ -93,6 +95,7 @@ class TrashModelsTest {
 
         val file = response.files.first()
         assertEquals(null, response.cursor)
+        assertEquals(null, response.total)
         assertEquals(0L, response.trashSize)
         assertEquals(null, file.icon)
         assertEquals(null, file.parentId)

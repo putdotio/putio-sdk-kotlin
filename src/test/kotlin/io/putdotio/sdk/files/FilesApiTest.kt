@@ -445,6 +445,7 @@ class FilesApiTest {
                   "subtitles": [
                     {
                       "key": "en-key",
+                      "format": "vtt",
                       "language": "English",
                       "language_code": "en",
                       "name": "English",
@@ -467,6 +468,7 @@ class FilesApiTest {
                 val response = sdk.files.listSubtitles(fileId = 7, languages = listOf("en", "tr"))
                 assertEquals("en-key", response.defaultKey)
                 assertEquals(1, response.subtitles.size)
+                assertEquals("vtt", response.subtitles.first().format)
                 assertEquals("en", response.subtitles.first().languageCode)
             }
         }

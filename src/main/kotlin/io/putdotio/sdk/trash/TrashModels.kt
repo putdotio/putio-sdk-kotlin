@@ -25,6 +25,7 @@ data class TrashFile(
 data class TrashListResponse(
     val cursor: String? = null,
     val files: List<TrashFile> = emptyList(),
+    val total: Int? = null,
     @SerialName("trash_size") val trashSize: Long = 0,
     val status: String,
 )
