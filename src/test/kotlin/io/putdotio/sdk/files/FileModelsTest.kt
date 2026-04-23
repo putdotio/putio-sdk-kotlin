@@ -1,9 +1,11 @@
 package io.putdotio.sdk.files
 
+import kotlinx.serialization.SerializationException
 import kotlinx.serialization.decodeFromString
 import kotlinx.serialization.json.Json
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFailsWith
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
@@ -87,14 +89,14 @@ class FileModelsTest {
     }
 
     @Test
-    fun `list and subtitle envelopes keep optional fields nullable by default`() {
+    fun `list search and subtitle envelopes keep optional fields nullable by default`() {
         val list = json.decodeFromString(
             FilesListResponse.serializer(),
             """{"status":"OK"}""",
         )
         val search = json.decodeFromString(
             FileSearchResponse.serializer(),
-            """{"status":"OK"}""",
+            """{"status":"OK","total":0}""",
         )
         val subtitles = json.decodeFromString(
             FileSubtitlesResponse.serializer(),
@@ -115,5 +117,15 @@ class FileModelsTest {
         assertTrue(subtitles.subtitles.isEmpty())
         assertEquals(null, metadata.height)
         assertEquals(null, metadata.aspectRatio)
+    }
+
+    @Test
+    fun `search envelopes require backend total instead of defaulting it`() {
+        assertFailsWith<SerializationException> {
+            json.decodeFromString(
+                FileSearchResponse.serializer(),
+                """{"status":"OK","files":[],"cursor":null}""",
+            )
+        }
     }
 }

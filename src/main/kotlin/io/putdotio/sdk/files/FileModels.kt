@@ -135,7 +135,7 @@ data class FilesListResponse(
 data class FileSearchResponse(
     val cursor: String? = null,
     val files: List<PutioFile> = emptyList(),
-    val total: Int = 0,
+    val total: Int,
     val status: String,
 )
 
