@@ -16,7 +16,7 @@ This document tracks how ready `putio-sdk-kotlin` is for autonomous agent work a
 | --- | --- | --- |
 | Package boot | `good` | `./gradlew verify` is stable locally and in CI once Java `21` is available |
 | Unit verification | `good` | request shaping, parsing, unknown-value preservation, typed API errors, and localized recovery guidance have deterministic coverage across current domains with a `90%` line floor |
-| Live verification | `medium` | account, auth, files/trash, history, and safe transfer read paths are live-covered; more namespace depth is still needed as the public surface grows |
+| Live verification | `medium` | account, auth, files/trash, playback-adjacent file helpers, history, and safe transfer read paths are live-covered; more namespace depth is still needed as the public surface grows |
 | Release readiness | `medium` | local Maven publishing exists, but external package publishing is still intentionally deferred |
 
 ## Highest-Value Next Gaps

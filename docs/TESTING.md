@@ -49,6 +49,7 @@ Current live targets cover:
 - token validation and OOB auth-code fetch
 - account info and reversible account settings mutation
 - disposable file create, search, trash restore, and cleanup flows
+- playback-adjacent subtitles decode and reversible start-from roundtrips for owned video fixtures
 - history listing decode against the real API
 - transfer list/count/info decode and typed pagination errors
 
