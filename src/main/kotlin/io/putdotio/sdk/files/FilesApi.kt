@@ -2,6 +2,9 @@ package io.putdotio.sdk.files
 
 import io.putdotio.sdk.OkResponse
 import io.putdotio.sdk.core.PutioTransport
+import io.putdotio.sdk.errors.PutioKnownErrorContract
+import io.putdotio.sdk.errors.PutioOperationErrorSpec
+import io.putdotio.sdk.errors.putioOperation
 
 class FilesApi internal constructor(
     private val transport: PutioTransport,
@@ -10,102 +13,122 @@ class FilesApi internal constructor(
         parentId: Long,
         query: FilesListQuery = FilesListQuery(),
     ): FilesListResponse =
-        transport.get(
-            path = "/files/list",
-            serializer = FilesListResponse.serializer(),
-            query = query.toQueryMap(parentId),
-        )
+        putioOperation(LIST_FILES_ERROR_SPEC) {
+            transport.get(
+                path = "/files/list",
+                serializer = FilesListResponse.serializer(),
+                query = query.toQueryMap(parentId),
+            )
+        }
 
     suspend fun get(
         fileId: Long,
         query: FileDetailsQuery = FileDetailsQuery(),
     ): PutioFile =
-        transport.get(
-            path = "/files/$fileId",
-            serializer = FileEnvelope.serializer(),
-            query = query.toQueryMap(),
-        ).file
+        putioOperation(GET_FILE_ERROR_SPEC) {
+            transport.get(
+                path = "/files/$fileId",
+                serializer = FileEnvelope.serializer(),
+                query = query.toQueryMap(),
+            ).file
+        }
 
     suspend fun search(query: FilesSearchQuery): FileSearchResponse =
-        transport.get(
-            path = "/files/search",
-            serializer = FileSearchResponse.serializer(),
-            query = query.toQueryMap(),
-        )
+        putioOperation(SEARCH_FILES_ERROR_SPEC) {
+            transport.get(
+                path = "/files/search",
+                serializer = FileSearchResponse.serializer(),
+                query = query.toQueryMap(),
+            )
+        }
 
     suspend fun createFolder(
         name: String,
         parentId: Long,
     ): PutioFile =
-        transport.post(
-            path = "/files/create-folder",
-            serializer = FileEnvelope.serializer(),
-            form = mapOf(
-                "name" to name,
-                "parent_id" to parentId.toString(),
-            ),
-        ).file
+        putioOperation(CREATE_FOLDER_ERROR_SPEC) {
+            transport.post(
+                path = "/files/create-folder",
+                serializer = FileEnvelope.serializer(),
+                form = mapOf(
+                    "name" to name,
+                    "parent_id" to parentId.toString(),
+                ),
+            ).file
+        }
 
     suspend fun delete(
         fileIds: List<Long>,
         skipNonexistents: Boolean = true,
         skipOwnerCheck: Boolean = false,
     ): FileDeleteResult =
-        transport.post(
-            path = "/files/delete",
-            serializer = FileDeleteResult.serializer(),
-            query = mapOf(
-                "skip_nonexistents" to skipNonexistents.toString(),
-                "skip_owner_check" to skipOwnerCheck.toString(),
-            ),
-            form = mapOf("file_ids" to fileIds.joinToString(",")),
-        )
+        putioOperation(DELETE_FILES_ERROR_SPEC) {
+            transport.post(
+                path = "/files/delete",
+                serializer = FileDeleteResult.serializer(),
+                query = mapOf(
+                    "skip_nonexistents" to skipNonexistents.toString(),
+                    "skip_owner_check" to skipOwnerCheck.toString(),
+                ),
+                form = mapOf("file_ids" to fileIds.joinToString(",")),
+            )
+        }
 
     suspend fun move(
         fileIds: List<Long>,
         parentId: Long,
     ): List<FileMoveError> =
-        transport.post(
-            path = "/files/move",
-            serializer = FileMoveEnvelope.serializer(),
-            form = mapOf(
-                "file_ids" to fileIds.joinToString(","),
-                "parent_id" to parentId.toString(),
-            ),
-        ).errors
+        putioOperation(MOVE_FILES_ERROR_SPEC) {
+            transport.post(
+                path = "/files/move",
+                serializer = FileMoveEnvelope.serializer(),
+                form = mapOf(
+                    "file_ids" to fileIds.joinToString(","),
+                    "parent_id" to parentId.toString(),
+                ),
+            ).errors
+        }
 
     suspend fun getStartFrom(fileId: Long): Double =
-        transport.get(
-            path = "/files/$fileId/start-from",
-            serializer = FileStartFromResponse.serializer(),
-        ).startFrom
+        putioOperation(START_FROM_ERROR_SPEC) {
+            transport.get(
+                path = "/files/$fileId/start-from",
+                serializer = FileStartFromResponse.serializer(),
+            ).startFrom
+        }
 
     suspend fun setStartFrom(
         fileId: Long,
         time: Double,
     ): OkResponse =
-        transport.post(
-            path = "/files/$fileId/start-from/set",
-            serializer = OkResponse.serializer(),
-            form = mapOf("time" to time.toString()),
-        )
+        putioOperation(START_FROM_ERROR_SPEC) {
+            transport.post(
+                path = "/files/$fileId/start-from/set",
+                serializer = OkResponse.serializer(),
+                form = mapOf("time" to time.toString()),
+            )
+        }
 
     suspend fun resetStartFrom(fileId: Long): OkResponse =
-        transport.get(
-            path = "/files/$fileId/start-from/delete",
-            serializer = OkResponse.serializer(),
-        )
+        putioOperation(START_FROM_ERROR_SPEC) {
+            transport.get(
+                path = "/files/$fileId/start-from/delete",
+                serializer = OkResponse.serializer(),
+            )
+        }
 
     suspend fun listSubtitles(
         fileId: Long,
         languages: List<String> = emptyList(),
     ): FileSubtitlesResponse =
-        transport.get(
-            path = "/files/$fileId/subtitles",
-            serializer = FileSubtitlesResponse.serializer(),
-            query = languages.takeIf { it.isNotEmpty() }?.let { mapOf("languages" to it.joinToString(",")) }
-                ?: emptyMap(),
-        )
+        putioOperation(LIST_SUBTITLES_ERROR_SPEC) {
+            transport.get(
+                path = "/files/$fileId/subtitles",
+                serializer = FileSubtitlesResponse.serializer(),
+                query = languages.takeIf { it.isNotEmpty() }?.let { mapOf("languages" to it.joinToString(",")) }
+                    ?: emptyMap(),
+            )
+        }
 
     fun buildDownloadUrl(
         fileId: Long,
@@ -126,3 +149,73 @@ class FilesApi internal constructor(
         ),
     )
 }
+
+private val LIST_FILES_ERROR_SPEC =
+    PutioOperationErrorSpec(
+        domain = "files",
+        operation = "list",
+    )
+
+private val GET_FILE_ERROR_SPEC =
+    PutioOperationErrorSpec(
+        domain = "files",
+        operation = "get",
+        knownErrors = listOf(PutioKnownErrorContract(statusCode = 404)),
+    )
+
+private val SEARCH_FILES_ERROR_SPEC =
+    PutioOperationErrorSpec(
+        domain = "files",
+        operation = "search",
+        knownErrors = listOf(
+            PutioKnownErrorContract(errorType = "SEARCH_TOO_LONG_QUERY", statusCode = 400),
+            PutioKnownErrorContract(statusCode = 400),
+        ),
+    )
+
+private val CREATE_FOLDER_ERROR_SPEC =
+    PutioOperationErrorSpec(
+        domain = "files",
+        operation = "createFolder",
+        knownErrors = listOf(
+            PutioKnownErrorContract(errorType = "EMPTY_NAME", statusCode = 400),
+            PutioKnownErrorContract(errorType = "SLASH_IN_NAME", statusCode = 400),
+            PutioKnownErrorContract(errorType = "NAME_TOO_LONG", statusCode = 400),
+            PutioKnownErrorContract(errorType = "NAME_ALREADY_EXIST", statusCode = 400),
+            PutioKnownErrorContract(statusCode = 403),
+            PutioKnownErrorContract(statusCode = 404),
+        ),
+    )
+
+private val DELETE_FILES_ERROR_SPEC =
+    PutioOperationErrorSpec(
+        domain = "files",
+        operation = "delete",
+    )
+
+private val MOVE_FILES_ERROR_SPEC =
+    PutioOperationErrorSpec(
+        domain = "files",
+        operation = "move",
+    )
+
+private val START_FROM_ERROR_SPEC =
+    PutioOperationErrorSpec(
+        domain = "files",
+        operation = "startFrom",
+        knownErrors = listOf(
+            PutioKnownErrorContract(errorType = "FEATURE_DISABLED", statusCode = 400),
+            PutioKnownErrorContract(errorType = "INVALID_MEDIA", statusCode = 400),
+            PutioKnownErrorContract(statusCode = 404),
+        ),
+    )
+
+private val LIST_SUBTITLES_ERROR_SPEC =
+    PutioOperationErrorSpec(
+        domain = "files",
+        operation = "listSubtitles",
+        knownErrors = listOf(
+            PutioKnownErrorContract(statusCode = 404),
+            PutioKnownErrorContract(statusCode = 402),
+        ),
+    )

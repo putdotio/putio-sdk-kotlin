@@ -1,10 +1,14 @@
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 import org.gradle.api.tasks.testing.Test
+import org.gradle.testing.jacoco.tasks.JacocoCoverageVerification
+import org.gradle.testing.jacoco.tasks.JacocoReport
+import java.math.BigDecimal
 
 plugins {
     kotlin("jvm") version "2.3.20"
     kotlin("plugin.serialization") version "2.3.20"
     `maven-publish`
+    jacoco
 }
 
 group = "io.putdotio"
@@ -12,6 +16,10 @@ version = "0.1.0-SNAPSHOT"
 
 repositories {
     mavenCentral()
+}
+
+jacoco {
+    toolVersion = "0.8.13"
 }
 
 kotlin {
@@ -51,6 +59,28 @@ dependencies {
 
 tasks.test {
     useJUnitPlatform()
+    finalizedBy(tasks.named("jacocoTestReport"))
+}
+
+tasks.named<JacocoReport>("jacocoTestReport") {
+    dependsOn(tasks.test)
+
+    reports {
+        xml.required.set(true)
+        html.required.set(true)
+    }
+}
+
+tasks.named<JacocoCoverageVerification>("jacocoTestCoverageVerification") {
+    dependsOn(tasks.test)
+
+    violationRules {
+        rule {
+            limit {
+                minimum = BigDecimal("0.40")
+            }
+        }
+    }
 }
 
 val liveTest by tasks.registering(Test::class) {
@@ -65,7 +95,7 @@ val liveTest by tasks.registering(Test::class) {
 tasks.register("verify") {
     group = "verification"
     description = "Run the canonical local verification checks"
-    dependsOn("check", "jar")
+    dependsOn("check", "jar", "jacocoTestCoverageVerification")
 }
 
 publishing {

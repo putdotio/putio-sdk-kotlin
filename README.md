@@ -29,7 +29,7 @@ This repository is in its first bootstrap phase. The initial public surface is i
 - `history`
 - `trash`
 
-The design goal is to stay closer to the TypeScript SDK than the legacy Swift SDK: coroutine-first APIs, typed errors, explicit boundary parsing, and forward-compatible value types at the API edge.
+The design goal is to stay closer to the TypeScript SDK than the legacy Swift SDK: coroutine-first APIs, typed errors, explicit boundary parsing, forward-compatible value types at the API edge, and a user-facing error localization layer for recovery guidance.
 
 The current expansion is shaped around the real mobile and TV app surfaces in `apps/ios` and `apps/web/apps/tv-native`, especially:
 
@@ -106,6 +106,7 @@ An opt-in live suite is also available through `./gradlew liveTest`. It follows 
 
 - [Architecture](./docs/ARCHITECTURE.md)
 - [Testing](./docs/TESTING.md)
+- [Readiness](./docs/READINESS.md)
 - [Release notes](./docs/RELEASE.md)
 - [Agent guide](./AGENTS.md)
 

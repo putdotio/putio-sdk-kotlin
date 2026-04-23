@@ -3,11 +3,13 @@ package io.putdotio.sdk.files
 import io.putdotio.sdk.PutioClient
 import io.putdotio.sdk.PutioConfig
 import io.putdotio.sdk.errors.PutioApiException
+import io.putdotio.sdk.errors.PutioOperationException
 import kotlinx.coroutines.runBlocking
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 import kotlin.test.assertFalse
+import kotlin.test.assertIs
 import mockwebserver3.MockResponse
 import mockwebserver3.MockWebServer
 
@@ -187,7 +189,7 @@ class FilesApiTest {
     }
 
     @Test
-    fun `api failures become typed sdk errors`() = withServer { server ->
+    fun `api failures become operation-aware sdk errors`() = withServer { server ->
         server.enqueue(
             MockResponse.Builder()
                 .code(404)
@@ -204,7 +206,7 @@ class FilesApiTest {
                 .build(),
         )
 
-        val error = assertFailsWith<PutioApiException> {
+        val error = assertFailsWith<PutioOperationException> {
             runBlocking {
                 PutioClient(
                     PutioConfig(
@@ -217,8 +219,11 @@ class FilesApiTest {
             }
         }
 
-        assertEquals(404, error.statusCode)
-        assertEquals("NOT_FOUND", error.errorType)
+        assertEquals("files", error.domain)
+        assertEquals("get", error.operation)
+        val underlying = assertIs<PutioApiException>(error.underlyingError)
+        assertEquals(404, underlying.statusCode)
+        assertEquals("NOT_FOUND", underlying.errorType)
     }
 
     @Test

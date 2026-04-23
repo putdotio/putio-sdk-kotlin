@@ -2,9 +2,13 @@ package io.putdotio.sdk.trash
 
 import io.putdotio.sdk.PutioClient
 import io.putdotio.sdk.PutioConfig
+import io.putdotio.sdk.errors.PutioApiException
+import io.putdotio.sdk.errors.PutioOperationException
 import kotlinx.coroutines.runBlocking
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFailsWith
+import kotlin.test.assertIs
 import mockwebserver3.MockResponse
 import mockwebserver3.MockWebServer
 
@@ -70,6 +74,43 @@ class TrashApiTest {
         assertEquals("file_ids=1%2C2", request.body!!.utf8())
     }
 
+    @Test
+    fun `restore wraps missing trash items with operation context`() = withServer { server ->
+        server.enqueue(
+            MockResponse.Builder()
+                .code(404)
+                .body(
+                    """
+                    {
+                      "status": "ERROR",
+                      "status_code": 404,
+                      "error_type": "NOT_FOUND",
+                      "message": "trash item not found"
+                    }
+                    """.trimIndent(),
+                )
+                .build(),
+        )
+
+        val error = assertFailsWith<PutioOperationException> {
+            runBlocking {
+                PutioClient(
+                    PutioConfig(
+                        accessToken = "token",
+                        baseUrl = server.url("/v2/").toString(),
+                    ),
+                ).use { sdk ->
+                    sdk.trash.restore(TrashBulkInput(ids = listOf(1)))
+                }
+            }
+        }
+
+        assertEquals("trash", error.domain)
+        assertEquals("restore", error.operation)
+        val underlying = assertIs<PutioApiException>(error.underlyingError)
+        assertEquals(404, underlying.statusCode)
+    }
+
     private fun withServer(block: (MockWebServer) -> Unit) {
         MockWebServer().use { server ->
             server.start()
@@ -77,4 +118,3 @@ class TrashApiTest {
         }
     }
 }
-

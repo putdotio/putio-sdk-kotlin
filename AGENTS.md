@@ -11,6 +11,7 @@
 - [Overview](./README.md)
 - [Architecture](./docs/ARCHITECTURE.md)
 - [Testing](./docs/TESTING.md)
+- [Readiness](./docs/READINESS.md)
 - [Release](./docs/RELEASE.md)
 
 ## Commands

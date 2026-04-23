@@ -2,10 +2,14 @@ package io.putdotio.sdk.auth
 
 import io.putdotio.sdk.PutioClient
 import io.putdotio.sdk.PutioConfig
+import io.putdotio.sdk.errors.PutioApiException
+import io.putdotio.sdk.errors.PutioOperationException
 import kotlinx.coroutines.runBlocking
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNull
+import kotlin.test.assertIs
+import kotlin.test.assertFailsWith
 import mockwebserver3.MockResponse
 import mockwebserver3.MockWebServer
 
@@ -85,6 +89,42 @@ class AuthApiTest {
                 assertNull(sdk.auth.checkCodeMatch("ABCD"))
             }
         }
+    }
+
+    @Test
+    fun `checkCodeMatch wraps api errors with auth operation context`() = withServer { server ->
+        server.enqueue(
+            MockResponse.Builder()
+                .code(404)
+                .body(
+                    """
+                    {
+                      "status": "ERROR",
+                      "status_code": 404,
+                      "error_type": "NOT_FOUND",
+                      "message": "code not found"
+                    }
+                    """.trimIndent(),
+                )
+                .build(),
+        )
+
+        val error = assertFailsWith<PutioOperationException> {
+            runBlocking {
+                PutioClient(
+                    PutioConfig(
+                        baseUrl = server.url("/v2/").toString(),
+                    ),
+                ).use { sdk ->
+                    sdk.auth.checkCodeMatch("ABCD")
+                }
+            }
+        }
+
+        assertEquals("auth", error.domain)
+        assertEquals("checkCodeMatch", error.operation)
+        val underlying = assertIs<PutioApiException>(error.underlyingError)
+        assertEquals(404, underlying.statusCode)
     }
 
     private fun withServer(block: (MockWebServer) -> Unit) {

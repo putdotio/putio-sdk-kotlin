@@ -31,7 +31,7 @@ graph LR
 | `PutioClient` | shared SDK entrypoint and namespace composition |
 | Domain namespaces | grouped endpoint operations by product domain |
 | Shared transport | OkHttp request execution, auth resolution, and response parsing |
-| Error model | configuration, transport, API, and serialization failures |
+| Error model | configuration, transport, API, operation-aware failures, and user-facing localization |
 | Query models | encode request flags and keep call sites explicit |
 
 ## Design Rules
@@ -40,6 +40,7 @@ graph LR
 - use coroutine-first suspend APIs for network operations
 - parse response JSON at the boundary with `kotlinx.serialization`
 - preserve unknown backend string values in public value types instead of failing whole payloads
+- keep operator-facing exceptions typed, wrap API failures in `domain.operation` context, and derive user-facing recovery guidance separately through `PutioErrorLocalizer`
 - keep namespaces small and explicit until app needs prove expansion
 - prefer transport helpers and typed models over generic JSON bags
 
@@ -74,6 +75,11 @@ graph LR
   - `restore`
   - `delete`
   - `empty`
+
+## Error Context
+
+- `auth`, `files`, `events`, and `trash` now wrap SDK failures with `domain.operation` context before surfacing them to consumers
+- `PutioErrorLocalizer` can layer operation-specific recovery guidance on top of the underlying typed API or transport error
 
 ## What This Package Is Not
 

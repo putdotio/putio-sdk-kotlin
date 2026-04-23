@@ -2,10 +2,14 @@ package io.putdotio.sdk.history
 
 import io.putdotio.sdk.PutioClient
 import io.putdotio.sdk.PutioConfig
+import io.putdotio.sdk.errors.PutioApiException
+import io.putdotio.sdk.errors.PutioOperationException
 import kotlinx.coroutines.runBlocking
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
+import kotlin.test.assertFailsWith
+import kotlin.test.assertIs
 import mockwebserver3.MockResponse
 import mockwebserver3.MockWebServer
 
@@ -97,6 +101,43 @@ class HistoryApiTest {
                 assertFalse(event.type.isKnown)
             }
         }
+    }
+
+    @Test
+    fun `list wraps invalid pagination with events operation context`() = withServer { server ->
+        server.enqueue(
+            MockResponse.Builder()
+                .code(400)
+                .body(
+                    """
+                    {
+                      "status": "ERROR",
+                      "status_code": 400,
+                      "error_type": "INVALID_PER_PAGE",
+                      "message": "per_page must be positive"
+                    }
+                    """.trimIndent(),
+                )
+                .build(),
+        )
+
+        val error = assertFailsWith<PutioOperationException> {
+            runBlocking {
+                PutioClient(
+                    PutioConfig(
+                        accessToken = "token",
+                        baseUrl = server.url("/v2/").toString(),
+                    ),
+                ).use { sdk ->
+                    sdk.history.list(HistoryListQuery(perPage = 0))
+                }
+            }
+        }
+
+        assertEquals("events", error.domain)
+        assertEquals("list", error.operation)
+        val underlying = assertIs<PutioApiException>(error.underlyingError)
+        assertEquals("INVALID_PER_PAGE", underlying.errorType)
     }
 
     private fun withServer(block: (MockWebServer) -> Unit) {

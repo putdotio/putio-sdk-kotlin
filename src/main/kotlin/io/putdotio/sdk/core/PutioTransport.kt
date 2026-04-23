@@ -2,13 +2,13 @@ package io.putdotio.sdk.core
 
 import io.putdotio.sdk.PutioConfig
 import io.putdotio.sdk.errors.PutioApiException
+import io.putdotio.sdk.errors.PutioApiErrorEnvelope
 import io.putdotio.sdk.errors.PutioConfigurationException
 import io.putdotio.sdk.errors.PutioRequestData
 import io.putdotio.sdk.errors.PutioSerializationException
 import io.putdotio.sdk.errors.PutioTransportException
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.serialization.KSerializer
-import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 import okhttp3.FormBody
 import okhttp3.MediaType.Companion.toMediaType
@@ -27,14 +27,6 @@ internal sealed interface PutioAuth {
 
     data object None : PutioAuth
 }
-
-@Serializable
-private data class PutioApiErrorEnvelope(
-    val message: String? = null,
-    val status: String? = null,
-    val status_code: Int? = null,
-    val error_type: String? = null,
-)
 
 internal class PutioTransport(
     internal val config: PutioConfig,
@@ -192,14 +184,15 @@ internal class PutioTransport(
             json.decodeFromString(PutioApiErrorEnvelope.serializer(), body)
         }.getOrNull()
 
-        val statusCode = envelope?.status_code ?: response.code
-        val errorType = envelope?.error_type
+        val statusCode = envelope?.statusCode ?: response.code
+        val errorType = envelope?.errorType
         val message = envelope?.message ?: "put.io returned HTTP $statusCode"
 
         return PutioApiException(
             request = request,
-            statusCode = statusCode,
-            errorType = errorType,
+            resolvedStatusCode = statusCode,
+            resolvedErrorType = errorType,
+            envelope = envelope ?: PutioApiErrorEnvelope(message = message, statusCode = statusCode, errorType = errorType),
             responseBody = body,
             message = message,
         )
