@@ -82,18 +82,19 @@ data class HistoryEvent(
 )
 
 @Serializable
-internal data class HistoryEventsEnvelope(
+data class HistoryListResponse(
     val events: List<HistoryEvent>,
+    @SerialName("has_more") val hasMore: Boolean,
     val status: String,
 )
 
 data class HistoryListQuery(
     val perPage: Int? = null,
-    val page: Int? = null,
+    val before: Long? = null,
 )
 
 internal fun HistoryListQuery.toQueryMap(): Map<String, String> =
     buildMap {
         if (perPage != null) put("per_page", perPage.toString())
-        if (page != null) put("page", page.toString())
+        if (before != null) put("before", before.toString())
     }

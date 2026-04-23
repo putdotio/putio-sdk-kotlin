@@ -21,6 +21,7 @@ class HistoryApiTest {
                 """
                 {
                   "status": "OK",
+                  "has_more": true,
                   "events": [
                     {
                       "id": 1,
@@ -43,12 +44,16 @@ class HistoryApiTest {
                     baseUrl = server.url("/v2/").toString(),
                 ),
             ).use { sdk ->
-                val events = sdk.history.list()
-                assertEquals(1, events.size)
-                assertEquals(HistoryEventType.TRANSFER_COMPLETED, events.first().type)
-                assertEquals(99L, events.first().fileId)
+                val response = sdk.history.list(HistoryListQuery(perPage = 25, before = 100))
+                assertEquals(true, response.hasMore)
+                assertEquals(1, response.events.size)
+                assertEquals(HistoryEventType.TRANSFER_COMPLETED, response.events.first().type)
+                assertEquals(99L, response.events.first().fileId)
             }
         }
+
+        val request = server.takeRequest()
+        assertEquals("/v2/events/list?per_page=25&before=100", request.target)
     }
 
     @Test
@@ -94,6 +99,7 @@ class HistoryApiTest {
                 """
                 {
                   "status": "OK",
+                  "has_more": false,
                   "events": [
                     {
                       "id": 7,
@@ -114,7 +120,7 @@ class HistoryApiTest {
                     baseUrl = server.url("/v2/").toString(),
                 ),
             ).use { sdk ->
-                val event = sdk.history.list().first()
+                val event = sdk.history.list().events.first()
                 assertEquals("FUTURE_EVENT", event.type.raw)
                 assertFalse(event.type.isKnown)
             }

@@ -9,13 +9,13 @@ import io.putdotio.sdk.errors.putioOperation
 class HistoryApi internal constructor(
     private val transport: PutioTransport,
 ) {
-    suspend fun list(query: HistoryListQuery = HistoryListQuery()): List<HistoryEvent> =
+    suspend fun list(query: HistoryListQuery = HistoryListQuery()): HistoryListResponse =
         putioOperation(LIST_EVENTS_ERROR_SPEC) {
             transport.get(
                 path = "/events/list",
-                serializer = HistoryEventsEnvelope.serializer(),
+                serializer = HistoryListResponse.serializer(),
                 query = query.toQueryMap(),
-            ).events
+            )
         }
 
     suspend fun delete(eventId: Long): OkResponse =

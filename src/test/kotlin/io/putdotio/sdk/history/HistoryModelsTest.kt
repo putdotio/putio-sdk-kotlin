@@ -41,10 +41,22 @@ class HistoryModelsTest {
     }
 
     @Test
+    fun `history list response preserves explicit pagination state`() {
+        val response = json.decodeFromString(
+            HistoryListResponse.serializer(),
+            """{"status":"OK","has_more":true,"events":[]}""",
+        )
+
+        assertEquals("OK", response.status)
+        assertEquals(true, response.hasMore)
+        assertEquals(emptyList(), response.events)
+    }
+
+    @Test
     fun `history helpers build expected queries and keep known values canonical`() {
         assertEquals(
-            mapOf("per_page" to "25", "page" to "2"),
-            HistoryListQuery(perPage = 25, page = 2).toQueryMap(),
+            mapOf("per_page" to "25", "before" to "42"),
+            HistoryListQuery(perPage = 25, before = 42).toQueryMap(),
         )
 
         val known = HistoryEventType.fromRaw("TRANSFER_COMPLETED")

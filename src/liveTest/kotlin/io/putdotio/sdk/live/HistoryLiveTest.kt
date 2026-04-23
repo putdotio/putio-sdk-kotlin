@@ -8,11 +8,11 @@ class HistoryLiveTest {
     @Test
     fun `history list decodes from the live API`() = runBlocking {
         LiveSupport.newAuthedClient().use { sdk ->
-            val events = sdk.history.list()
+            val response = sdk.history.list()
 
-            if (events.isNotEmpty()) {
-                assertTrue(events.first().id > 0)
-                assertTrue(events.first().createdAt.isNotBlank())
+            if (response.events.isNotEmpty()) {
+                assertTrue(response.events.first().id > 0)
+                assertTrue(response.events.first().createdAt.isNotBlank())
             }
         }
     }
