@@ -6,6 +6,7 @@ import io.putdotio.sdk.core.PutioTransport
 import io.putdotio.sdk.files.FilesApi
 import io.putdotio.sdk.history.HistoryApi
 import io.putdotio.sdk.trash.TrashApi
+import io.putdotio.sdk.transfers.TransfersApi
 import java.io.Closeable
 import kotlinx.serialization.json.Json
 import okhttp3.OkHttpClient
@@ -24,6 +25,7 @@ class PutioClient(
     val files = FilesApi(transport)
     val history = HistoryApi(transport)
     val trash = TrashApi(transport)
+    val transfers = TransfersApi(transport)
 
     fun setAccessToken(token: String) {
         config.accessToken = token

@@ -28,6 +28,7 @@ This repository is in its first bootstrap phase. The initial public surface is i
 - `files`
 - `history`
 - `trash`
+- `transfers`
 
 The design goal is to stay closer to the TypeScript SDK than the legacy Swift SDK: coroutine-first APIs, typed errors, explicit boundary parsing, forward-compatible value types at the API edge, and a user-facing error localization layer for recovery guidance.
 
@@ -38,6 +39,7 @@ The current expansion is shaped around the real mobile and TV app surfaces in `a
 - file listing/search, cursor continuation, subtitles, and playback resume helpers
 - history event listing and deletion flows
 - trash listing, cursor continuation, restore, delete, and empty flows
+- transfer listing, cursor continuation, add/cancel/clean/retry, count, and info flows
 
 ## Installation
 

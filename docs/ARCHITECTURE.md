@@ -14,11 +14,13 @@ graph LR
   Client --> Files["files namespace"]
   Client --> History["history namespace"]
   Client --> Trash["trash namespace"]
+  Client --> Transfers["transfers namespace"]
   Account --> Transport["shared transport"]
   Auth --> Transport
   Files --> Transport
   History --> Transport
   Trash --> Transport
+  Transfers --> Transport
   Transport --> Errors["typed SDK errors"]
   Transport --> Json["kotlinx.serialization"]
   Transport --> API["put.io API"]
@@ -82,6 +84,17 @@ graph LR
   - `restore`
   - `delete`
   - `empty`
+- `transfers`
+  - `list`
+  - `continueList`
+  - `get`
+  - `count`
+  - `info`
+  - `add`
+  - `addMany`
+  - `cancel`
+  - `clean`
+  - `retry`
 
 ## Error Context
 

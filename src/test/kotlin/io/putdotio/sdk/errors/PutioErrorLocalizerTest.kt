@@ -192,6 +192,43 @@ class PutioErrorLocalizerTest {
     }
 
     @Test
+    fun `localizer covers transfer guidance`() {
+        val emptyUrl = PutioErrorLocalizer.localize(
+            operationError(
+                domain = "transfers",
+                operation = "add",
+                statusCode = 400,
+                errorType = "EMPTY_URL",
+                message = "empty URL",
+            ),
+        )
+        assertEquals("Transfer URL is required", emptyUrl.message)
+
+        val tooMany = PutioErrorLocalizer.localize(
+            operationError(
+                domain = "transfers",
+                operation = "addMany",
+                statusCode = 403,
+                errorType = "TOO_MANY_URLS",
+                message = "too many URLs",
+            ),
+        )
+        assertEquals("Too many transfer URLs were submitted", tooMany.message)
+
+        val missing = PutioErrorLocalizer.localize(
+            operationError(
+                domain = "transfers",
+                operation = "retry",
+                statusCode = 404,
+                errorType = "NOT_FOUND",
+                message = "transfer missing",
+            ),
+        )
+        assertEquals("The transfer could not be found", missing.message)
+        assertEquals("transfers", missing.meta["domain"])
+    }
+
+    @Test
     fun `localizer covers folder creation guidance for common validation failures`() {
         val cases = listOf(
             Triple("EMPTY_NAME", "Folder name is required", "empty folder name"),

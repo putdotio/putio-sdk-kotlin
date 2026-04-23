@@ -235,6 +235,34 @@ object PutioErrorLocalizer {
                     ),
                     underlyingError = error,
                 )
+            error.matches(domain = "transfers", operation = "add", errorType = "EMPTY_URL") ->
+                PutioLocalizedError(
+                    message = "Transfer URL is required",
+                    failureReason = apiMessage(error),
+                    recoverySuggestion = PutioRecoverySuggestion.Instruction(
+                        "Provide a non-empty transfer URL and retry.",
+                    ),
+                    underlyingError = error,
+                )
+            error.matches(domain = "transfers", operation = "addMany", errorType = "TOO_MANY_URLS") ->
+                PutioLocalizedError(
+                    message = "Too many transfer URLs were submitted",
+                    failureReason = apiMessage(error),
+                    recoverySuggestion = PutioRecoverySuggestion.Instruction(
+                        "Split the transfer URLs into smaller batches and retry.",
+                    ),
+                    underlyingError = error,
+                )
+            error.matches(domain = "transfers", operation = "get", statusCode = 404) ||
+                error.matches(domain = "transfers", operation = "retry", statusCode = 404) ->
+                PutioLocalizedError(
+                    message = "The transfer could not be found",
+                    failureReason = apiMessage(error),
+                    recoverySuggestion = PutioRecoverySuggestion.Instruction(
+                        "Refresh the transfer list and retry only if the transfer is still present.",
+                    ),
+                    underlyingError = error,
+                )
             error.matches(domain = "files", operation = "get", statusCode = 404) ->
                 PutioLocalizedError(
                     message = "The requested file could not be found",
