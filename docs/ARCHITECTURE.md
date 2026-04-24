@@ -11,14 +11,20 @@ graph LR
   Consumer["consumer app"] --> Client["PutioClient"]
   Client --> Account["account namespace"]
   Client --> Auth["auth namespace"]
+  Client --> Config["userConfig namespace"]
   Client --> Files["files namespace"]
+  Client --> Grants["grants namespace"]
   Client --> History["history namespace"]
+  Client --> Routes["routes namespace"]
   Client --> Trash["trash namespace"]
   Client --> Transfers["transfers namespace"]
   Account --> Transport["shared transport"]
   Auth --> Transport
+  Config --> Transport
   Files --> Transport
+  Grants --> Transport
   History --> Transport
+  Routes --> Transport
   Trash --> Transport
   Transfers --> Transport
   Transport --> Errors["typed SDK errors"]
@@ -51,15 +57,21 @@ graph LR
 - `account`
   - `getInfo`
   - `getSettings`
+  - `saveSettings`
 - `auth`
   - `buildLoginUrl`
   - `getCode`
   - `checkCodeMatch`
   - `validateToken`
+  - `logout`
   - `generateTotp`
   - `verifyTotp`
   - `getRecoveryCodes`
   - `regenerateRecoveryCodes`
+- `userConfig`
+  - `get`
+  - `save`
+  - `setChromecastPlaybackType`
 - `files`
   - `list`
   - `continueList`
@@ -67,17 +79,30 @@ graph LR
   - `search`
   - `continueSearch`
   - `createFolder`
+  - `copy`
   - `delete`
   - `move`
+  - `rename`
+  - `findNextFile`
+  - `setSortBy`
+  - `resetFileSpecificSortSettings`
+  - `startMp4Conversion`
+  - `getMp4ConversionStatus`
   - `listSubtitles`
   - `getStartFrom`
   - `setStartFrom`
   - `resetStartFrom`
   - direct download and stream URL builders
+- `grants`
+  - `list`
+  - `revoke`
+  - `linkDevice`
 - `history`
   - `list`
   - `delete`
   - `clear`
+- `routes`
+  - `list`
 - `trash`
   - `list`
   - `continueList`

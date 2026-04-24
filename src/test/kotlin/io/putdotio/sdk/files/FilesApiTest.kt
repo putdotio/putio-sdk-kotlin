@@ -79,6 +79,8 @@ class FilesApiTest {
                         noCursor = true,
                         contentType = "video",
                         fileType = PutioFileType.VIDEO,
+                        sortBy = "NAME_ASC",
+                        mp4Status = true,
                     ),
                 )
             }
@@ -86,7 +88,7 @@ class FilesApiTest {
 
         val request = server.takeRequest()
         assertEquals(
-            "/v2/files/list?parent_id=42&mp4_status_parent=1&stream_url_parent=1&mp4_stream_url_parent=1&video_metadata_parent=1&per_page=25&total=1&hidden=1&no_cursor=1&content_type=video&file_type=VIDEO",
+            "/v2/files/list?parent_id=42&mp4_status_parent=1&stream_url_parent=1&mp4_stream_url_parent=1&video_metadata_parent=1&per_page=25&total=1&hidden=1&no_cursor=1&content_type=video&file_type=VIDEO&sort_by=NAME_ASC&mp4_status=1",
             request.target,
         )
     }
@@ -293,6 +295,26 @@ class FilesApiTest {
     }
 
     @Test
+    fun `copy posts file ids to disk copy endpoint`() = withServer { server ->
+        server.enqueue(MockResponse.Builder().body("""{"status":"OK"}""").build())
+
+        runBlocking {
+            PutioClient(
+                PutioConfig(
+                    accessToken = "token",
+                    baseUrl = server.url("/v2/").toString(),
+                ),
+            ).use { sdk ->
+                sdk.files.copy(fileIds = listOf(1, 2))
+            }
+        }
+
+        val request = server.takeRequest()
+        assertEquals("/v2/files/copy-to-disk", request.target)
+        assertEquals("file_ids=1%2C2", request.body!!.utf8())
+    }
+
+    @Test
     fun `move returns per-file errors`() = withServer { server ->
         server.enqueue(
             MockResponse.Builder().body(
@@ -325,6 +347,50 @@ class FilesApiTest {
                 assertEquals(2L, errors.first().id)
             }
         }
+    }
+
+    @Test
+    fun `rename posts typed file name mutation`() = withServer { server ->
+        server.enqueue(MockResponse.Builder().body("""{"status":"OK"}""").build())
+
+        runBlocking {
+            PutioClient(
+                PutioConfig(
+                    accessToken = "token",
+                    baseUrl = server.url("/v2/").toString(),
+                ),
+            ).use { sdk ->
+                sdk.files.rename(fileId = 9, name = "Episode 2.mkv")
+            }
+        }
+
+        val request = server.takeRequest()
+        assertEquals("/v2/files/rename", request.target)
+        assertEquals("file_id=9&name=Episode+2.mkv", request.body!!.utf8())
+    }
+
+    @Test
+    fun `file sort endpoints post mutations`() = withServer { server ->
+        server.enqueue(MockResponse.Builder().body("""{"status":"OK"}""").build())
+        server.enqueue(MockResponse.Builder().body("""{"status":"OK"}""").build())
+
+        runBlocking {
+            PutioClient(
+                PutioConfig(
+                    accessToken = "token",
+                    baseUrl = server.url("/v2/").toString(),
+                ),
+            ).use { sdk ->
+                sdk.files.setSortBy(fileId = 9, sortBy = "DATE_DESC")
+                sdk.files.resetFileSpecificSortSettings()
+            }
+        }
+
+        val setRequest = server.takeRequest()
+        val resetRequest = server.takeRequest()
+        assertEquals("/v2/files/set-sort-by", setRequest.target)
+        assertEquals("file_id=9&sort_by=DATE_DESC", setRequest.body!!.utf8())
+        assertEquals("/v2/files/remove-sort-by-settings", resetRequest.target)
     }
 
     @Test
@@ -522,6 +588,14 @@ class FilesApiTest {
         assertEquals(
             "https://api.put.io/v2/files/10/download?oauth_token=abc",
             sdk.files.buildDownloadUrl(fileId = 10, accessToken = "abc"),
+        )
+        assertEquals(
+            "https://api.put.io/v2/files/10/mp4/download?oauth_token=abc",
+            sdk.files.buildMp4DownloadUrl(fileId = 10, accessToken = "abc"),
+        )
+        assertEquals(
+            "https://api.put.io/v2/files/10/stream?oauth_token=abc",
+            sdk.files.buildAudioStreamUrl(fileId = 10, accessToken = "abc"),
         )
         assertEquals(
             "https://api.put.io/v2/files/10/hls/media.m3u8?oauth_token=abc&subtitle_key=all",

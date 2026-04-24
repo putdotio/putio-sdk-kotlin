@@ -83,6 +83,15 @@ class FilesApi internal constructor(
             ).file
         }
 
+    suspend fun copy(fileIds: List<Long>): OkResponse =
+        putioOperation(COPY_FILES_ERROR_SPEC) {
+            transport.post(
+                path = "/files/copy-to-disk",
+                serializer = OkResponse.serializer(),
+                form = mapOf("file_ids" to fileIds.joinToString(",")),
+            )
+        }
+
     suspend fun delete(
         fileIds: List<Long>,
         skipNonexistents: Boolean = true,
@@ -113,6 +122,72 @@ class FilesApi internal constructor(
                     "parent_id" to parentId.toString(),
                 ),
             ).errors
+        }
+
+    suspend fun rename(
+        fileId: Long,
+        name: String,
+    ): OkResponse =
+        putioOperation(RENAME_FILE_ERROR_SPEC) {
+            transport.post(
+                path = "/files/rename",
+                serializer = OkResponse.serializer(),
+                form = mapOf(
+                    "file_id" to fileId.toString(),
+                    "name" to name,
+                ),
+            )
+        }
+
+    suspend fun findNextFile(
+        fileId: Long,
+        fileType: NextFileType,
+    ): NextFile =
+        putioOperation(FIND_NEXT_FILE_ERROR_SPEC) {
+            transport.get(
+                path = "/files/$fileId/next-file",
+                serializer = NextFileEnvelope.serializer(),
+                query = mapOf("file_type" to fileType.raw),
+            ).nextFile
+        }
+
+    suspend fun setSortBy(
+        fileId: Long,
+        sortBy: String,
+    ): OkResponse =
+        putioOperation(SET_SORT_BY_ERROR_SPEC) {
+            transport.post(
+                path = "/files/set-sort-by",
+                serializer = OkResponse.serializer(),
+                form = mapOf(
+                    "file_id" to fileId.toString(),
+                    "sort_by" to sortBy,
+                ),
+            )
+        }
+
+    suspend fun resetFileSpecificSortSettings(): OkResponse =
+        putioOperation(RESET_SORT_BY_ERROR_SPEC) {
+            transport.post(
+                path = "/files/remove-sort-by-settings",
+                serializer = OkResponse.serializer(),
+            )
+        }
+
+    suspend fun startMp4Conversion(fileId: Long): FileMp4Conversion =
+        putioOperation(MP4_CONVERSION_ERROR_SPEC) {
+            transport.post(
+                path = "/files/$fileId/mp4",
+                serializer = FileMp4ConversionEnvelope.serializer(),
+            ).mp4
+        }
+
+    suspend fun getMp4ConversionStatus(fileId: Long): FileMp4Conversion =
+        putioOperation(MP4_CONVERSION_ERROR_SPEC) {
+            transport.get(
+                path = "/files/$fileId/mp4",
+                serializer = FileMp4ConversionEnvelope.serializer(),
+            ).mp4
         }
 
     suspend fun getStartFrom(fileId: Long): Double =
@@ -161,6 +236,22 @@ class FilesApi internal constructor(
         accessToken: String,
     ): String = transport.buildUrl(
         path = "/files/$fileId/download",
+        query = mapOf("oauth_token" to accessToken),
+    )
+
+    fun buildMp4DownloadUrl(
+        fileId: Long,
+        accessToken: String,
+    ): String = transport.buildUrl(
+        path = "/files/$fileId/mp4/download",
+        query = mapOf("oauth_token" to accessToken),
+    )
+
+    fun buildAudioStreamUrl(
+        fileId: Long,
+        accessToken: String,
+    ): String = transport.buildUrl(
+        path = "/files/$fileId/stream",
         query = mapOf("oauth_token" to accessToken),
     )
 
@@ -213,6 +304,12 @@ private val CREATE_FOLDER_ERROR_SPEC =
         ),
     )
 
+private val COPY_FILES_ERROR_SPEC =
+    PutioOperationErrorSpec(
+        domain = "files",
+        operation = "copy",
+    )
+
 private val DELETE_FILES_ERROR_SPEC =
     PutioOperationErrorSpec(
         domain = "files",
@@ -223,6 +320,44 @@ private val MOVE_FILES_ERROR_SPEC =
     PutioOperationErrorSpec(
         domain = "files",
         operation = "move",
+    )
+
+private val RENAME_FILE_ERROR_SPEC =
+    PutioOperationErrorSpec(
+        domain = "files",
+        operation = "rename",
+    )
+
+private val FIND_NEXT_FILE_ERROR_SPEC =
+    PutioOperationErrorSpec(
+        domain = "files",
+        operation = "findNextFile",
+        knownErrors = listOf(
+            PutioKnownErrorContract(statusCode = 404),
+        ),
+    )
+
+private val SET_SORT_BY_ERROR_SPEC =
+    PutioOperationErrorSpec(
+        domain = "files",
+        operation = "setSortBy",
+    )
+
+private val RESET_SORT_BY_ERROR_SPEC =
+    PutioOperationErrorSpec(
+        domain = "files",
+        operation = "resetFileSpecificSortSettings",
+    )
+
+private val MP4_CONVERSION_ERROR_SPEC =
+    PutioOperationErrorSpec(
+        domain = "files",
+        operation = "mp4Conversion",
+        knownErrors = listOf(
+            PutioKnownErrorContract(errorType = "FEATURE_DISABLED", statusCode = 400),
+            PutioKnownErrorContract(errorType = "INVALID_MEDIA", statusCode = 400),
+            PutioKnownErrorContract(statusCode = 404),
+        ),
     )
 
 private val START_FROM_ERROR_SPEC =

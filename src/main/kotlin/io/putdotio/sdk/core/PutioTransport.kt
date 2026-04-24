@@ -84,6 +84,22 @@ internal class PutioTransport(
         auth = auth,
     )
 
+    suspend fun <T, TBody> putJson(
+        path: String,
+        serializer: KSerializer<T>,
+        body: TBody,
+        bodySerializer: KSerializer<TBody>,
+        query: Map<String, String> = emptyMap(),
+        auth: PutioAuth = PutioAuth.ConfigToken,
+    ): T = execute(
+        method = "PUT",
+        path = path,
+        serializer = serializer,
+        query = query,
+        jsonBody = json.encodeToString(bodySerializer, body),
+        auth = auth,
+    )
+
     fun buildUrl(path: String, query: Map<String, String> = emptyMap(), baseUrl: String = config.baseUrl): String {
         val builder = baseUrl.toHttpUrl().newBuilder()
         for (segment in path.removePrefix("/").split("/")) {
@@ -149,6 +165,7 @@ internal class PutioTransport(
         return when (method) {
             "GET" -> builder.get().build()
             "POST" -> builder.post(jsonBody?.toRequestBody(JSON_MEDIA_TYPE) ?: buildFormBody(form)).build()
+            "PUT" -> builder.put(jsonBody?.toRequestBody(JSON_MEDIA_TYPE) ?: buildFormBody(form)).build()
             else -> error("Unsupported method $method")
         }
     }

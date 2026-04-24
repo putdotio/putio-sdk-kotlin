@@ -69,6 +69,26 @@ class AuthApiTest {
     }
 
     @Test
+    fun `logout posts to grants logout endpoint`() = withServer { server ->
+        server.enqueue(MockResponse.Builder().body("""{"status":"OK"}""").build())
+
+        runBlocking {
+            PutioClient(
+                PutioConfig(
+                    accessToken = "token",
+                    baseUrl = server.url("/v2/").toString(),
+                ),
+            ).use { sdk ->
+                sdk.auth.logout()
+            }
+        }
+
+        val request = server.takeRequest()
+        assertEquals("/v2/oauth/grants/logout", request.target)
+        assertEquals("Token token", request.headers["Authorization"])
+    }
+
+    @Test
     fun `generateTotp and recovery code flows decode typed envelopes`() = withServer { server ->
         server.enqueue(
             MockResponse.Builder().body(

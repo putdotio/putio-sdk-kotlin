@@ -2,9 +2,12 @@ package io.putdotio.sdk
 
 import io.putdotio.sdk.account.AccountApi
 import io.putdotio.sdk.auth.AuthApi
+import io.putdotio.sdk.config.ConfigApi
 import io.putdotio.sdk.core.PutioTransport
 import io.putdotio.sdk.files.FilesApi
+import io.putdotio.sdk.grants.GrantsApi
 import io.putdotio.sdk.history.HistoryApi
+import io.putdotio.sdk.routes.RoutesApi
 import io.putdotio.sdk.trash.TrashApi
 import io.putdotio.sdk.transfers.TransfersApi
 import java.io.Closeable
@@ -22,8 +25,11 @@ class PutioClient(
 
     val account = AccountApi(transport)
     val auth = AuthApi(transport)
+    val userConfig = ConfigApi(transport)
     val files = FilesApi(transport)
+    val grants = GrantsApi(transport)
     val history = HistoryApi(transport)
+    val routes = RoutesApi(transport)
     val trash = TrashApi(transport)
     val transfers = TransfersApi(transport)
 

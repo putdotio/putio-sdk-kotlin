@@ -1,5 +1,6 @@
 package io.putdotio.sdk.auth
 
+import io.putdotio.sdk.OkResponse
 import io.putdotio.sdk.errors.PutioConfigurationException
 import io.putdotio.sdk.core.PutioAuth
 import io.putdotio.sdk.core.PutioTransport
@@ -70,6 +71,14 @@ class AuthApi internal constructor(
                 path = "/oauth2/validate",
                 serializer = ValidateTokenResult.serializer(),
                 auth = token?.let(PutioAuth::Token) ?: PutioAuth.ConfigToken,
+            )
+        }
+
+    suspend fun logout(): OkResponse =
+        putioOperation(LOGOUT_ERROR_SPEC) {
+            transport.post(
+                path = "/oauth/grants/logout",
+                serializer = OkResponse.serializer(),
             )
         }
 
@@ -144,6 +153,12 @@ private val VALIDATE_TOKEN_ERROR_SPEC =
             PutioKnownErrorContract(statusCode = 401),
             PutioKnownErrorContract(statusCode = 403),
         ),
+    )
+
+private val LOGOUT_ERROR_SPEC =
+    PutioOperationErrorSpec(
+        domain = "auth",
+        operation = "logout",
     )
 
 private val GENERATE_TOTP_ERROR_SPEC =
