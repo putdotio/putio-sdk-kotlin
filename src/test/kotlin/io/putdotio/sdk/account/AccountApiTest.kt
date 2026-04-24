@@ -110,6 +110,60 @@ class AccountApiTest {
         assertEquals("/v2/account/settings", request.target)
     }
 
+    @Test
+    fun `clearData posts typed destructive options`() = withServer { server ->
+        server.enqueue(MockResponse.Builder().body("""{"status":"OK"}""").build())
+
+        runBlocking {
+            PutioClient(
+                PutioConfig(
+                    accessToken = "secret-token",
+                    baseUrl = server.url("/v2/").toString(),
+                ),
+            ).use { sdk ->
+                sdk.account.clearData(
+                    AccountClearOptions(
+                        files = true,
+                        finishedTransfers = true,
+                        activeTransfers = false,
+                        rssFeeds = true,
+                        rssLogs = false,
+                        history = true,
+                        trash = false,
+                        friends = true,
+                    ),
+                )
+            }
+        }
+
+        val request = server.takeRequest()
+        assertEquals("/v2/account/clear", request.target)
+        assertEquals(
+            """{"files":true,"finished_transfers":true,"rss_feeds":true,"history":true,"friends":true}""",
+            request.body!!.utf8(),
+        )
+    }
+
+    @Test
+    fun `destroy posts current password as json`() = withServer { server ->
+        server.enqueue(MockResponse.Builder().body("""{"status":"OK"}""").build())
+
+        runBlocking {
+            PutioClient(
+                PutioConfig(
+                    accessToken = "secret-token",
+                    baseUrl = server.url("/v2/").toString(),
+                ),
+            ).use { sdk ->
+                sdk.account.destroy(currentPassword = "secret-123")
+            }
+        }
+
+        val request = server.takeRequest()
+        assertEquals("/v2/account/destroy", request.target)
+        assertEquals("""{"current_password":"secret-123"}""", request.body!!.utf8())
+    }
+
     private fun withServer(block: (MockWebServer) -> Unit) {
         MockWebServer().use { server ->
             server.start()

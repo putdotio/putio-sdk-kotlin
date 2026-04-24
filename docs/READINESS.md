@@ -16,11 +16,11 @@ This document tracks how ready `putio-sdk-kotlin` is for autonomous agent work a
 | --- | --- | --- |
 | Package boot | `good` | `./gradlew verify` is stable locally and in CI once Java `21` is available |
 | Unit verification | `good` | request shaping, parsing, unknown-value preservation, typed API errors, and localized recovery guidance have deterministic coverage across current domains with a `90%` line floor |
-| Live verification | `medium` | account, auth, config, grants, routes, files/trash, playback-adjacent file helpers, history, and safe transfer read paths are live-covered; more namespace depth is still needed as the public surface grows |
+| Live verification | `medium` | account, auth, config, grants, routes, files/trash, playback-adjacent file helpers, history, and safe transfer read paths are live-covered when credentials are configured; destructive account and IFTTT mutation paths stay deterministic-only for now |
 | Release readiness | `medium` | local Maven publishing exists, but external package publishing is still intentionally deferred |
 
 ## Highest-Value Next Gaps
 
-1. decide whether destructive account clearing/destroy and IFTTT event sending belong in the Kotlin native baseline
+1. decide whether IFTTT should grow beyond playback events into a generic event surface
 2. deepen deterministic coverage for more conditional payload branches and transport failure paths so the `90%` floor stays comfortable as the surface grows
-3. expand live verification as new namespaces land, following the safe shared-account rules
+3. expand live verification as new safe namespaces land, following the shared-account rules

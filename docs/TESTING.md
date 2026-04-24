@@ -65,6 +65,7 @@ Allowed in `liveTest`:
 Excluded from `liveTest`:
 
 - destructive account mutations
+- IFTTT event mutations unless a dedicated non-production event target is available
 - history clearing
 - trash emptying
 - any mutation without cleanup
