@@ -25,8 +25,11 @@ This repository is in its first bootstrap phase. The initial public surface is i
 
 - `account`
 - `auth`
+- `userConfig`
 - `files`
+- `grants`
 - `history`
+- `routes`
 - `trash`
 - `transfers`
 
@@ -35,8 +38,10 @@ The design goal is to stay closer to the TypeScript SDK than the legacy Swift SD
 The current expansion is shaped around the real mobile and TV app surfaces in `apps/ios` and `apps/web/apps/tv-native`, especially:
 
 - auth login, device/OOB, token validation, and two-factor flows
+- OAuth grant listing, revocation, logout, and device linking
 - account settings updates for playback and trash/history preferences
-- file listing/search, cursor continuation, subtitles, and playback resume helpers
+- user config and tunnel route reads for playback and network preferences
+- file listing/search, cursor continuation, subtitles, file management, next-media lookup, MP4 conversion, and playback resume helpers
 - history event listing and deletion flows
 - trash listing, cursor continuation, restore, delete, and empty flows
 - transfer listing, cursor continuation, add/cancel/clean/retry, count, and info flows

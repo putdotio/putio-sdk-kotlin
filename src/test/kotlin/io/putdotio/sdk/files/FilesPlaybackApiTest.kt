@@ -94,6 +94,96 @@ class FilesPlaybackApiTest {
     }
 
     @Test
+    fun `findNextFile decodes playback-adjacent next media`() = withServer { server ->
+        server.enqueue(
+            MockResponse.Builder().body(
+                """
+                {
+                  "status": "OK",
+                  "next_file": {
+                    "id": 42,
+                    "name": "Next Episode.mkv",
+                    "parent_id": 9,
+                    "file_type": "VIDEO"
+                  }
+                }
+                """.trimIndent(),
+            ).build(),
+        )
+
+        runBlocking {
+            PutioClient(
+                PutioConfig(
+                    accessToken = "token",
+                    baseUrl = server.url("/v2/").toString(),
+                ),
+            ).use { sdk ->
+                val nextFile = sdk.files.findNextFile(fileId = 41, fileType = NextFileType.VIDEO)
+                assertEquals(42L, nextFile.id)
+                assertEquals("Next Episode.mkv", nextFile.name)
+                assertEquals(NextFileType.VIDEO, nextFile.fileType)
+            }
+        }
+
+        assertEquals("/v2/files/41/next-file?file_type=VIDEO", server.takeRequest().target)
+    }
+
+    @Test
+    fun `mp4 conversion endpoints decode forward-compatible status`() = withServer { server ->
+        server.enqueue(
+            MockResponse.Builder().body(
+                """
+                {
+                  "status": "OK",
+                  "mp4": {
+                    "id": 10,
+                    "percent_done": 25,
+                    "status": "CONVERTING"
+                  }
+                }
+                """.trimIndent(),
+            ).build(),
+        )
+        server.enqueue(
+            MockResponse.Builder().body(
+                """
+                {
+                  "status": "OK",
+                  "mp4": {
+                    "id": 10,
+                    "percent_done": 100,
+                    "size": 2048,
+                    "status": "COMPLETED"
+                  }
+                }
+                """.trimIndent(),
+            ).build(),
+        )
+
+        runBlocking {
+            PutioClient(
+                PutioConfig(
+                    accessToken = "token",
+                    baseUrl = server.url("/v2/").toString(),
+                ),
+            ).use { sdk ->
+                val started = sdk.files.startMp4Conversion(fileId = 10)
+                val status = sdk.files.getMp4ConversionStatus(fileId = 10)
+
+                assertEquals(FileMp4ConversionStatus.CONVERTING, started.status)
+                assertEquals(25.0, started.percentDone)
+                assertEquals(FileMp4ConversionStatus.COMPLETED, status.status)
+                assertEquals(2048L, status.size)
+            }
+        }
+
+        val startRequest = server.takeRequest()
+        val statusRequest = server.takeRequest()
+        assertEquals("/v2/files/10/mp4", startRequest.target)
+        assertEquals("/v2/files/10/mp4", statusRequest.target)
+    }
+
+    @Test
     fun `setStartFrom and resetStartFrom hit playback endpoints`() = withServer { server ->
         server.enqueue(MockResponse.Builder().body("""{"status":"OK"}""").build())
         server.enqueue(MockResponse.Builder().body("""{"status":"OK"}""").build())

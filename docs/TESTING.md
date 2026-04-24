@@ -50,6 +50,7 @@ Current live targets cover:
 - account info and reversible account settings mutation
 - disposable file create, search, trash restore, and cleanup flows
 - playback-adjacent subtitles decode and reversible start-from roundtrips for owned video fixtures
+- read-only user config, OAuth grants, and tunnel routes decode
 - history listing decode against the real API
 - transfer list/count/info decode and typed pagination errors
 

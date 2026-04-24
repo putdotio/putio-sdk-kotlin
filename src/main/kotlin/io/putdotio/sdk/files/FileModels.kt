@@ -168,6 +168,8 @@ data class FilesListQuery(
     val noCursor: Boolean = false,
     val contentType: String? = null,
     val fileType: PutioFileType? = null,
+    val sortBy: String? = null,
+    val mp4Status: Boolean = false,
 )
 
 internal fun FilesListQuery.toQueryMap(parentId: Long): Map<String, String> =
@@ -183,6 +185,8 @@ internal fun FilesListQuery.toQueryMap(parentId: Long): Map<String, String> =
         if (noCursor) put("no_cursor", "1")
         if (contentType != null) put("content_type", contentType)
         if (fileType != null) put("file_type", fileType.raw)
+        if (sortBy != null) put("sort_by", sortBy)
+        if (mp4Status) put("mp4_status", "1")
     }
 
 data class FileDetailsQuery(
@@ -242,5 +246,97 @@ data class FileMoveError(
 @Serializable
 internal data class FileMoveEnvelope(
     val errors: List<FileMoveError> = emptyList(),
+    val status: String,
+)
+
+@Serializable(with = NextFileType.Serializer::class)
+@JvmInline
+value class NextFileType(val raw: String) {
+    val isKnown: Boolean
+        get() = this in knownValues
+
+    override fun toString(): String = raw
+
+    companion object {
+        val VIDEO = NextFileType("VIDEO")
+        val AUDIO = NextFileType("AUDIO")
+
+        private val knownValues = setOf(VIDEO, AUDIO)
+
+        fun fromRaw(raw: String): NextFileType =
+            when (raw) {
+                VIDEO.raw -> VIDEO
+                AUDIO.raw -> AUDIO
+                else -> NextFileType(raw)
+            }
+    }
+
+    object Serializer : RawStringValueSerializer<NextFileType>("NextFileType") {
+        override fun fromRaw(raw: String): NextFileType = Companion.fromRaw(raw)
+
+        override fun toRaw(value: NextFileType): String = value.raw
+    }
+}
+
+@Serializable
+data class NextFile(
+    val id: Long,
+    val name: String,
+    @SerialName("parent_id") val parentId: Long? = null,
+    @SerialName("file_type") val fileType: NextFileType? = null,
+)
+
+@Serializable
+internal data class NextFileEnvelope(
+    @SerialName("next_file") val nextFile: NextFile,
+    val status: String,
+)
+
+@Serializable(with = FileMp4ConversionStatus.Serializer::class)
+@JvmInline
+value class FileMp4ConversionStatus(val raw: String) {
+    val isKnown: Boolean
+        get() = this in knownValues
+
+    override fun toString(): String = raw
+
+    companion object {
+        val IN_QUEUE = FileMp4ConversionStatus("IN_QUEUE")
+        val CONVERTING = FileMp4ConversionStatus("CONVERTING")
+        val COMPLETED = FileMp4ConversionStatus("COMPLETED")
+        val ERROR = FileMp4ConversionStatus("ERROR")
+        val NOT_AVAILABLE = FileMp4ConversionStatus("NOT_AVAILABLE")
+
+        private val knownValues = setOf(IN_QUEUE, CONVERTING, COMPLETED, ERROR, NOT_AVAILABLE)
+
+        fun fromRaw(raw: String): FileMp4ConversionStatus =
+            when (raw) {
+                IN_QUEUE.raw -> IN_QUEUE
+                CONVERTING.raw -> CONVERTING
+                COMPLETED.raw -> COMPLETED
+                ERROR.raw -> ERROR
+                NOT_AVAILABLE.raw -> NOT_AVAILABLE
+                else -> FileMp4ConversionStatus(raw)
+            }
+    }
+
+    object Serializer : RawStringValueSerializer<FileMp4ConversionStatus>("FileMp4ConversionStatus") {
+        override fun fromRaw(raw: String): FileMp4ConversionStatus = Companion.fromRaw(raw)
+
+        override fun toRaw(value: FileMp4ConversionStatus): String = value.raw
+    }
+}
+
+@Serializable
+data class FileMp4Conversion(
+    val id: Long? = null,
+    @SerialName("percent_done") val percentDone: Double? = null,
+    val size: Long? = null,
+    val status: FileMp4ConversionStatus,
+)
+
+@Serializable
+internal data class FileMp4ConversionEnvelope(
+    val mp4: FileMp4Conversion,
     val status: String,
 )
