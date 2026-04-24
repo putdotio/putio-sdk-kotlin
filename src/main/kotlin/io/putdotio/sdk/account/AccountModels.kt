@@ -101,6 +101,7 @@ data class AccountSettingsPatch(
     @SerialName("dont_autoselect_subtitles") val dontAutoselectSubtitles: Boolean? = null,
     @SerialName("tunnel_route_name") val tunnelRouteName: String? = null,
     @SerialName("show_optimistic_usage") val showOptimisticUsage: Boolean? = null,
+    @SerialName("sort_by") val sortBy: String? = null,
 ): AccountSettingsUpdate
 
 @Serializable
