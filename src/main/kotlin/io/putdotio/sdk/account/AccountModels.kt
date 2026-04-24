@@ -125,6 +125,23 @@ data class AccountTwoFactorUpdate(
     @SerialName("two_factor_enabled") val twoFactorEnabled: AccountTwoFactorSettings,
 ): AccountSettingsUpdate
 
+@Serializable
+data class AccountClearOptions(
+    val files: Boolean = false,
+    @SerialName("finished_transfers") val finishedTransfers: Boolean = false,
+    @SerialName("active_transfers") val activeTransfers: Boolean = false,
+    @SerialName("rss_feeds") val rssFeeds: Boolean = false,
+    @SerialName("rss_logs") val rssLogs: Boolean = false,
+    val history: Boolean = false,
+    val trash: Boolean = false,
+    val friends: Boolean = false,
+)
+
+@Serializable
+internal data class AccountDestroyInput(
+    @SerialName("current_password") val currentPassword: String,
+)
+
 object AccountSettingsUpdateSerializer : KSerializer<AccountSettingsUpdate> {
     override val descriptor = buildClassSerialDescriptor("AccountSettingsUpdate")
 

@@ -15,6 +15,7 @@ graph LR
   Client --> Files["files namespace"]
   Client --> Grants["grants namespace"]
   Client --> History["history namespace"]
+  Client --> Ifttt["ifttt namespace"]
   Client --> Routes["routes namespace"]
   Client --> Trash["trash namespace"]
   Client --> Transfers["transfers namespace"]
@@ -24,6 +25,7 @@ graph LR
   Files --> Transport
   Grants --> Transport
   History --> Transport
+  Ifttt --> Transport
   Routes --> Transport
   Trash --> Transport
   Transfers --> Transport
@@ -58,6 +60,8 @@ graph LR
   - `getInfo`
   - `getSettings`
   - `saveSettings`
+  - `clearData`
+  - `destroy`
 - `auth`
   - `buildLoginUrl`
   - `getCode`
@@ -101,6 +105,8 @@ graph LR
   - `list`
   - `delete`
   - `clear`
+- `ifttt`
+  - `sendPlaybackEvent`
 - `routes`
   - `list`
 - `trash`

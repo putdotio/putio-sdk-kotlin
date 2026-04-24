@@ -29,6 +29,7 @@ This repository is in its first bootstrap phase. The initial public surface is i
 - `files`
 - `grants`
 - `history`
+- `ifttt`
 - `routes`
 - `trash`
 - `transfers`
@@ -43,6 +44,7 @@ The current expansion is shaped around the real mobile and TV app surfaces in `a
 - user config and tunnel route reads for playback and network preferences
 - file listing/search, cursor continuation, subtitles, file management, next-media lookup, MP4 conversion, and playback resume helpers
 - history event listing and deletion flows
+- IFTTT playback event sending
 - trash listing, cursor continuation, restore, delete, and empty flows
 - transfer listing, cursor continuation, add/cancel/clean/retry, count, and info flows
 

@@ -7,6 +7,7 @@ import io.putdotio.sdk.core.PutioTransport
 import io.putdotio.sdk.files.FilesApi
 import io.putdotio.sdk.grants.GrantsApi
 import io.putdotio.sdk.history.HistoryApi
+import io.putdotio.sdk.ifttt.IftttApi
 import io.putdotio.sdk.routes.RoutesApi
 import io.putdotio.sdk.trash.TrashApi
 import io.putdotio.sdk.transfers.TransfersApi
@@ -29,6 +30,7 @@ class PutioClient(
     val files = FilesApi(transport)
     val grants = GrantsApi(transport)
     val history = HistoryApi(transport)
+    val ifttt = IftttApi(transport)
     val routes = RoutesApi(transport)
     val trash = TrashApi(transport)
     val transfers = TransfersApi(transport)
