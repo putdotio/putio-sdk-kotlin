@@ -113,7 +113,7 @@ class TrashApiTest {
 
     @Test
     fun `restore can use ids`() = withServer { server ->
-        server.enqueue(MockResponse.Builder().body("""{"status":"OK"}""").build())
+        server.enqueue(MockResponse.Builder().body("""{"status":"OK","cursor":"restore-cursor","skipped":1}""").build())
 
         runBlocking {
             PutioClient(
@@ -122,7 +122,9 @@ class TrashApiTest {
                     baseUrl = server.url("/v2/").toString(),
                 ),
             ).use { sdk ->
-                sdk.trash.restore(TrashBulkInput(ids = listOf(1, 2)))
+                val result = sdk.trash.restore(TrashBulkInput(ids = listOf(1, 2)))
+                assertEquals("restore-cursor", result.cursor)
+                assertEquals(1, result.skipped)
             }
         }
 
