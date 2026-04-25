@@ -255,6 +255,26 @@ class FilesApi internal constructor(
         query = mapOf("oauth_token" to accessToken),
     )
 
+    fun buildStreamUrl(
+        file: PutioFile,
+        accessToken: String,
+    ): String? =
+        when (file.fileType) {
+            PutioFileType.AUDIO -> buildAudioStreamUrl(fileId = file.id, accessToken = accessToken)
+            PutioFileType.VIDEO -> buildHlsStreamUrl(fileId = file.id, accessToken = accessToken)
+            else -> null
+        }
+
+    fun buildStreamUrl(
+        nextFile: NextFile,
+        accessToken: String,
+    ): String? =
+        when (nextFile.fileType) {
+            NextFileType.AUDIO -> buildAudioStreamUrl(fileId = nextFile.id, accessToken = accessToken)
+            NextFileType.VIDEO -> buildHlsStreamUrl(fileId = nextFile.id, accessToken = accessToken)
+            else -> null
+        }
+
     fun buildHlsStreamUrl(
         fileId: Long,
         accessToken: String,

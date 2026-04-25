@@ -96,7 +96,7 @@ graph LR
   - `getStartFrom`
   - `setStartFrom`
   - `resetStartFrom`
-  - direct download and stream URL builders
+  - direct download, raw stream, and type-aware stream URL builders
 - `grants`
   - `list`
   - `revoke`
