@@ -584,6 +584,23 @@ class FilesApiTest {
     @Test
     fun `buildDownloadUrl appends oauth token query`() {
         val sdk = PutioClient()
+        val videoFile = PutioFile(
+            id = 11,
+            name = "Video.mkv",
+            createdAt = "2026-04-20T10:00:00Z",
+            fileType = PutioFileType.VIDEO,
+        )
+        val audioNextFile = NextFile(
+            id = 12,
+            name = "Song.mp3",
+            fileType = NextFileType.AUDIO,
+        )
+        val folderFile = PutioFile(
+            id = 13,
+            name = "Folder",
+            createdAt = "2026-04-20T10:00:00Z",
+            fileType = PutioFileType.FOLDER,
+        )
 
         assertEquals(
             "https://api.put.io/v2/files/10/download?oauth_token=abc",
@@ -601,6 +618,15 @@ class FilesApiTest {
             "https://api.put.io/v2/files/10/hls/media.m3u8?oauth_token=abc&subtitle_key=all",
             sdk.files.buildHlsStreamUrl(fileId = 10, accessToken = "abc"),
         )
+        assertEquals(
+            "https://api.put.io/v2/files/11/hls/media.m3u8?oauth_token=abc&subtitle_key=all",
+            sdk.files.buildStreamUrl(file = videoFile, accessToken = "abc"),
+        )
+        assertEquals(
+            "https://api.put.io/v2/files/12/stream?oauth_token=abc",
+            sdk.files.buildStreamUrl(nextFile = audioNextFile, accessToken = "abc"),
+        )
+        assertEquals(null, sdk.files.buildStreamUrl(file = folderFile, accessToken = "abc"))
     }
 
     private fun withServer(block: (MockWebServer) -> Unit) {
