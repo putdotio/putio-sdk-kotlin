@@ -3,4 +3,6 @@ build/
 out/
 .idea/
 *.iml
-
+.env
+.env.*
+!.env.example
