@@ -111,6 +111,33 @@ class PutioTransportTest {
         )
     }
 
+    @Test
+    fun `build url encodes explicit path segment separators`() {
+        val transport = PutioTransport(
+            config = PutioConfig(baseUrl = "https://api.put.io/v2/", accessToken = "token"),
+            httpClient = OkHttpClient(),
+            json = PutioTransport.defaultJson,
+        )
+
+        assertEquals(
+            "https://api.put.io/v2/config/..%2Faccount%2Finfo",
+            transport.buildUrl(pathSegments = listOf("config", "../account/info")),
+        )
+    }
+
+    @Test
+    fun `build url rejects explicit dot path segments`() {
+        val transport = PutioTransport(
+            config = PutioConfig(baseUrl = "https://api.put.io/v2/", accessToken = "token"),
+            httpClient = OkHttpClient(),
+            json = PutioTransport.defaultJson,
+        )
+
+        assertFailsWith<IllegalArgumentException> {
+            transport.buildUrl(pathSegments = listOf("config", ".", ".."))
+        }
+    }
+
     private fun newTransport(server: MockWebServer, accessToken: String?) =
         PutioTransport(
             config = PutioConfig(
