@@ -44,6 +44,11 @@ data class UserConfigUpdate(
     val key: String,
     val value: JsonElement,
 ) {
+    init {
+        require(key.isNotBlank()) { "Config key must not be blank" }
+        require(key != "." && key != "..") { "Config key must not be a dot path segment" }
+    }
+
     companion object {
         fun chromecastPlaybackType(playbackType: ChromecastPlaybackType): UserConfigUpdate =
             UserConfigUpdate(

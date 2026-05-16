@@ -20,7 +20,7 @@ class ConfigApi internal constructor(
     suspend fun save(update: UserConfigUpdate): OkResponse =
         putioOperation(SAVE_CONFIG_ERROR_SPEC) {
             transport.putJson(
-                path = "/config/${update.key}",
+                pathSegments = listOf("config", update.key),
                 serializer = OkResponse.serializer(),
                 body = ConfigValueUpdateBody(update.value),
                 bodySerializer = ConfigValueUpdateBody.serializer(),

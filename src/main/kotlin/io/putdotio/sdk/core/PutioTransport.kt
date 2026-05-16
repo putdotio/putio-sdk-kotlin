@@ -100,11 +100,44 @@ internal class PutioTransport(
         auth = auth,
     )
 
+    suspend fun <T, TBody> putJson(
+        pathSegments: List<String>,
+        serializer: KSerializer<T>,
+        body: TBody,
+        bodySerializer: KSerializer<TBody>,
+        auth: PutioAuth = PutioAuth.ConfigToken,
+    ): T = execute(
+        method = "PUT",
+        pathSegments = pathSegments,
+        serializer = serializer,
+        jsonBody = json.encodeToString(bodySerializer, body),
+        auth = auth,
+    )
+
     fun buildUrl(path: String, query: Map<String, String> = emptyMap(), baseUrl: String = config.baseUrl): String {
         val builder = baseUrl.toHttpUrl().newBuilder()
         for (segment in path.removePrefix("/").split("/")) {
             if (segment.isNotEmpty()) {
                 builder.addPathSegment(segment)
+            }
+        }
+
+        for ((key, value) in query) {
+            builder.addQueryParameter(key, value)
+        }
+
+        return builder.build().toString()
+    }
+
+    fun buildUrl(
+        pathSegments: List<String>,
+        query: Map<String, String> = emptyMap(),
+        baseUrl: String = config.baseUrl,
+    ): String {
+        val builder = baseUrl.toHttpUrl().newBuilder()
+        for (segment in pathSegments) {
+            if (segment.isNotEmpty()) {
+                builder.addLiteralPathSegment(segment)
             }
         }
 
@@ -125,6 +158,44 @@ internal class PutioTransport(
         auth: PutioAuth = PutioAuth.ConfigToken,
     ): T {
         val url = buildUrl(path = path, query = query)
+        return executeUrl(
+            method = method,
+            url = url,
+            serializer = serializer,
+            form = form,
+            jsonBody = jsonBody,
+            auth = auth,
+        )
+    }
+
+    private suspend fun <T> execute(
+        method: String,
+        pathSegments: List<String>,
+        serializer: KSerializer<T>,
+        query: Map<String, String> = emptyMap(),
+        form: Map<String, String> = emptyMap(),
+        jsonBody: String? = null,
+        auth: PutioAuth = PutioAuth.ConfigToken,
+    ): T {
+        val url = buildUrl(pathSegments = pathSegments, query = query)
+        return executeUrl(
+            method = method,
+            url = url,
+            serializer = serializer,
+            form = form,
+            jsonBody = jsonBody,
+            auth = auth,
+        )
+    }
+
+    private suspend fun <T> executeUrl(
+        method: String,
+        url: String,
+        serializer: KSerializer<T>,
+        form: Map<String, String> = emptyMap(),
+        jsonBody: String? = null,
+        auth: PutioAuth = PutioAuth.ConfigToken,
+    ): T {
         val requestData = PutioRequestData(method = method, url = url)
         val request = buildRequest(method = method, url = url, form = form, jsonBody = jsonBody, auth = auth)
         val response = try {
@@ -214,6 +285,14 @@ internal class PutioTransport(
             message = message,
         )
     }
+}
+
+private fun okhttp3.HttpUrl.Builder.addLiteralPathSegment(segment: String): okhttp3.HttpUrl.Builder {
+    require(segment != "." && segment != "..") {
+        "Path segment must not be a dot path segment"
+    }
+
+    return addPathSegment(segment)
 }
 
 private val JSON_MEDIA_TYPE = "application/json; charset=utf-8".toMediaType()
