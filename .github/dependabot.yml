@@ -12,3 +12,15 @@ updates:
         update-types: ["major"]
     commit-message:
       prefix: "ci"
+  - package-ecosystem: gradle
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+    groups:
+      gradle-patch-minor:
+        update-types: ["patch", "minor"]
+      gradle-major:
+        update-types: ["major"]
+    commit-message:
+      prefix: "chore"
