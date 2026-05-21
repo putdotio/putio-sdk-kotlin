@@ -33,12 +33,10 @@ Supported environment variables:
 - `PUTIO_TOKEN`
 - `PUTIO_CLIENT_ID`
 - `PUTIO_BASE_URL`
-- `PUTIO_1PASSWORD_RUNTIME_ITEM_ID`
-- `PUTIO_1PASSWORD_RUNTIME_VAULT`
 
-The live harness prefers direct env vars first, then falls back to a shared 1Password runtime item when `OP_SERVICE_ACCOUNT_TOKEN`, `PUTIO_1PASSWORD_RUNTIME_ITEM_ID`, and `PUTIO_1PASSWORD_RUNTIME_VAULT` are all set.
-
-The shared runtime item name stays out of git. Provide it through your local env or ignored operator config before running `./gradlew liveTest`.
+Run `make secrets-setup` to render shared live credentials from the Infisical
+`/sdk-kotlin` path into `.env.local`. The live harness auto-loads `.env.local`
+and `.env`; already-exported environment variables keep highest priority.
 
 ## Live Scope
 

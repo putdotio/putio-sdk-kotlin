@@ -2,81 +2,49 @@ package io.putdotio.sdk.live
 
 import io.putdotio.sdk.PutioClient
 import io.putdotio.sdk.PutioConfig
+import java.io.File
 import java.util.UUID
-import kotlinx.serialization.json.Json
-import kotlinx.serialization.json.JsonObject
-import kotlinx.serialization.json.contentOrNull
-import kotlinx.serialization.json.jsonArray
-import kotlinx.serialization.json.jsonObject
-import kotlinx.serialization.json.jsonPrimitive
 import org.junit.jupiter.api.Assumptions.assumeTrue
 
 internal object LiveSupport {
-    private val json = Json { ignoreUnknownKeys = true }
+    private val envFileValues: Map<String, String> by lazy {
+        listOf(".env.local", ".env")
+            .fold(emptyMap()) { values, path -> values + loadEnvFile(path) }
+    }
 
     private fun env(name: String): String? =
-        System.getenv(name)
+        (System.getenv(name) ?: envFileValues[name])
             ?.trim()
             ?.takeIf { it.isNotEmpty() }
 
-    private fun runtimeItemVault(): String {
-        val vault = env("PUTIO_1PASSWORD_RUNTIME_VAULT")
-        check(vault != null) {
-            "Missing PUTIO_1PASSWORD_RUNTIME_VAULT. Set it explicitly when reading runtime tokens from 1Password."
-        }
-        return vault
-    }
+    private fun loadEnvFile(path: String): Map<String, String> {
+        val file = File(path)
+        if (!file.isFile) return emptyMap()
 
-    private fun loadRuntimeItem(): JsonObject? {
-        val runtimeItemId = env("PUTIO_1PASSWORD_RUNTIME_ITEM_ID") ?: return null
-        if (env("OP_SERVICE_ACCOUNT_TOKEN") == null) return null
+        return file
+            .readLines()
+            .mapNotNull { line ->
+                val trimmed = line.trim()
+                if (trimmed.isEmpty() || trimmed.startsWith("#")) return@mapNotNull null
 
-        val process = ProcessBuilder(
-            "op",
-            "item",
-            "get",
-            runtimeItemId,
-            "--vault",
-            runtimeItemVault(),
-            "--format",
-            "json",
-            "--reveal",
-        )
-            .redirectErrorStream(true)
-            .start()
+                val separator = trimmed.indexOf("=")
+                if (separator <= 0) return@mapNotNull null
 
-        val output = process.inputStream.bufferedReader().use { it.readText() }
-        val exitCode = process.waitFor()
-        check(exitCode == 0) { "Failed to read runtime-token item $runtimeItemId: $output" }
-
-        return json.parseToJsonElement(output).jsonObject
-    }
-
-    private val runtimeItem: JsonObject? by lazy(::loadRuntimeItem)
-
-    private fun findRuntimeField(
-        label: String,
-        sectionLabel: String? = null,
-    ): String? =
-        runtimeItem
-            ?.get("fields")
-            ?.jsonArray
-            ?.firstOrNull { field ->
-                val jsonField = field.jsonObject
-                val fieldLabel = jsonField["label"]?.jsonPrimitive?.contentOrNull
-                val runtimeSection = jsonField["section"]?.jsonObject?.get("label")?.jsonPrimitive?.contentOrNull
-                fieldLabel == label && runtimeSection == sectionLabel
+                val key = trimmed.substring(0, separator).trim()
+                val value = trimmed.substring(separator + 1).trim().unquote().takeIf { it.isNotEmpty() }
+                if (key.isEmpty() || value == null) null else key to value
             }
-            ?.jsonObject
-            ?.get("value")
-            ?.jsonPrimitive
-            ?.contentOrNull
-            ?.trim()
-            ?.takeIf { it.isNotEmpty() }
+            .toMap()
+    }
 
-    private fun legacyRuntimeNotes(): JsonObject? {
-        val notes = findRuntimeField(label = "notesPlain") ?: return null
-        return runCatching { json.parseToJsonElement(notes).jsonObject }.getOrNull()
+    private fun String.unquote(): String {
+        if (length < 2) return this
+
+        return when {
+            first() == '"' && last() == '"' -> drop(1).dropLast(1)
+            first() == '\'' && last() == '\'' -> drop(1).dropLast(1)
+            else -> this
+        }
     }
 
     private fun runtimeValue(
@@ -88,24 +56,7 @@ internal object LiveSupport {
             .firstOrNull()
             ?.let { return it }
 
-        return when (primary) {
-            "PUTIO_TOKEN_FIRST_PARTY" ->
-                findRuntimeField(label = "access_token", sectionLabel = "first_party")
-                    ?: legacyRuntimeNotes()
-                        ?.get("first_party")
-                        ?.jsonObject
-                        ?.get("accessToken")
-                        ?.jsonPrimitive
-                        ?.contentOrNull
-            "PUTIO_CLIENT_ID" ->
-                findRuntimeField(label = "app_id", sectionLabel = "third_party")
-                    ?: findRuntimeField(label = "third_party_app_id")
-                    ?: legacyRuntimeNotes()
-                        ?.get("third_party_app_id")
-                        ?.jsonPrimitive
-                        ?.contentOrNull
-            else -> null
-        }?.trim()?.takeIf { it.isNotEmpty() }
+        return null
     }
 
     private fun requiredEnv(primary: String, vararg aliases: String): String {
