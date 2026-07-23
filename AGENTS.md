@@ -20,6 +20,12 @@
 - `./gradlew test`
 - `./gradlew publishToMavenLocal`
 
+## Worktrees
+
+`.worktreeinclude` carries `.env` files into Codex and Claude worktrees. Run
+`./gradlew verify`; use `make secrets-setup` if live-test env is missing or
+stale.
+
 ## Repo-Specific Guidance
 
 - Keep the public API closer to `putio-sdk-typescript` than the legacy Swift callback surface
