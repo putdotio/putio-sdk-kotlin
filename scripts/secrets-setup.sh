@@ -49,7 +49,7 @@ trap cleanup EXIT
 
 payload_json="$tmp_dir/payload.json"
 rendered_env="$tmp_dir/rendered.env"
-sops decrypt --output-type json --output "$payload_json" "$ciphertext" \
+sops decrypt --input-type dotenv --output-type json --output "$payload_json" "$ciphertext" \
   || fail "could not decrypt ciphertext input"
 chmod 600 "$payload_json"
 
