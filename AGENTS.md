@@ -23,14 +23,14 @@
 ## Worktrees
 
 `.worktreeinclude` carries `.env` files into Codex and Claude worktrees. Run
-`./gradlew verify`; use `make secrets-setup` if live-test env is missing or
-stale.
+`./gradlew verify`; use `make secrets-setup` with
+`PUTIO_SDK_KOTLIN_SOPS_FILE` if live-test env is missing or stale.
 
 ## Repo-Specific Guidance
 
 - Keep the public API closer to `putio-sdk-typescript` than the legacy Swift callback surface
 - Prefer coroutine-first suspend functions and typed SDK errors
-- Live tests expect maintainer-supplied `PUTIO_SDK_KOTLIN_INFISICAL_*`; `make secrets-setup` writes ignored `.env.local`, and `make secrets-clean` removes it.
+- Live tests accept maintainer-supplied `PUTIO_SDK_KOTLIN_SOPS_FILE`; `make secrets-setup` validates and writes ignored `.env.local`, and `make secrets-clean` removes it.
 - Parse external data at the boundary and keep models domain-first
 - Keep the namespace surface intentionally small until a real app use case proves expansion
 - Use `./gradlew verify` as the canonical local and CI guardrail

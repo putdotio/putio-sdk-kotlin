@@ -94,10 +94,16 @@ val liveTest by tasks.registering(Test::class) {
     shouldRunAfter(tasks.test)
 }
 
+val testSecrets = tasks.register<Exec>("testSecrets") {
+    description = "Exercise fail-closed SOPS live-secret rendering"
+    group = "verification"
+    commandLine("bash", "./scripts/secrets-setup.test.sh")
+}
+
 tasks.register("verify") {
     group = "verification"
     description = "Run the canonical local verification checks"
-    dependsOn("check", "jar", "jacocoTestCoverageVerification")
+    dependsOn("check", "jar", "jacocoTestCoverageVerification", testSecrets)
 }
 
 publishing {
