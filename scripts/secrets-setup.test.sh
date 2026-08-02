@@ -99,6 +99,10 @@ write_payload '{"PUTIO_CLIENT_ID":"123","PUTIO_TOKEN_FIRST_PARTY":"","PUTIO_TOKE
 expect_failure run_setup
 [ ! -e "$output" ]
 
+write_payload '{"PUTIO_CLIENT_ID":"123","PUTIO_TOKEN_FIRST_PARTY":"   ","PUTIO_TOKEN_THIRD_PARTY":"third"}'
+expect_failure run_setup
+[ ! -e "$output" ]
+
 write_payload '{"PUTIO_CLIENT_ID":"123","PUTIO_TOKEN_FIRST_PARTY":123,"PUTIO_TOKEN_THIRD_PARTY":"third"}'
 expect_failure run_setup
 [ ! -e "$output" ]

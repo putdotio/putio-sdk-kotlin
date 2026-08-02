@@ -16,6 +16,9 @@ output="${SECRETS_OUTPUT-.env.local}"
 
 command -v sops >/dev/null 2>&1 || fail "sops is required"
 command -v jq >/dev/null 2>&1 || fail "jq is required"
+command -v git >/dev/null 2>&1 || fail "git is required"
+git rev-parse --is-inside-work-tree >/dev/null 2>&1 \
+  || fail "secrets setup must run inside the SDK git worktree"
 
 [ -f "$ciphertext" ] || fail "ciphertext input must be one regular file"
 [ ! -L "$ciphertext" ] || fail "ciphertext input must not be a symlink"
