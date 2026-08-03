@@ -48,10 +48,6 @@ The current expansion is shaped around the real mobile and TV app surfaces in `a
 - trash listing, cursor continuation, restore, delete, and empty flows
 - transfer listing, cursor continuation, add/cancel/clean/retry, count, and info flows
 
-File deletion follows the account's trash setting by default. Pass
-`skipTrash = true` to `sdk.files.delete` when the item must be deleted
-permanently instead of moved to trash.
-
 ## Installation
 
 The first public Maven release is not wired yet.
