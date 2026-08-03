@@ -287,11 +287,43 @@ class FilesApiTest {
                     baseUrl = server.url("/v2/").toString(),
                 ),
             ).use { sdk ->
-                val result = sdk.files.delete(fileIds = listOf(1, 2))
+                val result = sdk.files.delete(fileIds = listOf(1, 2), skipTrash = true)
                 assertEquals("next-page", result.cursor)
                 assertEquals(2, result.skipped)
             }
         }
+
+        val request = server.takeRequest()
+        assertEquals(
+            "/v2/files/delete?skip_nonexistents=true&skip_owner_check=false&skip_trash=true",
+            request.target,
+        )
+        assertEquals("file_ids=1%2C2", request.body!!.utf8())
+    }
+
+    @Test
+    fun `delete preserves the account trash setting by default`() = withServer { server ->
+        server.enqueue(
+            MockResponse.Builder().body(
+                """{"status":"OK","cursor":null,"skipped":0}""",
+            ).build(),
+        )
+
+        runBlocking {
+            PutioClient(
+                PutioConfig(
+                    accessToken = "token",
+                    baseUrl = server.url("/v2/").toString(),
+                ),
+            ).use { sdk ->
+                sdk.files.delete(fileIds = listOf(1))
+            }
+        }
+
+        assertEquals(
+            "/v2/files/delete?skip_nonexistents=true&skip_owner_check=false",
+            server.takeRequest().target,
+        )
     }
 
     @Test
