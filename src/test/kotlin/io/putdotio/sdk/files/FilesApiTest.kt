@@ -302,12 +302,14 @@ class FilesApiTest {
     }
 
     @Test
-    fun `delete preserves the account trash setting by default`() = withServer { server ->
-        server.enqueue(
-            MockResponse.Builder().body(
-                """{"status":"OK","cursor":null,"skipped":0}""",
-            ).build(),
-        )
+    fun `delete preserves the account trash setting by default and accepts false override`() = withServer { server ->
+        repeat(2) {
+            server.enqueue(
+                MockResponse.Builder().body(
+                    """{"status":"OK","cursor":null,"skipped":0}""",
+                ).build(),
+            )
+        }
 
         runBlocking {
             PutioClient(
@@ -317,11 +319,16 @@ class FilesApiTest {
                 ),
             ).use { sdk ->
                 sdk.files.delete(fileIds = listOf(1))
+                sdk.files.delete(fileIds = listOf(2), skipTrash = false)
             }
         }
 
         assertEquals(
             "/v2/files/delete?skip_nonexistents=true&skip_owner_check=false",
+            server.takeRequest().target,
+        )
+        assertEquals(
+            "/v2/files/delete?skip_nonexistents=true&skip_owner_check=false&skip_trash=false",
             server.takeRequest().target,
         )
     }
