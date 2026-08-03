@@ -96,15 +96,17 @@ class FilesApi internal constructor(
         fileIds: List<Long>,
         skipNonexistents: Boolean = true,
         skipOwnerCheck: Boolean = false,
+        skipTrash: Boolean? = null,
     ): FileDeleteResult =
         putioOperation(DELETE_FILES_ERROR_SPEC) {
             transport.post(
                 path = "/files/delete",
                 serializer = FileDeleteResult.serializer(),
-                query = mapOf(
-                    "skip_nonexistents" to skipNonexistents.toString(),
-                    "skip_owner_check" to skipOwnerCheck.toString(),
-                ),
+                query = buildMap {
+                    put("skip_nonexistents", skipNonexistents.toString())
+                    put("skip_owner_check", skipOwnerCheck.toString())
+                    skipTrash?.let { put("skip_trash", it.toString()) }
+                },
                 form = mapOf("file_ids" to fileIds.joinToString(",")),
             )
         }

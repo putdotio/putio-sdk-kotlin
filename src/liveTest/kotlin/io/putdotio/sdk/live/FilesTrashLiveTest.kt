@@ -1,5 +1,6 @@
 package io.putdotio.sdk.live
 
+import io.putdotio.sdk.account.AccountSettingsPatch
 import io.putdotio.sdk.trash.TrashBulkInput
 import kotlinx.coroutines.runBlocking
 import kotlin.test.Test
@@ -31,26 +32,43 @@ class FilesTrashLiveTest {
             val folderName = LiveSupport.uniqueName("putio-kotlin-live")
 
             LiveSupport.newAuthedClient().use { sdk ->
-                val created = sdk.files.createFolder(name = folderName, parentId = 0)
-                assertEquals(folderName, created.name)
+                val settings = sdk.account.getSettings()
+                if (!settings.trashEnabled) {
+                    sdk.account.saveSettings(AccountSettingsPatch(trashEnabled = true))
+                }
 
                 try {
-                    val listing = sdk.files.list(parentId = 0)
-                    assertTrue(listing.files.any { it.id == created.id })
+                    val created = sdk.files.createFolder(name = folderName, parentId = 0)
+                    var isInTrash = false
+                    assertEquals(folderName, created.name)
 
-                    val deleteResult = sdk.files.delete(fileIds = listOf(created.id))
-                    assertTrue(deleteResult.status == "OK")
+                    try {
+                        val listing = sdk.files.list(parentId = 0)
+                        assertTrue(listing.files.any { it.id == created.id })
 
-                    val trashed = sdk.trash.list()
-                    val trashedFile = trashed.files.find { it.id == created.id }
-                    assertNotNull(trashedFile)
+                        val deleteResult = sdk.files.delete(fileIds = listOf(created.id))
+                        isInTrash = true
+                        assertTrue(deleteResult.status == "OK")
 
-                    sdk.trash.restore(TrashBulkInput(ids = listOf(created.id)))
-                    val restored = sdk.files.get(created.id)
-                    assertEquals(created.id, restored.id)
+                        val trashed = sdk.trash.list()
+                        val trashedFile = trashed.files.find { it.id == created.id }
+                        assertNotNull(trashedFile)
+
+                        sdk.trash.restore(TrashBulkInput(ids = listOf(created.id)))
+                        isInTrash = false
+                        val restored = sdk.files.get(created.id)
+                        assertEquals(created.id, restored.id)
+                    } finally {
+                        if (isInTrash) {
+                            sdk.trash.delete(TrashBulkInput(ids = listOf(created.id)))
+                        } else {
+                            sdk.files.delete(fileIds = listOf(created.id), skipTrash = true)
+                        }
+                    }
                 } finally {
-                    sdk.files.delete(fileIds = listOf(created.id))
-                    sdk.trash.delete(TrashBulkInput(ids = listOf(created.id)))
+                    if (!settings.trashEnabled) {
+                        sdk.account.saveSettings(AccountSettingsPatch(trashEnabled = false))
+                    }
                 }
             }
         }
