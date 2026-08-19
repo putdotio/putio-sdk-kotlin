@@ -14,28 +14,29 @@ class FileModelsTest {
 
     @Test
     fun `serializers preserve file metadata and unknown values`() {
-        val file = json.decodeFromString(
-            PutioFile.serializer(),
-            """
-            {
-              "id": 1,
-              "name": "Mystery.mkv",
-              "parent_id": 0,
-              "size": 42,
-              "created_at": "2026-04-20T10:00:00Z",
-              "updated_at": "2026-04-20T11:00:00Z",
-              "file_type": "BOOK",
-              "folder_type": "MAGIC_SHELF",
-              "video_metadata": {
-                "height": 1080,
-                "width": 1920,
-                "codec": "h264",
-                "duration": 61.5,
-                "aspect_ratio": 1.78
-              }
-            }
-            """.trimIndent(),
-        )
+        val file =
+            json.decodeFromString(
+                PutioFile.serializer(),
+                """
+                {
+                  "id": 1,
+                  "name": "Mystery.mkv",
+                  "parent_id": 0,
+                  "size": 42,
+                  "created_at": "2026-04-20T10:00:00Z",
+                  "updated_at": "2026-04-20T11:00:00Z",
+                  "file_type": "BOOK",
+                  "folder_type": "MAGIC_SHELF",
+                  "video_metadata": {
+                    "height": 1080,
+                    "width": 1920,
+                    "codec": "h264",
+                    "duration": 61.5,
+                    "aspect_ratio": 1.78
+                  }
+                }
+                """.trimIndent(),
+            )
 
         assertEquals("BOOK", file.fileType.raw)
         assertFalse(file.fileType.isKnown)
@@ -47,28 +48,31 @@ class FileModelsTest {
 
     @Test
     fun `serializers decode breadcrumbs subtitles and start-from envelopes`() {
-        val breadcrumb = json.decodeFromString(
-            FileBreadcrumb.serializer(),
-            """{"id":9,"name":"Movies"}""",
-        )
-        val subtitle = json.decodeFromString(
-            FileSubtitle.serializer(),
-            """
-            {
-              "key": "en-key",
-              "format": "vtt",
-              "language": "English",
-              "language_code": "en",
-              "name": "English",
-              "source": "opensubtitles",
-              "url": "https://example.com/subtitles/en.vtt"
-            }
-            """.trimIndent(),
-        )
-        val startFrom = json.decodeFromString(
-            FileStartFromResponse.serializer(),
-            """{"status":"OK","start_from":15.25}""",
-        )
+        val breadcrumb =
+            json.decodeFromString(
+                FileBreadcrumb.serializer(),
+                """{"id":9,"name":"Movies"}""",
+            )
+        val subtitle =
+            json.decodeFromString(
+                FileSubtitle.serializer(),
+                """
+                {
+                  "key": "en-key",
+                  "format": "vtt",
+                  "language": "English",
+                  "language_code": "en",
+                  "name": "English",
+                  "source": "opensubtitles",
+                  "url": "https://example.com/subtitles/en.vtt"
+                }
+                """.trimIndent(),
+            )
+        val startFrom =
+            json.decodeFromString(
+                FileStartFromResponse.serializer(),
+                """{"status":"OK","start_from":15.25}""",
+            )
 
         assertEquals(9L, breadcrumb.id)
         assertEquals("Movies", breadcrumb.name)
@@ -92,22 +96,26 @@ class FileModelsTest {
 
     @Test
     fun `list search and subtitle envelopes keep optional fields nullable by default`() {
-        val list = json.decodeFromString(
-            FilesListResponse.serializer(),
-            """{"status":"OK"}""",
-        )
-        val search = json.decodeFromString(
-            FileSearchResponse.serializer(),
-            """{"status":"OK","total":0}""",
-        )
-        val subtitles = json.decodeFromString(
-            FileSubtitlesResponse.serializer(),
-            """{"status":"OK"}""",
-        )
-        val metadata = json.decodeFromString(
-            PutioVideoMetadata.serializer(),
-            """{}""",
-        )
+        val list =
+            json.decodeFromString(
+                FilesListResponse.serializer(),
+                """{"status":"OK"}""",
+            )
+        val search =
+            json.decodeFromString(
+                FileSearchResponse.serializer(),
+                """{"status":"OK","total":0}""",
+            )
+        val subtitles =
+            json.decodeFromString(
+                FileSubtitlesResponse.serializer(),
+                """{"status":"OK"}""",
+            )
+        val metadata =
+            json.decodeFromString(
+                PutioVideoMetadata.serializer(),
+                """{}""",
+            )
 
         assertEquals(null, list.parent)
         assertTrue(list.files.isEmpty())

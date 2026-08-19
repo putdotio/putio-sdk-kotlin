@@ -11,10 +11,11 @@ class ConfigApi internal constructor(
 ) {
     suspend fun get(): UserConfig =
         putioOperation(GET_CONFIG_ERROR_SPEC) {
-            transport.get(
-                path = "/config",
-                serializer = UserConfigEnvelope.serializer(),
-            ).config
+            transport
+                .get(
+                    path = "/config",
+                    serializer = UserConfigEnvelope.serializer(),
+                ).config
         }
 
     suspend fun save(update: UserConfigUpdate): OkResponse =
@@ -42,8 +43,9 @@ private val SAVE_CONFIG_ERROR_SPEC =
     PutioOperationErrorSpec(
         domain = "config",
         operation = "save",
-        knownErrors = listOf(
-            PutioKnownErrorContract(errorType = "invalid_scope", statusCode = 401),
-            PutioKnownErrorContract(statusCode = 400),
-        ),
+        knownErrors =
+            listOf(
+                PutioKnownErrorContract(errorType = "invalid_scope", statusCode = 401),
+                PutioKnownErrorContract(statusCode = 400),
+            ),
     )

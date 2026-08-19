@@ -11,10 +11,11 @@ class GrantsApi internal constructor(
 ) {
     suspend fun list(): List<OAuthGrant> =
         putioOperation(LIST_GRANTS_ERROR_SPEC) {
-            transport.get(
-                path = "/oauth/grants",
-                serializer = GrantsEnvelope.serializer(),
-            ).apps
+            transport
+                .get(
+                    path = "/oauth/grants",
+                    serializer = GrantsEnvelope.serializer(),
+                ).apps
         }
 
     suspend fun revoke(id: Long): OkResponse =
@@ -27,11 +28,12 @@ class GrantsApi internal constructor(
 
     suspend fun linkDevice(code: String): OAuthGrant =
         putioOperation(LINK_DEVICE_ERROR_SPEC) {
-            transport.post(
-                path = "/oauth2/oob/code",
-                serializer = GrantEnvelope.serializer(),
-                form = mapOf("code" to code),
-            ).app
+            transport
+                .post(
+                    path = "/oauth2/oob/code",
+                    serializer = GrantEnvelope.serializer(),
+                    form = mapOf("code" to code),
+                ).app
         }
 }
 
@@ -53,8 +55,9 @@ private val LINK_DEVICE_ERROR_SPEC =
     PutioOperationErrorSpec(
         domain = "grants",
         operation = "linkDevice",
-        knownErrors = listOf(
-            PutioKnownErrorContract(errorType = "INVALID_CODE", statusCode = 400),
-            PutioKnownErrorContract(statusCode = 404),
-        ),
+        knownErrors =
+            listOf(
+                PutioKnownErrorContract(errorType = "INVALID_CODE", statusCode = 400),
+                PutioKnownErrorContract(statusCode = 404),
+            ),
     )

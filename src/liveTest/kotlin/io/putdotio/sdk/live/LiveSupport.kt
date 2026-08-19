@@ -2,9 +2,9 @@ package io.putdotio.sdk.live
 
 import io.putdotio.sdk.PutioClient
 import io.putdotio.sdk.PutioConfig
+import org.junit.jupiter.api.Assumptions.assumeTrue
 import java.io.File
 import java.util.UUID
-import org.junit.jupiter.api.Assumptions.assumeTrue
 
 internal object LiveSupport {
     private val envFileValues: Map<String, String> by lazy {
@@ -31,10 +31,14 @@ internal object LiveSupport {
                 if (separator <= 0) return@mapNotNull null
 
                 val key = trimmed.substring(0, separator).trim()
-                val value = trimmed.substring(separator + 1).trim().unquote().takeIf { it.isNotEmpty() }
+                val value =
+                    trimmed
+                        .substring(separator + 1)
+                        .trim()
+                        .unquote()
+                        .takeIf { it.isNotEmpty() }
                 if (key.isEmpty() || value == null) null else key to value
-            }
-            .toMap()
+            }.toMap()
     }
 
     private fun String.unquote(): String {
@@ -59,16 +63,17 @@ internal object LiveSupport {
         return null
     }
 
-    private fun requiredEnv(primary: String, vararg aliases: String): String {
+    private fun requiredEnv(
+        primary: String,
+        vararg aliases: String,
+    ): String {
         val value = runtimeValue(primary, *aliases)
 
         assumeTrue(value != null, "Missing live-test credential env: $primary")
         return value ?: error("unreachable")
     }
 
-    fun newAuthedClient(
-        clientId: String? = runtimeValue("PUTIO_CLIENT_ID"),
-    ): PutioClient =
+    fun newAuthedClient(clientId: String? = runtimeValue("PUTIO_CLIENT_ID")): PutioClient =
         PutioClient(
             PutioConfig(
                 accessToken = requiredEnv("PUTIO_TOKEN_FIRST_PARTY", "PUTIO_ACCESS_TOKEN", "PUTIO_TOKEN"),

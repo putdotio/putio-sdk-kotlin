@@ -10,10 +10,11 @@ class RoutesApi internal constructor(
 ) {
     suspend fun list(): List<TunnelRoute> =
         putioOperation(LIST_ROUTES_ERROR_SPEC) {
-            transport.get(
-                path = "/tunnel/routes",
-                serializer = RoutesEnvelope.serializer(),
-            ).routes
+            transport
+                .get(
+                    path = "/tunnel/routes",
+                    serializer = RoutesEnvelope.serializer(),
+                ).routes
         }
 }
 

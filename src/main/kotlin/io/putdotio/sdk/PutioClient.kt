@@ -9,11 +9,11 @@ import io.putdotio.sdk.grants.GrantsApi
 import io.putdotio.sdk.history.HistoryApi
 import io.putdotio.sdk.ifttt.IftttApi
 import io.putdotio.sdk.routes.RoutesApi
-import io.putdotio.sdk.trash.TrashApi
 import io.putdotio.sdk.transfers.TransfersApi
-import java.io.Closeable
+import io.putdotio.sdk.trash.TrashApi
 import kotlinx.serialization.json.Json
 import okhttp3.OkHttpClient
+import java.io.Closeable
 
 class PutioClient(
     val config: PutioConfig = PutioConfig(),

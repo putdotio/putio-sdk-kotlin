@@ -13,7 +13,12 @@ class HistoryLiveTest {
 
                 if (response.events.isNotEmpty()) {
                     assertTrue(response.events.first().id > 0)
-                    assertTrue(response.events.first().createdAt.isNotBlank())
+                    assertTrue(
+                        response.events
+                            .first()
+                            .createdAt
+                            .isNotBlank(),
+                    )
                 }
             }
         }

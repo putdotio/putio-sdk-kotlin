@@ -8,7 +8,9 @@ import kotlinx.serialization.json.JsonPrimitive
 
 @Serializable(with = ChromecastPlaybackType.Serializer::class)
 @JvmInline
-value class ChromecastPlaybackType(val raw: String) {
+value class ChromecastPlaybackType(
+    val raw: String,
+) {
     val isKnown: Boolean
         get() = this in knownValues
 

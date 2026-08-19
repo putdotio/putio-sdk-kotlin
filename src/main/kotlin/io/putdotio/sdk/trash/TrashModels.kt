@@ -38,11 +38,9 @@ data class TrashContinueQuery(
     val perPage: Int? = null,
 )
 
-internal fun TrashListQuery.toQueryMap(): Map<String, String> =
-    toPerPageQueryMap(perPage)
+internal fun TrashListQuery.toQueryMap(): Map<String, String> = toPerPageQueryMap(perPage)
 
-internal fun TrashContinueQuery.toQueryMap(): Map<String, String> =
-    toPerPageQueryMap(perPage)
+internal fun TrashContinueQuery.toQueryMap(): Map<String, String> = toPerPageQueryMap(perPage)
 
 private fun toPerPageQueryMap(perPage: Int?): Map<String, String> =
     buildMap {

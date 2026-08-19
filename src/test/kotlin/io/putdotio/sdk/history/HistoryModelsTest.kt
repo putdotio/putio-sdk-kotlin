@@ -12,24 +12,25 @@ class HistoryModelsTest {
 
     @Test
     fun `history models decode full payloads and preserve unknown types`() {
-        val event = json.decodeFromString(
-            HistoryEvent.serializer(),
-            """
-            {
-              "id": 7,
-              "user_id": 42,
-              "type": "FUTURE_EVENT",
-              "created_at": "2026-04-20T10:00:00Z",
-              "file_id": 99,
-              "file_name": "Movie.mkv",
-              "transfer_id": 55,
-              "transfer_name": "Transfer",
-              "rss_filter_title": "Weekly feed",
-              "zip_id": 4,
-              "icon": "video"
-            }
-            """.trimIndent(),
-        )
+        val event =
+            json.decodeFromString(
+                HistoryEvent.serializer(),
+                """
+                {
+                  "id": 7,
+                  "user_id": 42,
+                  "type": "FUTURE_EVENT",
+                  "created_at": "2026-04-20T10:00:00Z",
+                  "file_id": 99,
+                  "file_name": "Movie.mkv",
+                  "transfer_id": 55,
+                  "transfer_name": "Transfer",
+                  "rss_filter_title": "Weekly feed",
+                  "zip_id": 4,
+                  "icon": "video"
+                }
+                """.trimIndent(),
+            )
 
         assertEquals("FUTURE_EVENT", event.type.raw)
         assertFalse(event.type.isKnown)
@@ -42,10 +43,11 @@ class HistoryModelsTest {
 
     @Test
     fun `history list response preserves explicit pagination state`() {
-        val response = json.decodeFromString(
-            HistoryListResponse.serializer(),
-            """{"status":"OK","has_more":true,"events":[]}""",
-        )
+        val response =
+            json.decodeFromString(
+                HistoryListResponse.serializer(),
+                """{"status":"OK","has_more":true,"events":[]}""",
+            )
 
         assertEquals("OK", response.status)
         assertEquals(true, response.hasMore)

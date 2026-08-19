@@ -1,7 +1,7 @@
-import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 import org.gradle.api.tasks.testing.Test
 import org.gradle.testing.jacoco.tasks.JacocoCoverageVerification
 import org.gradle.testing.jacoco.tasks.JacocoReport
+import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 import java.math.BigDecimal
 
 plugins {
@@ -46,10 +46,11 @@ java {
     targetCompatibility = JavaVersion.VERSION_1_8
 }
 
-val liveTestSourceSet = sourceSets.create("liveTest") {
-    compileClasspath += sourceSets["main"].output + configurations.testRuntimeClasspath.get()
-    runtimeClasspath += output + compileClasspath
-}
+val liveTestSourceSet =
+    sourceSets.create("liveTest") {
+        compileClasspath += sourceSets["main"].output + configurations.testRuntimeClasspath.get()
+        runtimeClasspath += output + compileClasspath
+    }
 
 configurations[liveTestSourceSet.implementationConfigurationName].extendsFrom(configurations.testImplementation.get())
 configurations[liveTestSourceSet.runtimeOnlyConfigurationName].extendsFrom(configurations.testRuntimeOnly.get())

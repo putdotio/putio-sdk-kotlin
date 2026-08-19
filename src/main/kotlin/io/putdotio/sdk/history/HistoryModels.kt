@@ -6,7 +6,9 @@ import kotlinx.serialization.Serializable
 
 @Serializable(with = HistoryEventType.Serializer::class)
 @JvmInline
-value class HistoryEventType(val raw: String) {
+value class HistoryEventType(
+    val raw: String,
+) {
     val isKnown: Boolean
         get() = this in knownValues
 
@@ -26,20 +28,21 @@ value class HistoryEventType(val raw: String) {
         val ZIP_CREATED = HistoryEventType("ZIP_CREATED")
         val OTHER = HistoryEventType("OTHER")
 
-        private val knownValues = setOf(
-            UPLOAD,
-            FILE_SHARED,
-            TRANSFER_COMPLETED,
-            TRANSFER_ERROR,
-            FILE_FROM_RSS_DELETED_ERROR,
-            RSS_FILTER_PAUSED,
-            TRANSFER_FROM_RSS_ERROR,
-            TRANSFER_CALLBACK_ERROR,
-            PRIVATE_TORRENT_PIN,
-            VOUCHER,
-            ZIP_CREATED,
-            OTHER,
-        )
+        private val knownValues =
+            setOf(
+                UPLOAD,
+                FILE_SHARED,
+                TRANSFER_COMPLETED,
+                TRANSFER_ERROR,
+                FILE_FROM_RSS_DELETED_ERROR,
+                RSS_FILTER_PAUSED,
+                TRANSFER_FROM_RSS_ERROR,
+                TRANSFER_CALLBACK_ERROR,
+                PRIVATE_TORRENT_PIN,
+                VOUCHER,
+                ZIP_CREATED,
+                OTHER,
+            )
 
         fun fromRaw(raw: String): HistoryEventType =
             when (raw) {

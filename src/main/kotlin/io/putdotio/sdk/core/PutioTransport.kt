@@ -1,8 +1,8 @@
 package io.putdotio.sdk.core
 
 import io.putdotio.sdk.PutioConfig
-import io.putdotio.sdk.errors.PutioApiException
 import io.putdotio.sdk.errors.PutioApiErrorEnvelope
+import io.putdotio.sdk.errors.PutioApiException
 import io.putdotio.sdk.errors.PutioConfigurationException
 import io.putdotio.sdk.errors.PutioRequestData
 import io.putdotio.sdk.errors.PutioSerializationException
@@ -11,19 +11,21 @@ import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.serialization.KSerializer
 import kotlinx.serialization.json.Json
 import okhttp3.FormBody
+import okhttp3.HttpUrl.Companion.toHttpUrl
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
 import okhttp3.Request
-import okhttp3.Response
 import okhttp3.RequestBody.Companion.toRequestBody
-import okhttp3.HttpUrl.Companion.toHttpUrl
+import okhttp3.Response
 import kotlin.coroutines.resume
 import kotlin.coroutines.resumeWithException
 
 internal sealed interface PutioAuth {
     data object ConfigToken : PutioAuth
 
-    data class Token(val value: String) : PutioAuth
+    data class Token(
+        val value: String,
+    ) : PutioAuth
 
     data object None : PutioAuth
 }
@@ -34,10 +36,11 @@ internal class PutioTransport(
     private val json: Json,
 ) {
     companion object {
-        val defaultJson = Json {
-            ignoreUnknownKeys = true
-            explicitNulls = false
-        }
+        val defaultJson =
+            Json {
+                ignoreUnknownKeys = true
+                explicitNulls = false
+            }
     }
 
     suspend fun <T> get(
@@ -45,13 +48,14 @@ internal class PutioTransport(
         serializer: KSerializer<T>,
         query: Map<String, String> = emptyMap(),
         auth: PutioAuth = PutioAuth.ConfigToken,
-    ): T = execute(
-        method = "GET",
-        path = path,
-        serializer = serializer,
-        query = query,
-        auth = auth,
-    )
+    ): T =
+        execute(
+            method = "GET",
+            path = path,
+            serializer = serializer,
+            query = query,
+            auth = auth,
+        )
 
     suspend fun <T> post(
         path: String,
@@ -59,14 +63,15 @@ internal class PutioTransport(
         query: Map<String, String> = emptyMap(),
         form: Map<String, String> = emptyMap(),
         auth: PutioAuth = PutioAuth.ConfigToken,
-    ): T = execute(
-        method = "POST",
-        path = path,
-        serializer = serializer,
-        query = query,
-        form = form,
-        auth = auth,
-    )
+    ): T =
+        execute(
+            method = "POST",
+            path = path,
+            serializer = serializer,
+            query = query,
+            form = form,
+            auth = auth,
+        )
 
     suspend fun <T, TBody> postJson(
         path: String,
@@ -75,14 +80,15 @@ internal class PutioTransport(
         bodySerializer: KSerializer<TBody>,
         query: Map<String, String> = emptyMap(),
         auth: PutioAuth = PutioAuth.ConfigToken,
-    ): T = execute(
-        method = "POST",
-        path = path,
-        serializer = serializer,
-        query = query,
-        jsonBody = json.encodeToString(bodySerializer, body),
-        auth = auth,
-    )
+    ): T =
+        execute(
+            method = "POST",
+            path = path,
+            serializer = serializer,
+            query = query,
+            jsonBody = json.encodeToString(bodySerializer, body),
+            auth = auth,
+        )
 
     suspend fun <T, TBody> putJson(
         path: String,
@@ -91,14 +97,15 @@ internal class PutioTransport(
         bodySerializer: KSerializer<TBody>,
         query: Map<String, String> = emptyMap(),
         auth: PutioAuth = PutioAuth.ConfigToken,
-    ): T = execute(
-        method = "PUT",
-        path = path,
-        serializer = serializer,
-        query = query,
-        jsonBody = json.encodeToString(bodySerializer, body),
-        auth = auth,
-    )
+    ): T =
+        execute(
+            method = "PUT",
+            path = path,
+            serializer = serializer,
+            query = query,
+            jsonBody = json.encodeToString(bodySerializer, body),
+            auth = auth,
+        )
 
     suspend fun <T, TBody> putJson(
         pathSegments: List<String>,
@@ -106,15 +113,20 @@ internal class PutioTransport(
         body: TBody,
         bodySerializer: KSerializer<TBody>,
         auth: PutioAuth = PutioAuth.ConfigToken,
-    ): T = execute(
-        method = "PUT",
-        pathSegments = pathSegments,
-        serializer = serializer,
-        jsonBody = json.encodeToString(bodySerializer, body),
-        auth = auth,
-    )
+    ): T =
+        execute(
+            method = "PUT",
+            pathSegments = pathSegments,
+            serializer = serializer,
+            jsonBody = json.encodeToString(bodySerializer, body),
+            auth = auth,
+        )
 
-    fun buildUrl(path: String, query: Map<String, String> = emptyMap(), baseUrl: String = config.baseUrl): String {
+    fun buildUrl(
+        path: String,
+        query: Map<String, String> = emptyMap(),
+        baseUrl: String = config.baseUrl,
+    ): String {
         val builder = baseUrl.toHttpUrl().newBuilder()
         for (segment in path.removePrefix("/").split("/")) {
             if (segment.isNotEmpty()) {
@@ -198,11 +210,12 @@ internal class PutioTransport(
     ): T {
         val requestData = PutioRequestData(method = method, url = url)
         val request = buildRequest(method = method, url = url, form = form, jsonBody = jsonBody, auth = auth)
-        val response = try {
-            httpClient.newCall(request).await()
-        } catch (cause: Exception) {
-            throw PutioTransportException(requestData, cause)
-        }
+        val response =
+            try {
+                httpClient.newCall(request).await()
+            } catch (cause: Exception) {
+                throw PutioTransportException(requestData, cause)
+            }
 
         response.use {
             val body = response.body.string()
@@ -226,10 +239,12 @@ internal class PutioTransport(
         jsonBody: String?,
         auth: PutioAuth,
     ): Request {
-        val builder = Request.Builder()
-            .url(url)
-            .header("Accept", "application/json")
-            .header("User-Agent", config.userAgent)
+        val builder =
+            Request
+                .Builder()
+                .url(url)
+                .header("Accept", "application/json")
+                .header("User-Agent", config.userAgent)
 
         resolveAuthorization(auth)?.let { builder.header("Authorization", it) }
 
@@ -252,15 +267,22 @@ internal class PutioTransport(
 
     private fun resolveAuthorization(auth: PutioAuth): String? =
         when (auth) {
-            PutioAuth.None -> null
+            PutioAuth.None -> {
+                null
+            }
+
             PutioAuth.ConfigToken -> {
-                val token = config.accessToken
-                    ?: throw PutioConfigurationException(
-                        "This endpoint requires an access token, but PutioConfig.accessToken is missing",
-                    )
+                val token =
+                    config.accessToken
+                        ?: throw PutioConfigurationException(
+                            "This endpoint requires an access token, but PutioConfig.accessToken is missing",
+                        )
                 "Token $token"
             }
-            is PutioAuth.Token -> "Token ${auth.value}"
+
+            is PutioAuth.Token -> {
+                "Token ${auth.value}"
+            }
         }
 
     private fun decodeApiException(
@@ -268,9 +290,10 @@ internal class PutioTransport(
         response: Response,
         body: String,
     ): PutioApiException {
-        val envelope = runCatching {
-            json.decodeFromString(PutioApiErrorEnvelope.serializer(), body)
-        }.getOrNull()
+        val envelope =
+            runCatching {
+                json.decodeFromString(PutioApiErrorEnvelope.serializer(), body)
+            }.getOrNull()
 
         val statusCode = envelope?.statusCode ?: response.code
         val errorType = envelope?.errorType
@@ -301,7 +324,10 @@ private suspend fun okhttp3.Call.await(): Response =
     suspendCancellableCoroutine { continuation ->
         enqueue(
             object : okhttp3.Callback {
-                override fun onFailure(call: okhttp3.Call, e: java.io.IOException) {
+                override fun onFailure(
+                    call: okhttp3.Call,
+                    e: java.io.IOException,
+                ) {
                     if (continuation.isCancelled) {
                         return
                     }
@@ -309,7 +335,10 @@ private suspend fun okhttp3.Call.await(): Response =
                     continuation.resumeWithException(e)
                 }
 
-                override fun onResponse(call: okhttp3.Call, response: Response) {
+                override fun onResponse(
+                    call: okhttp3.Call,
+                    response: Response,
+                ) {
                     continuation.resume(response)
                 }
             },

@@ -12,7 +12,9 @@ data class FileBreadcrumb(
 
 @Serializable(with = PutioFileType.Serializer::class)
 @JvmInline
-value class PutioFileType(val raw: String) {
+value class PutioFileType(
+    val raw: String,
+) {
     val isKnown: Boolean
         get() = this in knownValues
 
@@ -55,7 +57,9 @@ value class PutioFileType(val raw: String) {
 
 @Serializable(with = PutioFolderType.Serializer::class)
 @JvmInline
-value class PutioFolderType(val raw: String) {
+value class PutioFolderType(
+    val raw: String,
+) {
     val isKnown: Boolean
         get() = this in knownValues
 
@@ -251,7 +255,9 @@ internal data class FileMoveEnvelope(
 
 @Serializable(with = NextFileType.Serializer::class)
 @JvmInline
-value class NextFileType(val raw: String) {
+value class NextFileType(
+    val raw: String,
+) {
     val isKnown: Boolean
         get() = this in knownValues
 
@@ -294,7 +300,9 @@ internal data class NextFileEnvelope(
 
 @Serializable(with = FileMp4ConversionStatus.Serializer::class)
 @JvmInline
-value class FileMp4ConversionStatus(val raw: String) {
+value class FileMp4ConversionStatus(
+    val raw: String,
+) {
     val isKnown: Boolean
         get() = this in knownValues
 

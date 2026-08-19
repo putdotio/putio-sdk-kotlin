@@ -39,10 +39,11 @@ private val LIST_EVENTS_ERROR_SPEC =
     PutioOperationErrorSpec(
         domain = "events",
         operation = "list",
-        knownErrors = listOf(
-            PutioKnownErrorContract(errorType = "INVALID_PER_PAGE", statusCode = 400),
-            PutioKnownErrorContract(statusCode = 400),
-        ),
+        knownErrors =
+            listOf(
+                PutioKnownErrorContract(errorType = "INVALID_PER_PAGE", statusCode = 400),
+                PutioKnownErrorContract(statusCode = 400),
+            ),
     )
 
 private val DELETE_EVENT_ERROR_SPEC =

@@ -64,12 +64,14 @@ class FilesPlaybackLiveTest {
     }
 
     private suspend fun findOwnedVideoCandidate(sdk: PutioClient): PutioFile? =
-        sdk.files.search(
-            FilesSearchQuery(
-                keyword = "mp4",
-                perPage = 10,
-            ),
-        ).files.firstOrNull { file ->
-            file.fileType == PutioFileType.VIDEO && !file.isShared
-        }
+        sdk.files
+            .search(
+                FilesSearchQuery(
+                    keyword = "mp4",
+                    perPage = 10,
+                ),
+            ).files
+            .firstOrNull { file ->
+                file.fileType == PutioFileType.VIDEO && !file.isShared
+            }
 }

@@ -8,4 +8,3 @@ data class PutioConfig(
     var webAppUrl: String = DEFAULT_WEB_APP_URL,
     var userAgent: String = DEFAULT_USER_AGENT,
 )
-
