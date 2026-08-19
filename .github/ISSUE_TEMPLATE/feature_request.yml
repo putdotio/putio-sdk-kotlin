@@ -1,0 +1,32 @@
+name: Feature request
+description: Suggest an SDK surface or behavior improvement for putio-sdk-kotlin
+title: "[Feature]: "
+labels:
+  - enhancement
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem
+      description: What consumer need or API flow is not served well today?
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed solution
+      description: Describe the API surface you want, ideally with a usage example and the consuming app flow it unblocks.
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+      description: Optional. Describe any workarounds or other approaches you considered.
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Before submitting
+      options:
+        - label: I searched for existing issues or discussions covering the same idea
+          required: true
