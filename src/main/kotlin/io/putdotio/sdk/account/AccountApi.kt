@@ -10,17 +10,19 @@ class AccountApi internal constructor(
     private val transport: PutioTransport,
 ) {
     suspend fun getInfo(query: AccountInfoQuery = AccountInfoQuery()): AccountInfo =
-        transport.get(
-            path = "/account/info",
-            serializer = AccountInfoEnvelope.serializer(),
-            query = query.toQueryMap(),
-        ).info
+        transport
+            .get(
+                path = "/account/info",
+                serializer = AccountInfoEnvelope.serializer(),
+                query = query.toQueryMap(),
+            ).info
 
     suspend fun getSettings(): AccountSettings =
-        transport.get(
-            path = "/account/settings",
-            serializer = AccountSettingsEnvelope.serializer(),
-        ).settings
+        transport
+            .get(
+                path = "/account/settings",
+                serializer = AccountSettingsEnvelope.serializer(),
+            ).settings
 
     suspend fun saveSettings(update: AccountSettingsUpdate): OkResponse =
         transport.postJson(
@@ -55,19 +57,21 @@ private val CLEAR_ACCOUNT_ERROR_SPEC =
     PutioOperationErrorSpec(
         domain = "account",
         operation = "clearData",
-        knownErrors = listOf(
-            PutioKnownErrorContract(errorType = "invalid_scope", statusCode = 401),
-            PutioKnownErrorContract(statusCode = 400),
-        ),
+        knownErrors =
+            listOf(
+                PutioKnownErrorContract(errorType = "invalid_scope", statusCode = 401),
+                PutioKnownErrorContract(statusCode = 400),
+            ),
     )
 
 private val DESTROY_ACCOUNT_ERROR_SPEC =
     PutioOperationErrorSpec(
         domain = "account",
         operation = "destroy",
-        knownErrors = listOf(
-            PutioKnownErrorContract(errorType = "INVALID_PASSWORD", statusCode = 400),
-            PutioKnownErrorContract(errorType = "invalid_scope", statusCode = 401),
-            PutioKnownErrorContract(statusCode = 403),
-        ),
+        knownErrors =
+            listOf(
+                PutioKnownErrorContract(errorType = "INVALID_PASSWORD", statusCode = 400),
+                PutioKnownErrorContract(errorType = "invalid_scope", statusCode = 401),
+                PutioKnownErrorContract(statusCode = 403),
+            ),
     )

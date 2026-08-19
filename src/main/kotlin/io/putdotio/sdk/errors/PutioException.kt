@@ -1,8 +1,8 @@
 package io.putdotio.sdk.errors
 
-import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.json.JsonElement
 
 data class PutioRequestData(
     val method: String,
@@ -56,9 +56,7 @@ class PutioApiException(
     val envelope: PutioApiErrorEnvelope,
     val responseBody: String,
     message: String,
-) : PutioException(message)
-
-{
+) : PutioException(message) {
     val statusCode: Int
         get() = envelope.statusCode ?: resolvedStatusCode
 
@@ -111,11 +109,18 @@ private fun PutioOperationErrorSpec.wrap(error: PutioException): PutioOperationE
 private fun PutioOperationErrorSpec.findMatchingContract(error: PutioApiException): PutioKnownErrorContract? =
     knownErrors.firstOrNull { contract ->
         when {
-            contract.errorType != null ->
+            contract.errorType != null -> {
                 error.errorType == contract.errorType &&
                     (contract.statusCode == null || error.statusCode == contract.statusCode)
-            contract.statusCode != null -> error.statusCode == contract.statusCode
-            else -> false
+            }
+
+            contract.statusCode != null -> {
+                error.statusCode == contract.statusCode
+            }
+
+            else -> {
+                false
+            }
         }
     }
 

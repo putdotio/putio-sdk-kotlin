@@ -13,12 +13,14 @@ class FilesTrashLiveTest {
     fun `files search returns stable live results`() {
         runBlocking {
             LiveSupport.newAuthedClient().use { sdk ->
-                val search = sdk.files.search(
-                    query = io.putdotio.sdk.files.FilesSearchQuery(
-                        keyword = "mp4",
-                        perPage = 5,
-                    ),
-                )
+                val search =
+                    sdk.files.search(
+                        query =
+                            io.putdotio.sdk.files.FilesSearchQuery(
+                                keyword = "mp4",
+                                perPage = 5,
+                            ),
+                    )
 
                 assertTrue(search.total >= search.files.size)
                 assertTrue(search.files.isNotEmpty())

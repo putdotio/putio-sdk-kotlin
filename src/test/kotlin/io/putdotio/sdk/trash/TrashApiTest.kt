@@ -5,153 +5,44 @@ import io.putdotio.sdk.PutioConfig
 import io.putdotio.sdk.errors.PutioApiException
 import io.putdotio.sdk.errors.PutioOperationException
 import kotlinx.coroutines.runBlocking
+import mockwebserver3.MockResponse
+import mockwebserver3.MockWebServer
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 import kotlin.test.assertIs
-import mockwebserver3.MockResponse
-import mockwebserver3.MockWebServer
 
 class TrashApiTest {
     @Test
-    fun `list decodes trash response`() = withServer { server ->
-        server.enqueue(
-            MockResponse.Builder().body(
-                """
-                {
-                  "status": "OK",
-                  "cursor": "next-page",
-                  "total": 1,
-                  "trash_size": 123,
-                  "files": [
-                    {
-                      "id": 10,
-                      "name": "Old Movie",
-                      "size": 99,
-                      "created_at": "2026-04-20T10:00:00Z",
-                      "deleted_at": "2026-04-21T10:00:00Z",
-                      "expiration_date": "2026-05-01T10:00:00Z",
-                      "file_type": "VIDEO",
-                      "folder_type": "REGULAR"
-                    }
-                  ]
-                }
-                """.trimIndent(),
-            ).build(),
-        )
+    fun `list decodes trash response`() =
+        withServer { server ->
+            server.enqueue(
+                MockResponse
+                    .Builder()
+                    .body(
+                        """
+                        {
+                          "status": "OK",
+                          "cursor": "next-page",
+                          "total": 1,
+                          "trash_size": 123,
+                          "files": [
+                            {
+                              "id": 10,
+                              "name": "Old Movie",
+                              "size": 99,
+                              "created_at": "2026-04-20T10:00:00Z",
+                              "deleted_at": "2026-04-21T10:00:00Z",
+                              "expiration_date": "2026-05-01T10:00:00Z",
+                              "file_type": "VIDEO",
+                              "folder_type": "REGULAR"
+                            }
+                          ]
+                        }
+                        """.trimIndent(),
+                    ).build(),
+            )
 
-        runBlocking {
-            PutioClient(
-                PutioConfig(
-                    accessToken = "token",
-                    baseUrl = server.url("/v2/").toString(),
-                ),
-            ).use { sdk ->
-                val response = sdk.trash.list()
-                assertEquals("next-page", response.cursor)
-                assertEquals(1, response.total)
-                assertEquals(123L, response.trashSize)
-                assertEquals(1, response.files.size)
-            }
-        }
-    }
-
-    @Test
-    fun `continueList posts cursor and keeps pagination typed`() = withServer { server ->
-        server.enqueue(
-            MockResponse.Builder().body(
-                """
-                {
-                  "status": "OK",
-                  "cursor": "done",
-                  "trash_size": 0,
-                  "files": []
-                }
-                """.trimIndent(),
-            ).build(),
-        )
-
-        runBlocking {
-            PutioClient(
-                PutioConfig(
-                    accessToken = "token",
-                    baseUrl = server.url("/v2/").toString(),
-                ),
-            ).use { sdk ->
-                val response = sdk.trash.continueList(
-                    cursor = "trash-cursor-123",
-                    query = TrashContinueQuery(perPage = 10),
-                )
-                assertEquals("done", response.cursor)
-            }
-        }
-
-        val request = server.takeRequest()
-        assertEquals("/v2/trash/list/continue?per_page=10", request.target)
-        assertEquals("cursor=trash-cursor-123", request.body!!.utf8())
-    }
-
-    @Test
-    fun `continueList can omit pagination query`() = withServer { server ->
-        server.enqueue(MockResponse.Builder().body("""{"status":"OK","cursor":null,"trash_size":0,"files":[]}""").build())
-
-        runBlocking {
-            PutioClient(
-                PutioConfig(
-                    accessToken = "token",
-                    baseUrl = server.url("/v2/").toString(),
-                ),
-            ).use { sdk ->
-                sdk.trash.continueList(cursor = "trash-cursor")
-            }
-        }
-
-        val request = server.takeRequest()
-        assertEquals("/v2/trash/list/continue", request.target)
-        assertEquals("cursor=trash-cursor", request.body!!.utf8())
-    }
-
-    @Test
-    fun `restore can use ids`() = withServer { server ->
-        server.enqueue(MockResponse.Builder().body("""{"status":"OK","cursor":"restore-cursor","skipped":1}""").build())
-
-        runBlocking {
-            PutioClient(
-                PutioConfig(
-                    accessToken = "token",
-                    baseUrl = server.url("/v2/").toString(),
-                ),
-            ).use { sdk ->
-                val result = sdk.trash.restore(TrashBulkInput(ids = listOf(1, 2)))
-                assertEquals("restore-cursor", result.cursor)
-                assertEquals(1, result.skipped)
-            }
-        }
-
-        val request = server.takeRequest()
-        assertEquals("/v2/trash/restore", request.target)
-        assertEquals("file_ids=1%2C2", request.body!!.utf8())
-    }
-
-    @Test
-    fun `restore wraps missing trash items with operation context`() = withServer { server ->
-        server.enqueue(
-            MockResponse.Builder()
-                .code(404)
-                .body(
-                    """
-                    {
-                      "status": "ERROR",
-                      "status_code": 404,
-                      "error_type": "NOT_FOUND",
-                      "message": "trash item not found"
-                    }
-                    """.trimIndent(),
-                )
-                .build(),
-        )
-
-        val error = assertFailsWith<PutioOperationException> {
             runBlocking {
                 PutioClient(
                     PutioConfig(
@@ -159,56 +50,178 @@ class TrashApiTest {
                         baseUrl = server.url("/v2/").toString(),
                     ),
                 ).use { sdk ->
-                    sdk.trash.restore(TrashBulkInput(ids = listOf(1)))
+                    val response = sdk.trash.list()
+                    assertEquals("next-page", response.cursor)
+                    assertEquals(1, response.total)
+                    assertEquals(123L, response.trashSize)
+                    assertEquals(1, response.files.size)
                 }
             }
         }
 
-        assertEquals("trash", error.domain)
-        assertEquals("restore", error.operation)
-        val underlying = assertIs<PutioApiException>(error.underlyingError)
-        assertEquals(404, underlying.statusCode)
-    }
-
     @Test
-    fun `delete can use cursor input`() = withServer { server ->
-        server.enqueue(MockResponse.Builder().body("""{"status":"OK"}""").build())
+    fun `continueList posts cursor and keeps pagination typed`() =
+        withServer { server ->
+            server.enqueue(
+                MockResponse
+                    .Builder()
+                    .body(
+                        """
+                        {
+                          "status": "OK",
+                          "cursor": "done",
+                          "trash_size": 0,
+                          "files": []
+                        }
+                        """.trimIndent(),
+                    ).build(),
+            )
 
-        runBlocking {
-            PutioClient(
-                PutioConfig(
-                    accessToken = "token",
-                    baseUrl = server.url("/v2/").toString(),
-                ),
-            ).use { sdk ->
-                sdk.trash.delete(TrashBulkInput(cursor = "cursor-123"))
+            runBlocking {
+                PutioClient(
+                    PutioConfig(
+                        accessToken = "token",
+                        baseUrl = server.url("/v2/").toString(),
+                    ),
+                ).use { sdk ->
+                    val response =
+                        sdk.trash.continueList(
+                            cursor = "trash-cursor-123",
+                            query = TrashContinueQuery(perPage = 10),
+                        )
+                    assertEquals("done", response.cursor)
+                }
             }
+
+            val request = server.takeRequest()
+            assertEquals("/v2/trash/list/continue?per_page=10", request.target)
+            assertEquals("cursor=trash-cursor-123", request.body!!.utf8())
         }
 
-        val request = server.takeRequest()
-        assertEquals("/v2/trash/delete", request.target)
-        assertEquals("cursor=cursor-123", request.body!!.utf8())
-    }
-
     @Test
-    fun `empty posts without requiring input`() = withServer { server ->
-        server.enqueue(MockResponse.Builder().body("""{"status":"OK"}""").build())
+    fun `continueList can omit pagination query`() =
+        withServer { server ->
+            server.enqueue(MockResponse.Builder().body("""{"status":"OK","cursor":null,"trash_size":0,"files":[]}""").build())
 
-        runBlocking {
-            PutioClient(
-                PutioConfig(
-                    accessToken = "token",
-                    baseUrl = server.url("/v2/").toString(),
-                ),
-            ).use { sdk ->
-                val result = sdk.trash.empty()
-                assertEquals("OK", result.status)
+            runBlocking {
+                PutioClient(
+                    PutioConfig(
+                        accessToken = "token",
+                        baseUrl = server.url("/v2/").toString(),
+                    ),
+                ).use { sdk ->
+                    sdk.trash.continueList(cursor = "trash-cursor")
+                }
             }
+
+            val request = server.takeRequest()
+            assertEquals("/v2/trash/list/continue", request.target)
+            assertEquals("cursor=trash-cursor", request.body!!.utf8())
         }
 
-        val request = server.takeRequest()
-        assertEquals("/v2/trash/empty", request.target)
-    }
+    @Test
+    fun `restore can use ids`() =
+        withServer { server ->
+            server.enqueue(MockResponse.Builder().body("""{"status":"OK","cursor":"restore-cursor","skipped":1}""").build())
+
+            runBlocking {
+                PutioClient(
+                    PutioConfig(
+                        accessToken = "token",
+                        baseUrl = server.url("/v2/").toString(),
+                    ),
+                ).use { sdk ->
+                    val result = sdk.trash.restore(TrashBulkInput(ids = listOf(1, 2)))
+                    assertEquals("restore-cursor", result.cursor)
+                    assertEquals(1, result.skipped)
+                }
+            }
+
+            val request = server.takeRequest()
+            assertEquals("/v2/trash/restore", request.target)
+            assertEquals("file_ids=1%2C2", request.body!!.utf8())
+        }
+
+    @Test
+    fun `restore wraps missing trash items with operation context`() =
+        withServer { server ->
+            server.enqueue(
+                MockResponse
+                    .Builder()
+                    .code(404)
+                    .body(
+                        """
+                        {
+                          "status": "ERROR",
+                          "status_code": 404,
+                          "error_type": "NOT_FOUND",
+                          "message": "trash item not found"
+                        }
+                        """.trimIndent(),
+                    ).build(),
+            )
+
+            val error =
+                assertFailsWith<PutioOperationException> {
+                    runBlocking {
+                        PutioClient(
+                            PutioConfig(
+                                accessToken = "token",
+                                baseUrl = server.url("/v2/").toString(),
+                            ),
+                        ).use { sdk ->
+                            sdk.trash.restore(TrashBulkInput(ids = listOf(1)))
+                        }
+                    }
+                }
+
+            assertEquals("trash", error.domain)
+            assertEquals("restore", error.operation)
+            val underlying = assertIs<PutioApiException>(error.underlyingError)
+            assertEquals(404, underlying.statusCode)
+        }
+
+    @Test
+    fun `delete can use cursor input`() =
+        withServer { server ->
+            server.enqueue(MockResponse.Builder().body("""{"status":"OK"}""").build())
+
+            runBlocking {
+                PutioClient(
+                    PutioConfig(
+                        accessToken = "token",
+                        baseUrl = server.url("/v2/").toString(),
+                    ),
+                ).use { sdk ->
+                    sdk.trash.delete(TrashBulkInput(cursor = "cursor-123"))
+                }
+            }
+
+            val request = server.takeRequest()
+            assertEquals("/v2/trash/delete", request.target)
+            assertEquals("cursor=cursor-123", request.body!!.utf8())
+        }
+
+    @Test
+    fun `empty posts without requiring input`() =
+        withServer { server ->
+            server.enqueue(MockResponse.Builder().body("""{"status":"OK"}""").build())
+
+            runBlocking {
+                PutioClient(
+                    PutioConfig(
+                        accessToken = "token",
+                        baseUrl = server.url("/v2/").toString(),
+                    ),
+                ).use { sdk ->
+                    val result = sdk.trash.empty()
+                    assertEquals("OK", result.status)
+                }
+            }
+
+            val request = server.takeRequest()
+            assertEquals("/v2/trash/empty", request.target)
+        }
 
     private fun withServer(block: (MockWebServer) -> Unit) {
         MockWebServer().use { server ->

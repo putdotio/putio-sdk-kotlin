@@ -6,7 +6,9 @@ import kotlinx.serialization.Serializable
 
 @Serializable(with = TransferType.Serializer::class)
 @JvmInline
-value class TransferType(val raw: String) {
+value class TransferType(
+    val raw: String,
+) {
     val isKnown: Boolean
         get() = this in knownValues
 
@@ -41,7 +43,9 @@ value class TransferType(val raw: String) {
 
 @Serializable(with = TransferStatus.Serializer::class)
 @JvmInline
-value class TransferStatus(val raw: String) {
+value class TransferStatus(
+    val raw: String,
+) {
     val isKnown: Boolean
         get() = this in knownValues
 
@@ -61,20 +65,21 @@ value class TransferStatus(val raw: String) {
         val ERROR = TransferStatus("ERROR")
         val PREPARING_SEED = TransferStatus("PREPARING_SEED")
 
-        private val knownValues = setOf(
-            WAITING,
-            PREPARING_DOWNLOAD,
-            IN_QUEUE,
-            DOWNLOADING,
-            WAITING_FOR_COMPLETE_QUEUE,
-            WAITING_FOR_DOWNLOADER,
-            COMPLETING,
-            STOPPING,
-            SEEDING,
-            COMPLETED,
-            ERROR,
-            PREPARING_SEED,
-        )
+        private val knownValues =
+            setOf(
+                WAITING,
+                PREPARING_DOWNLOAD,
+                IN_QUEUE,
+                DOWNLOADING,
+                WAITING_FOR_COMPLETE_QUEUE,
+                WAITING_FOR_DOWNLOADER,
+                COMPLETING,
+                STOPPING,
+                SEEDING,
+                COMPLETED,
+                ERROR,
+                PREPARING_SEED,
+            )
 
         fun fromRaw(raw: String): TransferStatus =
             when (raw) {

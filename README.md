@@ -36,7 +36,7 @@ This repository is in its first bootstrap phase. The initial public surface is i
 
 The design goal is to stay closer to the TypeScript SDK than the legacy Swift SDK: coroutine-first APIs, typed errors, explicit boundary parsing, forward-compatible value types at the API edge, and a user-facing error localization layer for recovery guidance.
 
-The current expansion is shaped around the real mobile and TV app surfaces in `apps/ios` and `apps/web/apps/tv-native`, especially:
+The current expansion is shaped around real put.io mobile and TV app needs. The primary consumer is the sibling [putio-android](https://github.com/putdotio/putio-android) app, which uses this SDK as its API boundary through a Gradle composite build; the covered flows mirror what the put.io mobile and TV apps use, especially:
 
 - auth login, device/OOB, token validation, and two-factor flows
 - OAuth grant listing, revocation, logout, and device linking
@@ -108,7 +108,7 @@ The repo exposes one canonical verification command:
 
 The repository targets JDK `21`. Install a Java `21` runtime with your preferred version manager or system package manager before running Gradle. The checked-in [.java-version](./.java-version) is only a compatibility hint for tools that choose to honor it.
 
-This currently runs compile and test guardrails for the bootstrap surface. Tests use `MockWebServer` to verify request shaping, auth handling, and response decoding. `./gradlew verify` also enforces a `90%` line coverage floor for the current source set.
+This currently runs compile, format, and test guardrails for the bootstrap surface. Tests use `MockWebServer` to verify request shaping, auth handling, and response decoding. `./gradlew verify` also runs `spotlessCheck` (stock ktlint rules) and enforces a `90%` line coverage floor for the current source set. Fix formatting findings with `./gradlew spotlessApply`.
 
 An opt-in live suite is also available through `./gradlew liveTest`. It follows the TypeScript SDK convention of keeping real API verification separate from the default unit suite.
 

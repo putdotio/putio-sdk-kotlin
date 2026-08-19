@@ -1,7 +1,7 @@
-import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 import org.gradle.api.tasks.testing.Test
 import org.gradle.testing.jacoco.tasks.JacocoCoverageVerification
 import org.gradle.testing.jacoco.tasks.JacocoReport
+import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 import java.math.BigDecimal
 
 plugins {
@@ -9,6 +9,7 @@ plugins {
     kotlin("plugin.serialization") version "2.4.10"
     `maven-publish`
     jacoco
+    id("com.diffplug.spotless") version "8.10.0"
 }
 
 group = "io.putdotio"
@@ -20,6 +21,15 @@ repositories {
 
 jacoco {
     toolVersion = "0.8.13"
+}
+
+spotless {
+    kotlin {
+        ktlint()
+    }
+    kotlinGradle {
+        ktlint()
+    }
 }
 
 kotlin {
@@ -36,10 +46,11 @@ java {
     targetCompatibility = JavaVersion.VERSION_1_8
 }
 
-val liveTestSourceSet = sourceSets.create("liveTest") {
-    compileClasspath += sourceSets["main"].output + configurations.testRuntimeClasspath.get()
-    runtimeClasspath += output + compileClasspath
-}
+val liveTestSourceSet =
+    sourceSets.create("liveTest") {
+        compileClasspath += sourceSets["main"].output + configurations.testRuntimeClasspath.get()
+        runtimeClasspath += output + compileClasspath
+    }
 
 configurations[liveTestSourceSet.implementationConfigurationName].extendsFrom(configurations.testImplementation.get())
 configurations[liveTestSourceSet.runtimeOnlyConfigurationName].extendsFrom(configurations.testRuntimeOnly.get())

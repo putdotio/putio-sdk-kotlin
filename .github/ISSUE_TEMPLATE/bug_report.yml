@@ -1,0 +1,46 @@
+name: Bug report
+description: Report a reproducible problem in putio-sdk-kotlin
+title: "[Bug]: "
+labels:
+  - bug
+body:
+  - type: textarea
+    id: summary
+    attributes:
+      label: Summary
+      description: What happened, and what did you expect instead?
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      description: Include a minimal code sample or failing test if possible.
+      placeholder: |
+        1. Configure PutioClient with ...
+        2. Call sdk.files.list(...)
+        3. See ...
+    validations:
+      required: true
+  - type: textarea
+    id: environment
+    attributes:
+      label: Environment
+      description: SDK version or commit, Kotlin version, JDK, and consuming platform (JVM, Android, other).
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs or stack traces
+      description: Paste any relevant exception, response body, or test output.
+      render: shell
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Before submitting
+      options:
+        - label: I searched for existing issues covering the same problem
+          required: true
+        - label: I removed access tokens, secrets, and private account data from the report
+          required: true

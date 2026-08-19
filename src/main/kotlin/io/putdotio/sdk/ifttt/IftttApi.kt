@@ -24,8 +24,9 @@ private val SEND_PLAYBACK_EVENT_ERROR_SPEC =
     PutioOperationErrorSpec(
         domain = "ifttt",
         operation = "sendPlaybackEvent",
-        knownErrors = listOf(
-            PutioKnownErrorContract(errorType = "invalid_scope", statusCode = 401),
-            PutioKnownErrorContract(statusCode = 400),
-        ),
+        knownErrors =
+            listOf(
+                PutioKnownErrorContract(errorType = "invalid_scope", statusCode = 401),
+                PutioKnownErrorContract(statusCode = 400),
+            ),
     )

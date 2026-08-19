@@ -28,10 +28,11 @@ class AuthLiveTest {
                 assertTrue(code.code.isNotBlank())
                 assertTrue(code.qrCodeUrl.isNotBlank())
 
-                val loginUrl = sdk.auth.buildLoginUrl(
-                    redirectUri = "putio://live/auth",
-                    state = "live-state",
-                )
+                val loginUrl =
+                    sdk.auth.buildLoginUrl(
+                        redirectUri = "putio://live/auth",
+                        state = "live-state",
+                    )
 
                 assertTrue(loginUrl.contains("client_id=$clientId"))
                 assertTrue(loginUrl.contains("state=live-state"))

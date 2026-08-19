@@ -68,20 +68,22 @@ private val RESTORE_TRASH_ERROR_SPEC =
     PutioOperationErrorSpec(
         domain = "trash",
         operation = "restore",
-        knownErrors = listOf(
-            PutioKnownErrorContract(statusCode = 400),
-            PutioKnownErrorContract(statusCode = 404),
-        ),
+        knownErrors =
+            listOf(
+                PutioKnownErrorContract(statusCode = 400),
+                PutioKnownErrorContract(statusCode = 404),
+            ),
     )
 
 private val DELETE_TRASH_ERROR_SPEC =
     PutioOperationErrorSpec(
         domain = "trash",
         operation = "delete",
-        knownErrors = listOf(
-            PutioKnownErrorContract(statusCode = 400),
-            PutioKnownErrorContract(statusCode = 404),
-        ),
+        knownErrors =
+            listOf(
+                PutioKnownErrorContract(statusCode = 400),
+                PutioKnownErrorContract(statusCode = 404),
+            ),
     )
 
 private val EMPTY_TRASH_ERROR_SPEC =

@@ -18,7 +18,11 @@
 
 - `./gradlew verify`
 - `./gradlew test`
+- `./gradlew liveTest`
+- `./gradlew spotlessApply`
 - `./gradlew publishToMavenLocal`
+- `make secrets-setup`
+- `make secrets-clean`
 
 ## Worktrees
 

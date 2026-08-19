@@ -44,9 +44,10 @@ class TransfersLiveTest {
     fun `transfers oversized pagination yields typed live error`() {
         runBlocking {
             LiveSupport.newAuthedClient().use { sdk ->
-                val error = assertFailsWith<PutioOperationException> {
-                    sdk.transfers.list(TransfersListQuery(perPage = 1001))
-                }
+                val error =
+                    assertFailsWith<PutioOperationException> {
+                        sdk.transfers.list(TransfersListQuery(perPage = 1001))
+                    }
 
                 assertEquals("transfers", error.domain)
                 assertEquals("list", error.operation)

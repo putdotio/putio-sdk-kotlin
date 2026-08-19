@@ -1,9 +1,9 @@
 package io.putdotio.sdk.account
 
+import kotlinx.serialization.KSerializer
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.SerializationException
-import kotlinx.serialization.KSerializer
 import kotlinx.serialization.descriptors.buildClassSerialDescriptor
 import kotlinx.serialization.encoding.Decoder
 import kotlinx.serialization.encoding.Encoder
@@ -102,29 +102,29 @@ data class AccountSettingsPatch(
     @SerialName("tunnel_route_name") val tunnelRouteName: String? = null,
     @SerialName("show_optimistic_usage") val showOptimisticUsage: Boolean? = null,
     @SerialName("sort_by") val sortBy: String? = null,
-): AccountSettingsUpdate
+) : AccountSettingsUpdate
 
 @Serializable
 data class AccountUsernameUpdate(
     val username: String,
-): AccountSettingsUpdate
+) : AccountSettingsUpdate
 
 @Serializable
 data class AccountMailUpdate(
     @SerialName("current_password") val currentPassword: String,
     val mail: String,
-): AccountSettingsUpdate
+) : AccountSettingsUpdate
 
 @Serializable
 data class AccountPasswordUpdate(
     @SerialName("current_password") val currentPassword: String,
     val password: String,
-): AccountSettingsUpdate
+) : AccountSettingsUpdate
 
 @Serializable
 data class AccountTwoFactorUpdate(
     @SerialName("two_factor_enabled") val twoFactorEnabled: AccountTwoFactorSettings,
-): AccountSettingsUpdate
+) : AccountSettingsUpdate
 
 @Serializable
 data class AccountClearOptions(
@@ -150,38 +150,51 @@ object AccountSettingsUpdateSerializer : KSerializer<AccountSettingsUpdate> {
         encoder: Encoder,
         value: AccountSettingsUpdate,
     ) {
-        val jsonEncoder = encoder as? JsonEncoder
-            ?: throw SerializationException("AccountSettingsUpdate requires JSON encoding")
+        val jsonEncoder =
+            encoder as? JsonEncoder
+                ?: throw SerializationException("AccountSettingsUpdate requires JSON encoding")
 
-        val element = when (value) {
-            is AccountSettingsPatch -> jsonEncoder.json.encodeToJsonElement(AccountSettingsPatch.serializer(), value)
-            is AccountUsernameUpdate -> jsonEncoder.json.encodeToJsonElement(AccountUsernameUpdate.serializer(), value)
-            is AccountMailUpdate -> jsonEncoder.json.encodeToJsonElement(AccountMailUpdate.serializer(), value)
-            is AccountPasswordUpdate -> jsonEncoder.json.encodeToJsonElement(AccountPasswordUpdate.serializer(), value)
-            is AccountTwoFactorUpdate -> jsonEncoder.json.encodeToJsonElement(AccountTwoFactorUpdate.serializer(), value)
-        }
+        val element =
+            when (value) {
+                is AccountSettingsPatch -> jsonEncoder.json.encodeToJsonElement(AccountSettingsPatch.serializer(), value)
+                is AccountUsernameUpdate -> jsonEncoder.json.encodeToJsonElement(AccountUsernameUpdate.serializer(), value)
+                is AccountMailUpdate -> jsonEncoder.json.encodeToJsonElement(AccountMailUpdate.serializer(), value)
+                is AccountPasswordUpdate -> jsonEncoder.json.encodeToJsonElement(AccountPasswordUpdate.serializer(), value)
+                is AccountTwoFactorUpdate -> jsonEncoder.json.encodeToJsonElement(AccountTwoFactorUpdate.serializer(), value)
+            }
 
         jsonEncoder.encodeJsonElement(element)
     }
 
     override fun deserialize(decoder: Decoder): AccountSettingsUpdate {
-        val jsonDecoder = decoder as? JsonDecoder
-            ?: throw SerializationException("AccountSettingsUpdate requires JSON decoding")
+        val jsonDecoder =
+            decoder as? JsonDecoder
+                ?: throw SerializationException("AccountSettingsUpdate requires JSON decoding")
         val element = jsonDecoder.decodeJsonElement()
-        val jsonObject = element as? kotlinx.serialization.json.JsonObject
-            ?: throw SerializationException("Expected JSON object for AccountSettingsUpdate")
+        val jsonObject =
+            element as? kotlinx.serialization.json.JsonObject
+                ?: throw SerializationException("Expected JSON object for AccountSettingsUpdate")
 
         return when {
-            "two_factor_enabled" in jsonObject ->
+            "two_factor_enabled" in jsonObject -> {
                 jsonDecoder.json.decodeFromJsonElement(AccountTwoFactorUpdate.serializer(), element)
-            "username" in jsonObject ->
+            }
+
+            "username" in jsonObject -> {
                 jsonDecoder.json.decodeFromJsonElement(AccountUsernameUpdate.serializer(), element)
-            "mail" in jsonObject || "current_password" in jsonObject && "password" !in jsonObject ->
+            }
+
+            "mail" in jsonObject || ("current_password" in jsonObject && "password" !in jsonObject) -> {
                 jsonDecoder.json.decodeFromJsonElement(AccountMailUpdate.serializer(), element)
-            "password" in jsonObject ->
+            }
+
+            "password" in jsonObject -> {
                 jsonDecoder.json.decodeFromJsonElement(AccountPasswordUpdate.serializer(), element)
-            else ->
+            }
+
+            else -> {
                 jsonDecoder.json.decodeFromJsonElement(AccountSettingsPatch.serializer(), element)
+            }
         }
     }
 }

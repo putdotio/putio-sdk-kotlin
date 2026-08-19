@@ -4,46 +4,47 @@ import kotlinx.serialization.decodeFromString
 import kotlinx.serialization.json.Json
 import kotlin.test.Test
 import kotlin.test.assertEquals
-import kotlin.test.assertFalse
 import kotlin.test.assertFailsWith
+import kotlin.test.assertFalse
 
 class TrashModelsTest {
     private val json = Json { ignoreUnknownKeys = true }
 
     @Test
     fun `trash models decode full payloads and preserve unknown values`() {
-        val response = json.decodeFromString(
-            TrashListResponse.serializer(),
-            """
-            {
-              "status": "OK",
-              "cursor": "next-page",
-              "total": 1,
-              "trash_size": 123,
-              "files": [
+        val response =
+            json.decodeFromString(
+                TrashListResponse.serializer(),
+                """
                 {
-                  "id": 10,
-                  "name": "Old Movie",
-                  "icon": "video",
-                  "parent_id": 2,
-                  "size": 99,
-                  "created_at": "2026-04-20T10:00:00Z",
-                  "deleted_at": "2026-04-21T10:00:00Z",
-                  "expiration_date": "2026-05-01T10:00:00Z",
-                  "file_type": "BOOK",
-                  "folder_type": "MAGIC_SHELF",
-                  "video_metadata": {
-                    "height": 1080,
-                    "width": 1920,
-                    "codec": "h264",
-                    "duration": 61.5,
-                    "aspect_ratio": 1.78
-                  }
+                  "status": "OK",
+                  "cursor": "next-page",
+                  "total": 1,
+                  "trash_size": 123,
+                  "files": [
+                    {
+                      "id": 10,
+                      "name": "Old Movie",
+                      "icon": "video",
+                      "parent_id": 2,
+                      "size": 99,
+                      "created_at": "2026-04-20T10:00:00Z",
+                      "deleted_at": "2026-04-21T10:00:00Z",
+                      "expiration_date": "2026-05-01T10:00:00Z",
+                      "file_type": "BOOK",
+                      "folder_type": "MAGIC_SHELF",
+                      "video_metadata": {
+                        "height": 1080,
+                        "width": 1920,
+                        "codec": "h264",
+                        "duration": 61.5,
+                        "aspect_ratio": 1.78
+                      }
+                    }
+                  ]
                 }
-              ]
-            }
-            """.trimIndent(),
-        )
+                """.trimIndent(),
+            )
 
         val file = response.files.first()
         assertEquals("next-page", response.cursor)
@@ -74,24 +75,25 @@ class TrashModelsTest {
 
     @Test
     fun `trash models keep nullable fields optional and default folder type`() {
-        val response = json.decodeFromString(
-            TrashListResponse.serializer(),
-            """
-            {
-              "status": "OK",
-              "files": [
+        val response =
+            json.decodeFromString(
+                TrashListResponse.serializer(),
+                """
                 {
-                  "id": 22,
-                  "name": "Episode",
-                  "created_at": "2026-04-20T10:00:00Z",
-                  "deleted_at": "2026-04-21T10:00:00Z",
-                  "expiration_date": "2026-05-01T10:00:00Z",
-                  "file_type": "VIDEO"
+                  "status": "OK",
+                  "files": [
+                    {
+                      "id": 22,
+                      "name": "Episode",
+                      "created_at": "2026-04-20T10:00:00Z",
+                      "deleted_at": "2026-04-21T10:00:00Z",
+                      "expiration_date": "2026-05-01T10:00:00Z",
+                      "file_type": "VIDEO"
+                    }
+                  ]
                 }
-              ]
-            }
-            """.trimIndent(),
-        )
+                """.trimIndent(),
+            )
 
         val file = response.files.first()
         assertEquals(null, response.cursor)
