@@ -9,6 +9,7 @@ plugins {
     kotlin("plugin.serialization") version "2.4.10"
     `maven-publish`
     jacoco
+    id("com.diffplug.spotless") version "8.10.0"
 }
 
 group = "io.putdotio"
@@ -20,6 +21,15 @@ repositories {
 
 jacoco {
     toolVersion = "0.8.13"
+}
+
+spotless {
+    kotlin {
+        ktlint()
+    }
+    kotlinGradle {
+        ktlint()
+    }
 }
 
 kotlin {
