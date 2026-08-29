@@ -2,6 +2,9 @@ package io.putdotio.sdk.errors
 
 import kotlinx.coroutines.runBlocking
 import kotlinx.serialization.SerializationException
+import kotlinx.serialization.json.JsonArray
+import kotlinx.serialization.json.JsonPrimitive
+import kotlinx.serialization.json.buildJsonObject
 import java.io.IOException
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -151,11 +154,16 @@ class PutioExceptionTest {
     }
 
     @Test
-    fun `query redaction leaves non-sensitive and unparsable urls unchanged`() {
+    fun `query redaction preserves safe values and redacts malformed urls`() {
         val safeUrl = "https://api.put.io/v2/files/list?cursor=next-page&subtitle_key=all"
+        val malformedUrl = "https://[broken]?oauth_token=malformed-secret&cursor=next-page"
 
         assertEquals(safeUrl, redactSensitiveQueryValues(safeUrl))
         assertEquals("not a url", redactSensitiveQueryValues("not a url"))
+        val redactedMalformedUrl = redactSensitiveQueryValues(malformedUrl)
+        assertTrue(redactedMalformedUrl.contains("oauth_token=REDACTED"))
+        assertTrue(redactedMalformedUrl.contains("cursor=next-page"))
+        assertFalse(redactedMalformedUrl.contains("malformed-secret"))
     }
 
     @Test
@@ -218,6 +226,36 @@ class PutioExceptionTest {
     }
 
     @Test
+    fun `api exception redacts credential urls in all envelope text`() {
+        val backendUrl = "https://api.put.io/v2/files/list?oauth_token=envelope-secret&cursor=next-page"
+        val error =
+            PutioApiException(
+                request = PutioRequestData(method = "GET", url = "https://api.put.io/v2/files/list"),
+                resolvedStatusCode = 400,
+                resolvedErrorType = null,
+                envelope =
+                    PutioApiErrorEnvelope(
+                        message = backendUrl,
+                        status = backendUrl,
+                        errorType = backendUrl,
+                        details =
+                            buildJsonObject {
+                                put("redirect", JsonPrimitive(backendUrl))
+                                put("nested", JsonArray(listOf(JsonPrimitive(backendUrl))))
+                            },
+                    ),
+                responseBody = "{}",
+                message = backendUrl,
+            )
+
+        val envelopeText = error.envelope.toString()
+        assertTrue(envelopeText.contains("oauth_token=REDACTED"))
+        assertTrue(envelopeText.contains("cursor=next-page"))
+        assertFalse(envelopeText.contains("envelope-secret"))
+        assertFalse(error.errorType.orEmpty().contains("envelope-secret"))
+    }
+
+    @Test
     fun `serialization exception redacts credential urls stored in response bodies`() {
         val responseBody =
             """{"next":"https:\/\/api.put.io\/v2\/files\/list""" +
@@ -249,5 +287,33 @@ class PutioExceptionTest {
         assertTrue(redacted.contains("oauth_token=REDACTED"))
         assertTrue(redacted.contains("cursor=next-page"))
         assertFalse(redacted.contains("uppercase-secret"))
+    }
+
+    @Test
+    fun `message redaction accepts uppercase unicode escaped urls`() {
+        val redacted =
+            redactSensitiveUrlsInText(
+                """Retry HTTPS:\u002F\u002Fapi.put.io\u002Fv2\u002Ffiles\u002Flist""" +
+                    """\u003Foauth\u005Ftoken\u003Descaped-secret""" +
+                    """\u0026cursor\u003Dnext-page""",
+            )
+
+        assertTrue(redacted.contains("""oauth\u005Ftoken\u003DREDACTED"""))
+        assertTrue(redacted.contains("""cursor\u003Dnext-page"""))
+        assertFalse(redacted.contains("escaped-secret"))
+    }
+
+    @Test
+    fun `transport exception redacts credential urls in its cause`() {
+        val error =
+            PutioTransportException(
+                request = PutioRequestData(method = "GET", url = "https://api.put.io/v2/files/list"),
+                cause = IOException("Failed https://[broken]?oauth_token=transport-secret&cursor=next-page"),
+            )
+
+        val cause = assertIs<IOException>(error.cause)
+        assertTrue(cause.message.orEmpty().contains("oauth_token=REDACTED"))
+        assertTrue(cause.message.orEmpty().contains("cursor=next-page"))
+        assertFalse(cause.message.orEmpty().contains("transport-secret"))
     }
 }

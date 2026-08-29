@@ -110,7 +110,18 @@ class PutioTransportTest {
                     .build(),
             )
 
-            val transport = newTransport(server, accessToken = "secret-token")
+            val callCancelled = CompletableDeferred<Unit>()
+            val httpClient =
+                OkHttpClient
+                    .Builder()
+                    .eventListener(
+                        object : EventListener() {
+                            override fun canceled(call: Call) {
+                                callCancelled.complete(Unit)
+                            }
+                        },
+                    ).build()
+            val transport = newTransport(server, accessToken = "secret-token", httpClient = httpClient)
             val observedFailure = CompletableDeferred<Throwable>()
 
             runBlocking {
@@ -132,6 +143,7 @@ class PutioTransportTest {
                 val cancellation = CancellationException("cancel transport request")
                 request.cancel(cancellation)
 
+                withTimeout(5_000) { callCancelled.await() }
                 val error = assertIs<CancellationException>(withTimeout(5_000) { observedFailure.await() })
                 assertEquals(cancellation.message, error.message)
                 withTimeout(5_000) { request.join() }
