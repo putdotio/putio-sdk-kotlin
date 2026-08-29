@@ -6,6 +6,14 @@ import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.buildJsonObject
 import java.io.IOException
+import java.io.InterruptedIOException
+import java.net.ConnectException
+import java.net.NoRouteToHostException
+import java.net.ProtocolException
+import java.net.SocketException
+import java.net.SocketTimeoutException
+import java.net.UnknownHostException
+import javax.net.ssl.SSLHandshakeException
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
@@ -156,12 +164,12 @@ class PutioExceptionTest {
     @Test
     fun `query redaction preserves safe values and redacts malformed urls`() {
         val safeUrl = "https://api.put.io/v2/files/list?cursor=next-page&subtitle_key=all"
-        val malformedUrl = "https://[broken]?oauth_token=malformed-secret&cursor=next-page"
+        val malformedUrl = "https://[broken]?oauth%5Ftoken=malformed-secret&cursor=next-page"
 
         assertEquals(safeUrl, redactSensitiveQueryValues(safeUrl))
         assertEquals("not a url", redactSensitiveQueryValues("not a url"))
         val redactedMalformedUrl = redactSensitiveQueryValues(malformedUrl)
-        assertTrue(redactedMalformedUrl.contains("oauth_token=REDACTED"))
+        assertTrue(redactedMalformedUrl.contains("oauth%5Ftoken=REDACTED"))
         assertTrue(redactedMalformedUrl.contains("cursor=next-page"))
         assertFalse(redactedMalformedUrl.contains("malformed-secret"))
     }
@@ -305,15 +313,60 @@ class PutioExceptionTest {
 
     @Test
     fun `transport exception redacts credential urls in its cause`() {
+        val nestedCause =
+            UnknownHostException("DNS failed for https://[broken]?oauth_token=nested-secret").apply {
+                addSuppressed(
+                    SSLHandshakeException(
+                        "TLS failed for https://[broken]?oauth_token=suppressed-secret",
+                    ),
+                )
+            }
         val error =
             PutioTransportException(
                 request = PutioRequestData(method = "GET", url = "https://api.put.io/v2/files/list"),
-                cause = IOException("Failed https://[broken]?oauth_token=transport-secret&cursor=next-page"),
+                cause =
+                    SocketTimeoutException(
+                        "Failed https://[broken]?oauth_token=transport-secret&cursor=next-page",
+                    ).apply {
+                        initCause(nestedCause)
+                    },
             )
 
-        val cause = assertIs<IOException>(error.cause)
+        assertEquals(PutioTransportFailureKind.TIMEOUT, error.failureKind)
+        val cause = assertIs<SocketTimeoutException>(error.cause)
         assertTrue(cause.message.orEmpty().contains("oauth_token=REDACTED"))
         assertTrue(cause.message.orEmpty().contains("cursor=next-page"))
         assertFalse(cause.message.orEmpty().contains("transport-secret"))
+        val redactedNestedCause = assertIs<UnknownHostException>(cause.cause)
+        assertFalse(redactedNestedCause.message.orEmpty().contains("nested-secret"))
+        val redactedSuppressed = assertIs<SSLHandshakeException>(redactedNestedCause.suppressed.single())
+        assertFalse(redactedSuppressed.message.orEmpty().contains("suppressed-secret"))
+    }
+
+    @Test
+    fun `transport exception classifies standard failure kinds`() {
+        val cases =
+            listOf(
+                SocketTimeoutException("timeout") to PutioTransportFailureKind.TIMEOUT,
+                InterruptedIOException("interrupted") to PutioTransportFailureKind.INTERRUPTED,
+                UnknownHostException("dns") to PutioTransportFailureKind.DNS,
+                ConnectException("connect") to PutioTransportFailureKind.CONNECTION,
+                NoRouteToHostException("route") to PutioTransportFailureKind.CONNECTION,
+                SocketException("socket") to PutioTransportFailureKind.CONNECTION,
+                SSLHandshakeException("tls") to PutioTransportFailureKind.TLS,
+                ProtocolException("protocol") to PutioTransportFailureKind.PROTOCOL,
+                IOException("io") to PutioTransportFailureKind.IO,
+                IllegalStateException("unexpected") to PutioTransportFailureKind.UNEXPECTED,
+            )
+
+        cases.forEach { (cause, expectedKind) ->
+            val error =
+                PutioTransportException(
+                    request = PutioRequestData(method = "GET", url = "https://api.put.io/v2/files/list"),
+                    cause = cause,
+                )
+
+            assertEquals(expectedKind, error.failureKind)
+        }
     }
 }

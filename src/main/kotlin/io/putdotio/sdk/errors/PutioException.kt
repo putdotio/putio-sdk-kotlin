@@ -9,6 +9,16 @@ import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
 import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
 import java.io.IOException
+import java.io.InterruptedIOException
+import java.net.ConnectException
+import java.net.NoRouteToHostException
+import java.net.ProtocolException
+import java.net.SocketException
+import java.net.SocketTimeoutException
+import java.net.UnknownHostException
+import javax.net.ssl.SSLException
+import javax.net.ssl.SSLHandshakeException
+import javax.net.ssl.SSLPeerUnverifiedException
 
 data class PutioRequestData(
     val method: String,
@@ -44,6 +54,17 @@ class PutioConfigurationException(
     message: String,
 ) : PutioException(message)
 
+enum class PutioTransportFailureKind {
+    TIMEOUT,
+    INTERRUPTED,
+    DNS,
+    CONNECTION,
+    TLS,
+    PROTOCOL,
+    IO,
+    UNEXPECTED,
+}
+
 class PutioTransportException(
     request: PutioRequestData,
     cause: Throwable,
@@ -52,6 +73,7 @@ class PutioTransportException(
         cause.redactedTransportCause(),
     ) {
     val request: PutioRequestData = request.redacted()
+    val failureKind: PutioTransportFailureKind = cause.toTransportFailureKind()
 }
 
 class PutioSerializationException(
@@ -69,7 +91,7 @@ class PutioSerializationException(
 class PutioApiException(
     request: PutioRequestData,
     private val resolvedStatusCode: Int,
-    private val resolvedErrorType: String?,
+    resolvedErrorType: String?,
     envelope: PutioApiErrorEnvelope,
     responseBody: String,
     message: String,
@@ -77,6 +99,7 @@ class PutioApiException(
     val request: PutioRequestData = request.redacted()
     val envelope: PutioApiErrorEnvelope = envelope.redacted()
     val responseBody: String = redactSensitiveUrlsInText(responseBody)
+    private val resolvedErrorType: String? = resolvedErrorType?.let(::redactSensitiveUrlsInText)
 
     val statusCode: Int
         get() = envelope.statusCode ?: resolvedStatusCode
@@ -206,12 +229,7 @@ private fun JsonElement.redacted(): JsonElement =
         is JsonPrimitive -> if (isString) JsonPrimitive(redactSensitiveUrlsInText(content)) else this
     }
 
-private fun Throwable.redactedTransportCause(): Throwable {
-    val safeMessage = message?.let(::redactSensitiveUrlsInText) ?: javaClass.name
-    return (if (this is IOException) IOException(safeMessage) else Exception(safeMessage)).also {
-        it.stackTrace = stackTrace
-    }
-}
+private fun Throwable.redactedTransportCause(): Throwable = redactedDiagnosticCopy(depth = 0)
 
 private fun Throwable.redactedSerializationCause(): Throwable =
     SerializationException(redactedDiagnosticMessage()).also {
@@ -221,14 +239,69 @@ private fun Throwable.redactedSerializationCause(): Throwable =
 private fun Throwable.redactedDiagnosticMessage(): String =
     listOfNotNull(javaClass.name, message?.let(::redactSensitiveUrlsInText)).joinToString(": ")
 
+private fun Throwable.redactedDiagnosticCopy(depth: Int): Throwable {
+    val safeMessage = message?.let(::redactSensitiveUrlsInText) ?: javaClass.name
+    val copy = newDiagnosticCopy(safeMessage)
+    copy.stackTrace = stackTrace
+
+    if (depth < MAX_REDACTED_CAUSE_DEPTH) {
+        cause?.takeUnless { it === this }?.let { nested ->
+            copy.initCause(nested.redactedDiagnosticCopy(depth + 1))
+        }
+        suppressed.take(MAX_REDACTED_SUPPRESSED_EXCEPTIONS).forEach { suppressedError ->
+            copy.addSuppressed(suppressedError.redactedDiagnosticCopy(depth + 1))
+        }
+    }
+
+    return copy
+}
+
+private fun Throwable.newDiagnosticCopy(safeMessage: String): Throwable =
+    when (this) {
+        is SocketTimeoutException -> SocketTimeoutException(safeMessage)
+        is UnknownHostException -> UnknownHostException(safeMessage)
+        is NoRouteToHostException -> NoRouteToHostException(safeMessage)
+        is ConnectException -> ConnectException(safeMessage)
+        is SocketException -> SocketException(safeMessage)
+        is SSLHandshakeException -> SSLHandshakeException(safeMessage)
+        is SSLPeerUnverifiedException -> SSLPeerUnverifiedException(safeMessage)
+        is SSLException -> SSLException(safeMessage)
+        is ProtocolException -> ProtocolException(safeMessage)
+        is InterruptedIOException -> InterruptedIOException(safeMessage)
+        is IOException -> IOException(safeMessage)
+        is RuntimeException -> RuntimeException(safeMessage)
+        else -> Exception("${javaClass.name}: $safeMessage")
+    }
+
+private fun Throwable.toTransportFailureKind(): PutioTransportFailureKind =
+    when (this) {
+        is SocketTimeoutException -> PutioTransportFailureKind.TIMEOUT
+        is UnknownHostException -> PutioTransportFailureKind.DNS
+        is NoRouteToHostException, is ConnectException, is SocketException -> PutioTransportFailureKind.CONNECTION
+        is SSLException -> PutioTransportFailureKind.TLS
+        is ProtocolException -> PutioTransportFailureKind.PROTOCOL
+        is InterruptedIOException -> PutioTransportFailureKind.INTERRUPTED
+        is IOException -> PutioTransportFailureKind.IO
+        else -> PutioTransportFailureKind.UNEXPECTED
+    }
+
 private fun redactSensitiveQueryParametersInText(text: String): String =
     QUERY_PARAMETER_IN_TEXT_REGEX.replace(text) { match ->
-        val name =
+        val unicodeDecodedName =
             JSON_UNICODE_ESCAPE_REGEX.replace(match.groupValues[2]) { escaped ->
                 escaped.groupValues[1]
                     .toInt(radix = 16)
                     .toChar()
                     .toString()
+            }
+        val decodingUrl =
+            "$QUERY_PARAMETER_DECODING_BASE_URL?$unicodeDecodedName="
+                .toHttpUrlOrNull()
+        val name =
+            if (decodingUrl != null && decodingUrl.querySize > 0) {
+                decodingUrl.queryParameterName(0)
+            } else {
+                unicodeDecodedName
             }
         if (name.isSensitiveQueryParameterName()) {
             match.groupValues[1] + match.groupValues[2] + match.groupValues[3] + REDACTED_QUERY_VALUE
@@ -255,6 +328,9 @@ private fun String.isSensitiveQueryParameterName(): Boolean {
 }
 
 private const val REDACTED_QUERY_VALUE = "REDACTED"
+private const val QUERY_PARAMETER_DECODING_BASE_URL = "https://redaction.invalid/"
+private const val MAX_REDACTED_CAUSE_DEPTH = 8
+private const val MAX_REDACTED_SUPPRESSED_EXCEPTIONS = 8
 
 private val URL_IN_TEXT_REGEX = Regex("""https?://[^\s<>\"']*[A-Za-z0-9_~/%=&+\-]""", RegexOption.IGNORE_CASE)
 private val JSON_ESCAPED_URL_IN_TEXT_REGEX =
