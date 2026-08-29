@@ -248,6 +248,7 @@ class PutioExceptionTest {
                         errorType = backendUrl,
                         details =
                             buildJsonObject {
+                                put(backendUrl, JsonPrimitive("credential URL key"))
                                 put("redirect", JsonPrimitive(backendUrl))
                                 put("nested", JsonArray(listOf(JsonPrimitive(backendUrl))))
                             },

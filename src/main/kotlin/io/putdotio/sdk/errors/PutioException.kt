@@ -224,9 +224,21 @@ private fun PutioApiErrorEnvelope.redacted(): PutioApiErrorEnvelope =
 
 private fun JsonElement.redacted(): JsonElement =
     when (this) {
-        is JsonArray -> JsonArray(map(JsonElement::redacted))
-        is JsonObject -> JsonObject(mapValues { (_, value) -> value.redacted() })
-        is JsonPrimitive -> if (isString) JsonPrimitive(redactSensitiveUrlsInText(content)) else this
+        is JsonArray -> {
+            JsonArray(map(JsonElement::redacted))
+        }
+
+        is JsonObject -> {
+            JsonObject(
+                entries.associate { (key, value) ->
+                    redactSensitiveUrlsInText(key) to value.redacted()
+                },
+            )
+        }
+
+        is JsonPrimitive -> {
+            if (isString) JsonPrimitive(redactSensitiveUrlsInText(content)) else this
+        }
     }
 
 private fun Throwable.redactedTransportCause(): Throwable = redactedDiagnosticCopy(depth = 0)
