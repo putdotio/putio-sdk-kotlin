@@ -1,6 +1,7 @@
 package io.putdotio.sdk.errors
 
 import kotlinx.coroutines.runBlocking
+import kotlinx.serialization.SerializationException
 import java.io.IOException
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -163,6 +164,9 @@ class PutioExceptionTest {
             listOf(
                 "x_api_key",
                 "oauth_authorization_code",
+                "auth_code",
+                "oauth_code",
+                "AWSAccessKeyId",
                 "client_session_id",
                 "login_nonce",
                 "tokenValue",
@@ -215,18 +219,24 @@ class PutioExceptionTest {
 
     @Test
     fun `serialization exception redacts credential urls stored in response bodies`() {
+        val responseBody =
+            """{"next":"https:\/\/api.put.io\/v2\/files\/list""" +
+                """?oauth_token=body-secret&cursor=next-page"}"""
         val error =
             PutioSerializationException(
                 request = PutioRequestData(method = "GET", url = "https://api.put.io/v2/files/list"),
-                responseBody =
-                    """{"next":"https://api.put.io/v2/files/list""" +
-                        """?oauth_token=body-secret&cursor=next-page"}""",
-                cause = IllegalArgumentException("bad json"),
+                responseBody = responseBody,
+                cause = IllegalArgumentException("Unexpected JSON input: $responseBody"),
             )
 
+        assertTrue(error.responseBody.contains("""https:\/\/api.put.io"""))
         assertTrue(error.responseBody.contains("oauth_token=REDACTED"))
         assertTrue(error.responseBody.contains("cursor=next-page"))
         assertFalse(error.responseBody.contains("body-secret"))
+        val cause = assertIs<SerializationException>(error.cause)
+        assertTrue(cause.message.orEmpty().contains("oauth_token=REDACTED"))
+        assertTrue(cause.message.orEmpty().contains(IllegalArgumentException::class.java.name))
+        assertFalse(cause.message.orEmpty().contains("body-secret"))
     }
 
     @Test

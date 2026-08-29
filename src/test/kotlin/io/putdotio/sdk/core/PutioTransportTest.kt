@@ -170,6 +170,7 @@ class PutioTransportTest {
                     .build(),
             )
             val bodyReadStarted = CompletableDeferred<Unit>()
+            val callCancelled = CompletableDeferred<Unit>()
             val httpClient =
                 OkHttpClient
                     .Builder()
@@ -177,6 +178,10 @@ class PutioTransportTest {
                         object : EventListener() {
                             override fun responseBodyStart(call: Call) {
                                 bodyReadStarted.complete(Unit)
+                            }
+
+                            override fun canceled(call: Call) {
+                                callCancelled.complete(Unit)
                             }
                         },
                     ).build()
@@ -201,6 +206,7 @@ class PutioTransportTest {
                 val cancellation = CancellationException("cancel stalled response body read")
                 request.cancel(cancellation)
 
+                withTimeout(5_000) { callCancelled.await() }
                 val error = assertIs<CancellationException>(withTimeout(5_000) { observedFailure.await() })
                 assertEquals(cancellation.message, error.message)
                 withTimeout(5_000) { request.join() }

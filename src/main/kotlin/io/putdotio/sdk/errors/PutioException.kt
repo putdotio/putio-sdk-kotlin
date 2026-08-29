@@ -2,6 +2,7 @@ package io.putdotio.sdk.errors
 
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.SerializationException
 import kotlinx.serialization.json.JsonElement
 import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
 
@@ -50,7 +51,10 @@ class PutioSerializationException(
     request: PutioRequestData,
     responseBody: String,
     cause: Throwable,
-) : PutioException("Failed to parse response for ${request.method} ${request.redacted().url}", cause) {
+) : PutioException(
+        "Failed to parse response for ${request.method} ${request.redacted().url}",
+        cause.redactedSerializationCause(),
+    ) {
     val request: PutioRequestData = request.redacted()
     val responseBody: String = redactSensitiveUrlsInText(responseBody)
 }
@@ -169,8 +173,21 @@ internal fun redactSensitiveQueryValues(url: String): String {
     return if (changed) redactedUrl.build().toString() else url
 }
 
-internal fun redactSensitiveUrlsInText(text: String): String =
-    URL_IN_TEXT_REGEX.replace(text) { match -> redactSensitiveQueryValues(match.value) }
+internal fun redactSensitiveUrlsInText(text: String): String {
+    val literalUrlsRedacted = URL_IN_TEXT_REGEX.replace(text) { match -> redactSensitiveQueryValues(match.value) }
+    return JSON_ESCAPED_URL_IN_TEXT_REGEX.replace(literalUrlsRedacted) { match ->
+        val unescapedUrl = match.value.replace("\\/", "/")
+        val redactedUrl = redactSensitiveQueryValues(unescapedUrl)
+        if (redactedUrl == unescapedUrl) match.value else redactedUrl.replace("/", "\\/")
+    }
+}
+
+private fun Throwable.redactedSerializationCause(): Throwable {
+    val safeMessage = message?.let(::redactSensitiveUrlsInText)
+    return SerializationException(listOfNotNull(javaClass.name, safeMessage).joinToString(": ")).also {
+        it.stackTrace = stackTrace
+    }
+}
 
 private fun String.isSensitiveQueryParameterName(): Boolean {
     val words =
@@ -192,19 +209,26 @@ private fun String.isSensitiveQueryParameterName(): Boolean {
 private const val REDACTED_QUERY_VALUE = "REDACTED"
 
 private val URL_IN_TEXT_REGEX = Regex("""https?://[^\s<>\"']*[A-Za-z0-9_~/%=&+\-]""", RegexOption.IGNORE_CASE)
+private val JSON_ESCAPED_URL_IN_TEXT_REGEX =
+    Regex("""https?:\\/\\/[^\s<>\"']*[A-Za-z0-9_~\\/%=&+\-]""", RegexOption.IGNORE_CASE)
 private val ACRONYM_WORD_BOUNDARY_REGEX = Regex("([A-Z]+)([A-Z][a-z])")
 private val CAMEL_CASE_WORD_BOUNDARY_REGEX = Regex("([a-z0-9])([A-Z])")
 private val NON_ALPHANUMERIC_REGEX = Regex("[^a-z0-9]+")
 
 private val EXACT_SENSITIVE_QUERY_PARAMETER_NAMES =
     setOf(
+        "accesskey",
+        "accesskeyid",
         "apikey",
         "auth",
+        "authcode",
         "authorization",
         "authorizationcode",
+        "awsaccesskeyid",
         "code",
         "key",
         "nonce",
+        "oauthcode",
         "session",
         "sessionid",
         "sig",
