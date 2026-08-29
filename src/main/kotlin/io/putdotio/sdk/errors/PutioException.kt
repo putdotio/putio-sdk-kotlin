@@ -48,10 +48,11 @@ class PutioTransportException(
 
 class PutioSerializationException(
     request: PutioRequestData,
-    val responseBody: String,
+    responseBody: String,
     cause: Throwable,
 ) : PutioException("Failed to parse response for ${request.method} ${request.redacted().url}", cause) {
     val request: PutioRequestData = request.redacted()
+    val responseBody: String = redactSensitiveUrlsInText(responseBody)
 }
 
 class PutioApiException(
@@ -59,11 +60,12 @@ class PutioApiException(
     private val resolvedStatusCode: Int,
     private val resolvedErrorType: String?,
     envelope: PutioApiErrorEnvelope,
-    val responseBody: String,
+    responseBody: String,
     message: String,
 ) : PutioException(redactSensitiveUrlsInText(message)) {
     val request: PutioRequestData = request.redacted()
     val envelope: PutioApiErrorEnvelope = envelope.copy(message = envelope.message?.let(::redactSensitiveUrlsInText))
+    val responseBody: String = redactSensitiveUrlsInText(responseBody)
 
     val statusCode: Int
         get() = envelope.statusCode ?: resolvedStatusCode
@@ -189,7 +191,7 @@ private fun String.isSensitiveQueryParameterName(): Boolean {
 
 private const val REDACTED_QUERY_VALUE = "REDACTED"
 
-private val URL_IN_TEXT_REGEX = Regex("""https?://[^\s<>\"']*[A-Za-z0-9_~/%=&+\-]""")
+private val URL_IN_TEXT_REGEX = Regex("""https?://[^\s<>\"']*[A-Za-z0-9_~/%=&+\-]""", RegexOption.IGNORE_CASE)
 private val ACRONYM_WORD_BOUNDARY_REGEX = Regex("([A-Z]+)([A-Z][a-z])")
 private val CAMEL_CASE_WORD_BOUNDARY_REGEX = Regex("([a-z0-9])([A-Z])")
 private val NON_ALPHANUMERIC_REGEX = Regex("[^a-z0-9]+")

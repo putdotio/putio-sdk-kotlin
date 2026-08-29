@@ -7,15 +7,15 @@ import io.putdotio.sdk.errors.PutioConfigurationException
 import io.putdotio.sdk.errors.PutioSerializationException
 import io.putdotio.sdk.errors.PutioTransportException
 import kotlinx.coroutines.CompletableDeferred
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
-import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeout
 import kotlinx.coroutines.yield
 import mockwebserver3.MockResponse
 import mockwebserver3.MockWebServer
 import mockwebserver3.SocketEffect
+import okhttp3.Call
+import okhttp3.EventListener
 import okhttp3.MediaType
 import okhttp3.OkHttpClient
 import okhttp3.Protocol
@@ -27,7 +27,6 @@ import okio.Source
 import okio.Timeout
 import okio.buffer
 import java.io.IOException
-import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
 import kotlin.coroutines.cancellation.CancellationException
 import kotlin.test.Test
@@ -36,8 +35,6 @@ import kotlin.test.assertFailsWith
 import kotlin.test.assertIs
 import kotlin.test.assertNotNull
 import kotlin.test.assertNull
-import kotlin.test.assertSame
-import kotlin.test.assertTrue
 
 class PutioTransportTest {
     @Test
@@ -135,9 +132,9 @@ class PutioTransportTest {
                 val cancellation = CancellationException("cancel transport request")
                 request.cancel(cancellation)
 
-                val error = assertIs<CancellationException>(observedFailure.await())
+                val error = assertIs<CancellationException>(withTimeout(5_000) { observedFailure.await() })
                 assertEquals(cancellation.message, error.message)
-                request.join()
+                withTimeout(5_000) { request.join() }
             }
         }
 
@@ -158,17 +155,34 @@ class PutioTransportTest {
 
         assertEquals("GET", error.request.method)
         assertEquals("https://example.test/v2/files/list", error.request.url)
-        assertSame(cause, error.cause)
+        assertIs<IOException>(error.cause)
+        assertEquals(cause.message, error.cause?.message)
     }
 
     @Test
-    fun `transport preserves job cancellation while reading a blocked response body`() {
-        val readStarted = CountDownLatch(1)
-        val releaseRead = CountDownLatch(1)
-        val transport = newTransportWithBody(BlockingResponseBody(readStarted, releaseRead))
-        val observedFailure = CompletableDeferred<Throwable>()
+    fun `transport cancels the OkHttp call while reading a stalled response body`() =
+        withServer { server ->
+            server.enqueue(
+                MockResponse
+                    .Builder()
+                    .body("""{"status":"OK"}""")
+                    .onResponseBody(SocketEffect.Stall)
+                    .build(),
+            )
+            val bodyReadStarted = CompletableDeferred<Unit>()
+            val httpClient =
+                OkHttpClient
+                    .Builder()
+                    .eventListener(
+                        object : EventListener() {
+                            override fun responseBodyStart(call: Call) {
+                                bodyReadStarted.complete(Unit)
+                            }
+                        },
+                    ).build()
+            val transport = newTransport(server, accessToken = "secret-token", httpClient = httpClient)
+            val observedFailure = CompletableDeferred<Throwable>()
 
-        try {
             runBlocking {
                 val request =
                     launch {
@@ -182,18 +196,16 @@ class PutioTransportTest {
                         }
                     }
 
-                assertTrue(withContext(Dispatchers.IO) { readStarted.await(5, TimeUnit.SECONDS) })
-                val cancellation = CancellationException("cancel blocked response body read")
+                withTimeout(5_000) { bodyReadStarted.await() }
+
+                val cancellation = CancellationException("cancel stalled response body read")
                 request.cancel(cancellation)
 
                 val error = assertIs<CancellationException>(withTimeout(5_000) { observedFailure.await() })
                 assertEquals(cancellation.message, error.message)
-                request.join()
+                withTimeout(5_000) { request.join() }
             }
-        } finally {
-            releaseRead.countDown()
         }
-    }
 
     @Test
     fun `transport falls back to http status when error payload is not json`() =
@@ -271,13 +283,14 @@ class PutioTransportTest {
     private fun newTransport(
         server: MockWebServer,
         accessToken: String?,
+        httpClient: OkHttpClient = OkHttpClient(),
     ) = PutioTransport(
         config =
             PutioConfig(
                 baseUrl = server.url("/v2/").toString(),
                 accessToken = accessToken,
             ),
-        httpClient = OkHttpClient(),
+        httpClient = httpClient,
         json = PutioTransport.defaultJson,
     )
 
@@ -326,31 +339,6 @@ private class FailingResponseBody(
                 sink: Buffer,
                 byteCount: Long,
             ): Long = throw failure
-
-            override fun timeout(): Timeout = Timeout.NONE
-
-            override fun close() = Unit
-        }.buffer()
-}
-
-private class BlockingResponseBody(
-    private val readStarted: CountDownLatch,
-    private val releaseRead: CountDownLatch,
-) : ResponseBody() {
-    override fun contentType(): MediaType? = null
-
-    override fun contentLength(): Long = -1L
-
-    override fun source(): BufferedSource =
-        object : Source {
-            override fun read(
-                sink: Buffer,
-                byteCount: Long,
-            ): Long {
-                readStarted.countDown()
-                releaseRead.await()
-                return -1L
-            }
 
             override fun timeout(): Timeout = Timeout.NONE
 

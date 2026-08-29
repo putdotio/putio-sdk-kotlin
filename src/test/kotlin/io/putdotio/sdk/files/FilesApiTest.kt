@@ -7,6 +7,7 @@ import io.putdotio.sdk.errors.PutioOperationException
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.withTimeout
 import kotlinx.coroutines.yield
 import mockwebserver3.MockResponse
 import mockwebserver3.MockWebServer
@@ -90,9 +91,9 @@ class FilesApiTest {
                     val cancellation = CancellationException("cancel files list request")
                     request.cancel(cancellation)
 
-                    val error = assertIs<CancellationException>(observedFailure.await())
+                    val error = assertIs<CancellationException>(withTimeout(5_000) { observedFailure.await() })
                     assertEquals(cancellation.message, error.message)
-                    request.join()
+                    withTimeout(5_000) { request.join() }
                 }
             }
         }

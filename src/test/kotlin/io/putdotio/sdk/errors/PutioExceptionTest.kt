@@ -184,13 +184,14 @@ class PutioExceptionTest {
         val backendMessage =
             "Request failed for https://api.put.io/v2/files/list" +
                 "?oauth_token=backend-secret&cursor=next-page."
+        val backendResponseBody = """{"message":"$backendMessage"}"""
         val error =
             PutioApiException(
                 request = PutioRequestData(method = "GET", url = "https://api.put.io/v2/files/list"),
                 resolvedStatusCode = 400,
                 resolvedErrorType = "INVALID_TOKEN",
                 envelope = PutioApiErrorEnvelope(message = backendMessage, statusCode = 400),
-                responseBody = "{}",
+                responseBody = backendResponseBody,
                 message = backendMessage,
             )
 
@@ -202,7 +203,41 @@ class PutioExceptionTest {
             error.message,
         )
         assertEquals(error.message, error.envelope.message)
+        assertEquals(
+            """{"message":"Request failed for https://api.put.io/v2/files/list""" +
+                """?oauth_token=REDACTED&cursor=next-page."}""",
+            error.responseBody,
+        )
         assertEquals(error.message, localized.failureReason)
         assertFalse(localized.failureReason.contains("backend-secret"))
+        assertFalse(error.responseBody.contains("backend-secret"))
+    }
+
+    @Test
+    fun `serialization exception redacts credential urls stored in response bodies`() {
+        val error =
+            PutioSerializationException(
+                request = PutioRequestData(method = "GET", url = "https://api.put.io/v2/files/list"),
+                responseBody =
+                    """{"next":"https://api.put.io/v2/files/list""" +
+                        """?oauth_token=body-secret&cursor=next-page"}""",
+                cause = IllegalArgumentException("bad json"),
+            )
+
+        assertTrue(error.responseBody.contains("oauth_token=REDACTED"))
+        assertTrue(error.responseBody.contains("cursor=next-page"))
+        assertFalse(error.responseBody.contains("body-secret"))
+    }
+
+    @Test
+    fun `message redaction accepts uppercase http schemes`() {
+        val redacted =
+            redactSensitiveUrlsInText(
+                "Retry HTTPS://api.put.io/v2/files/list?oauth_token=uppercase-secret&cursor=next-page",
+            )
+
+        assertTrue(redacted.contains("oauth_token=REDACTED"))
+        assertTrue(redacted.contains("cursor=next-page"))
+        assertFalse(redacted.contains("uppercase-secret"))
     }
 }
