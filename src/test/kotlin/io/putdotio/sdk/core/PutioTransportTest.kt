@@ -7,8 +7,11 @@ import io.putdotio.sdk.errors.PutioConfigurationException
 import io.putdotio.sdk.errors.PutioSerializationException
 import io.putdotio.sdk.errors.PutioTransportException
 import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeout
 import kotlinx.coroutines.yield
 import mockwebserver3.MockResponse
 import mockwebserver3.MockWebServer
@@ -24,6 +27,7 @@ import okio.Source
 import okio.Timeout
 import okio.buffer
 import java.io.IOException
+import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
 import kotlin.coroutines.cancellation.CancellationException
 import kotlin.test.Test
@@ -33,6 +37,7 @@ import kotlin.test.assertIs
 import kotlin.test.assertNotNull
 import kotlin.test.assertNull
 import kotlin.test.assertSame
+import kotlin.test.assertTrue
 
 class PutioTransportTest {
     @Test
@@ -157,21 +162,37 @@ class PutioTransportTest {
     }
 
     @Test
-    fun `transport preserves cancellation while reading a response body`() {
-        val cancellation = CancellationException("cancel response body read")
-        val transport = newTransportWithBodyFailure(cancellation)
+    fun `transport preserves job cancellation while reading a blocked response body`() {
+        val readStarted = CountDownLatch(1)
+        val releaseRead = CountDownLatch(1)
+        val transport = newTransportWithBody(BlockingResponseBody(readStarted, releaseRead))
+        val observedFailure = CompletableDeferred<Throwable>()
 
-        val error =
-            assertFailsWith<CancellationException> {
-                runBlocking {
-                    transport.get(
-                        path = "/files/list",
-                        serializer = OkResponse.serializer(),
-                    )
-                }
+        try {
+            runBlocking {
+                val request =
+                    launch {
+                        try {
+                            transport.get(
+                                path = "/files/list",
+                                serializer = OkResponse.serializer(),
+                            )
+                        } catch (cause: Throwable) {
+                            observedFailure.complete(cause)
+                        }
+                    }
+
+                assertTrue(withContext(Dispatchers.IO) { readStarted.await(5, TimeUnit.SECONDS) })
+                val cancellation = CancellationException("cancel blocked response body read")
+                request.cancel(cancellation)
+
+                val error = assertIs<CancellationException>(withTimeout(5_000) { observedFailure.await() })
+                assertEquals(cancellation.message, error.message)
+                request.join()
             }
-
-        assertSame(cancellation, error)
+        } finally {
+            releaseRead.countDown()
+        }
     }
 
     @Test
@@ -260,7 +281,9 @@ class PutioTransportTest {
         json = PutioTransport.defaultJson,
     )
 
-    private fun newTransportWithBodyFailure(failure: Throwable): PutioTransport {
+    private fun newTransportWithBodyFailure(failure: Throwable): PutioTransport = newTransportWithBody(FailingResponseBody(failure))
+
+    private fun newTransportWithBody(responseBody: ResponseBody): PutioTransport {
         val httpClient =
             OkHttpClient
                 .Builder()
@@ -271,7 +294,7 @@ class PutioTransportTest {
                         .protocol(Protocol.HTTP_1_1)
                         .code(200)
                         .message("OK")
-                        .body(FailingResponseBody(failure))
+                        .body(responseBody)
                         .build()
                 }.build()
 
@@ -303,6 +326,31 @@ private class FailingResponseBody(
                 sink: Buffer,
                 byteCount: Long,
             ): Long = throw failure
+
+            override fun timeout(): Timeout = Timeout.NONE
+
+            override fun close() = Unit
+        }.buffer()
+}
+
+private class BlockingResponseBody(
+    private val readStarted: CountDownLatch,
+    private val releaseRead: CountDownLatch,
+) : ResponseBody() {
+    override fun contentType(): MediaType? = null
+
+    override fun contentLength(): Long = -1L
+
+    override fun source(): BufferedSource =
+        object : Source {
+            override fun read(
+                sink: Buffer,
+                byteCount: Long,
+            ): Long {
+                readStarted.countDown()
+                releaseRead.await()
+                return -1L
+            }
 
             override fun timeout(): Timeout = Timeout.NONE
 

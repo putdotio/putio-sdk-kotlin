@@ -7,6 +7,7 @@ import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 import kotlin.test.assertFalse
 import kotlin.test.assertIs
+import kotlin.test.assertTrue
 
 class PutioExceptionTest {
     @Test
@@ -154,5 +155,54 @@ class PutioExceptionTest {
 
         assertEquals(safeUrl, redactSensitiveQueryValues(safeUrl))
         assertEquals("not a url", redactSensitiveQueryValues("not a url"))
+    }
+
+    @Test
+    fun `query redaction covers compound and camel case credential names`() {
+        val sensitiveNames =
+            listOf(
+                "x_api_key",
+                "oauth_authorization_code",
+                "client_session_id",
+                "login_nonce",
+                "tokenValue",
+                "credentialId",
+            )
+        val url =
+            sensitiveNames
+                .mapIndexed { index, name -> "$name=secret-$index" }
+                .joinToString(prefix = "https://api.put.io/v2/files/list?", separator = "&")
+
+        val redacted = redactSensitiveQueryValues(url)
+
+        sensitiveNames.forEach { name -> assertTrue(redacted.contains("$name=REDACTED")) }
+        sensitiveNames.indices.forEach { index -> assertFalse(redacted.contains("secret-$index")) }
+    }
+
+    @Test
+    fun `api exception redacts credential urls echoed by the backend`() {
+        val backendMessage =
+            "Request failed for https://api.put.io/v2/files/list" +
+                "?oauth_token=backend-secret&cursor=next-page."
+        val error =
+            PutioApiException(
+                request = PutioRequestData(method = "GET", url = "https://api.put.io/v2/files/list"),
+                resolvedStatusCode = 400,
+                resolvedErrorType = "INVALID_TOKEN",
+                envelope = PutioApiErrorEnvelope(message = backendMessage, statusCode = 400),
+                responseBody = "{}",
+                message = backendMessage,
+            )
+
+        val localized = PutioErrorLocalizer.localize(error)
+
+        assertEquals(
+            "Request failed for https://api.put.io/v2/files/list" +
+                "?oauth_token=REDACTED&cursor=next-page.",
+            error.message,
+        )
+        assertEquals(error.message, error.envelope.message)
+        assertEquals(error.message, localized.failureReason)
+        assertFalse(localized.failureReason.contains("backend-secret"))
     }
 }

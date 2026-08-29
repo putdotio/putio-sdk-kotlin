@@ -7,6 +7,10 @@ import io.putdotio.sdk.errors.PutioConfigurationException
 import io.putdotio.sdk.errors.PutioRequestData
 import io.putdotio.sdk.errors.PutioSerializationException
 import io.putdotio.sdk.errors.PutioTransportException
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.ensureActive
+import kotlinx.coroutines.runInterruptible
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.serialization.KSerializer
 import kotlinx.serialization.json.Json
@@ -224,11 +228,18 @@ internal class PutioTransport(
         response.use {
             val body =
                 try {
-                    response.body.string()
+                    runInterruptible(Dispatchers.IO) {
+                        try {
+                            response.body.string()
+                        } catch (cause: IOException) {
+                            throw PutioTransportException(requestData, cause)
+                        }
+                    }
                 } catch (cancellation: CancellationException) {
                     throw cancellation
-                } catch (cause: IOException) {
-                    throw PutioTransportException(requestData, cause)
+                } catch (failure: PutioTransportException) {
+                    currentCoroutineContext().ensureActive()
+                    throw failure
                 }
 
             if (!response.isSuccessful) {

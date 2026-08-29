@@ -58,11 +58,12 @@ class PutioApiException(
     request: PutioRequestData,
     private val resolvedStatusCode: Int,
     private val resolvedErrorType: String?,
-    val envelope: PutioApiErrorEnvelope,
+    envelope: PutioApiErrorEnvelope,
     val responseBody: String,
     message: String,
-) : PutioException(message) {
+) : PutioException(redactSensitiveUrlsInText(message)) {
     val request: PutioRequestData = request.redacted()
+    val envelope: PutioApiErrorEnvelope = envelope.copy(message = envelope.message?.let(::redactSensitiveUrlsInText))
 
     val statusCode: Int
         get() = envelope.statusCode ?: resolvedStatusCode
@@ -166,41 +167,58 @@ internal fun redactSensitiveQueryValues(url: String): String {
     return if (changed) redactedUrl.build().toString() else url
 }
 
+internal fun redactSensitiveUrlsInText(text: String): String =
+    URL_IN_TEXT_REGEX.replace(text) { match -> redactSensitiveQueryValues(match.value) }
+
 private fun String.isSensitiveQueryParameterName(): Boolean {
-    val normalized = lowercase().replace('-', '_').replace('.', '_')
-    if (normalized in EXACT_SENSITIVE_QUERY_PARAMETER_NAMES) {
+    val words =
+        replace(ACRONYM_WORD_BOUNDARY_REGEX, "$1_$2")
+            .replace(CAMEL_CASE_WORD_BOUNDARY_REGEX, "$1_$2")
+            .lowercase()
+            .split(NON_ALPHANUMERIC_REGEX)
+            .filter(String::isNotEmpty)
+    val compact = words.joinToString(separator = "")
+
+    if (compact in EXACT_SENSITIVE_QUERY_PARAMETER_NAMES) {
         return true
     }
 
-    return normalized.split('_').any { it in SENSITIVE_QUERY_PARAMETER_SEGMENTS } ||
-        SENSITIVE_QUERY_PARAMETER_SEGMENTS.any(normalized::endsWith)
+    return words.any { it in SENSITIVE_QUERY_PARAMETER_WORDS } ||
+        words.windowed(size = 2).any { it == API_KEY_WORDS }
 }
 
 private const val REDACTED_QUERY_VALUE = "REDACTED"
 
+private val URL_IN_TEXT_REGEX = Regex("""https?://[^\s<>\"']*[A-Za-z0-9_~/%=&+\-]""")
+private val ACRONYM_WORD_BOUNDARY_REGEX = Regex("([A-Z]+)([A-Z][a-z])")
+private val CAMEL_CASE_WORD_BOUNDARY_REGEX = Regex("([a-z0-9])([A-Z])")
+private val NON_ALPHANUMERIC_REGEX = Regex("[^a-z0-9]+")
+
 private val EXACT_SENSITIVE_QUERY_PARAMETER_NAMES =
     setOf(
-        "api_key",
         "apikey",
         "auth",
         "authorization",
-        "authorization_code",
         "authorizationcode",
         "code",
         "key",
         "nonce",
         "session",
-        "session_id",
         "sessionid",
         "sig",
     )
 
-private val SENSITIVE_QUERY_PARAMETER_SEGMENTS =
+private val SENSITIVE_QUERY_PARAMETER_WORDS =
     setOf(
+        "authorization",
         "credential",
+        "nonce",
         "password",
         "passwd",
         "secret",
+        "session",
         "signature",
         "token",
     )
+
+private val API_KEY_WORDS = listOf("api", "key")
