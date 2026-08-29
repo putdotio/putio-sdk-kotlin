@@ -3,6 +3,7 @@ package io.putdotio.sdk.errors
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.JsonElement
+import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
 
 data class PutioRequestData(
     val method: String,
@@ -39,24 +40,30 @@ class PutioConfigurationException(
 ) : PutioException(message)
 
 class PutioTransportException(
-    val request: PutioRequestData,
+    request: PutioRequestData,
     cause: Throwable,
-) : PutioException("Transport failure for ${request.method} ${request.url}", cause)
+) : PutioException("Transport failure for ${request.method} ${request.redacted().url}", cause) {
+    val request: PutioRequestData = request.redacted()
+}
 
 class PutioSerializationException(
-    val request: PutioRequestData,
+    request: PutioRequestData,
     val responseBody: String,
     cause: Throwable,
-) : PutioException("Failed to parse response for ${request.method} ${request.url}", cause)
+) : PutioException("Failed to parse response for ${request.method} ${request.redacted().url}", cause) {
+    val request: PutioRequestData = request.redacted()
+}
 
 class PutioApiException(
-    val request: PutioRequestData,
+    request: PutioRequestData,
     private val resolvedStatusCode: Int,
     private val resolvedErrorType: String?,
     val envelope: PutioApiErrorEnvelope,
     val responseBody: String,
     message: String,
 ) : PutioException(message) {
+    val request: PutioRequestData = request.redacted()
+
     val statusCode: Int
         get() = envelope.statusCode ?: resolvedStatusCode
 
@@ -130,3 +137,70 @@ private fun PutioKnownErrorContract.toReason(): PutioOperationErrorReason? =
         statusCode != null -> PutioOperationErrorReason.StatusCode(statusCode)
         else -> null
     }
+
+internal fun PutioRequestData.redacted(): PutioRequestData {
+    val redactedUrl = redactSensitiveQueryValues(url)
+    return if (redactedUrl == url) this else copy(url = redactedUrl)
+}
+
+internal fun redactSensitiveQueryValues(url: String): String {
+    val parsedUrl = url.toHttpUrlOrNull() ?: return url
+    if (parsedUrl.querySize == 0) {
+        return url
+    }
+
+    val redactedUrl = parsedUrl.newBuilder().query(null)
+    var changed = false
+
+    repeat(parsedUrl.querySize) { index ->
+        val name = parsedUrl.queryParameterName(index)
+        val value = parsedUrl.queryParameterValue(index)
+        if (name.isSensitiveQueryParameterName()) {
+            redactedUrl.addQueryParameter(name, REDACTED_QUERY_VALUE)
+            changed = true
+        } else {
+            redactedUrl.addQueryParameter(name, value)
+        }
+    }
+
+    return if (changed) redactedUrl.build().toString() else url
+}
+
+private fun String.isSensitiveQueryParameterName(): Boolean {
+    val normalized = lowercase().replace('-', '_').replace('.', '_')
+    if (normalized in EXACT_SENSITIVE_QUERY_PARAMETER_NAMES) {
+        return true
+    }
+
+    return normalized.split('_').any { it in SENSITIVE_QUERY_PARAMETER_SEGMENTS } ||
+        SENSITIVE_QUERY_PARAMETER_SEGMENTS.any(normalized::endsWith)
+}
+
+private const val REDACTED_QUERY_VALUE = "REDACTED"
+
+private val EXACT_SENSITIVE_QUERY_PARAMETER_NAMES =
+    setOf(
+        "api_key",
+        "apikey",
+        "auth",
+        "authorization",
+        "authorization_code",
+        "authorizationcode",
+        "code",
+        "key",
+        "nonce",
+        "session",
+        "session_id",
+        "sessionid",
+        "sig",
+    )
+
+private val SENSITIVE_QUERY_PARAMETER_SEGMENTS =
+    setOf(
+        "credential",
+        "password",
+        "passwd",
+        "secret",
+        "signature",
+        "token",
+    )

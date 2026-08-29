@@ -17,6 +17,8 @@ import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
 import okhttp3.Response
+import java.io.IOException
+import kotlin.coroutines.cancellation.CancellationException
 import kotlin.coroutines.resume
 import kotlin.coroutines.resumeWithException
 
@@ -213,12 +215,21 @@ internal class PutioTransport(
         val response =
             try {
                 httpClient.newCall(request).await()
+            } catch (cancellation: CancellationException) {
+                throw cancellation
             } catch (cause: Exception) {
                 throw PutioTransportException(requestData, cause)
             }
 
         response.use {
-            val body = response.body.string()
+            val body =
+                try {
+                    response.body.string()
+                } catch (cancellation: CancellationException) {
+                    throw cancellation
+                } catch (cause: IOException) {
+                    throw PutioTransportException(requestData, cause)
+                }
 
             if (!response.isSuccessful) {
                 throw decodeApiException(requestData, response, body)

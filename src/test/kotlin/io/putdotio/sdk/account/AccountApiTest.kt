@@ -2,12 +2,17 @@ package io.putdotio.sdk.account
 
 import io.putdotio.sdk.PutioClient
 import io.putdotio.sdk.PutioConfig
+import io.putdotio.sdk.errors.PutioApiException
+import io.putdotio.sdk.errors.PutioOperationException
 import kotlinx.coroutines.runBlocking
 import mockwebserver3.MockResponse
 import mockwebserver3.MockWebServer
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFailsWith
+import kotlin.test.assertIs
 import kotlin.test.assertNotNull
+import kotlin.test.assertNull
 
 class AccountApiTest {
     @Test
@@ -117,6 +122,56 @@ class AccountApiTest {
         }
 
     @Test
+    fun `getInfo wraps failures with account operation context`() =
+        withServer { server ->
+            server.enqueue(apiErrorResponse(statusCode = 503, errorType = "ACCOUNT_UNAVAILABLE"))
+
+            val error =
+                assertFailsWith<PutioOperationException> {
+                    runBlocking {
+                        PutioClient(
+                            PutioConfig(
+                                accessToken = "secret-token",
+                                baseUrl = server.url("/v2/").toString(),
+                            ),
+                        ).use { sdk ->
+                            sdk.account.getInfo()
+                        }
+                    }
+                }
+
+            assertEquals("account", error.domain)
+            assertEquals("getInfo", error.operation)
+            assertNull(error.contract)
+            assertIs<PutioApiException>(error.underlyingError)
+        }
+
+    @Test
+    fun `getSettings wraps failures with account operation context`() =
+        withServer { server ->
+            server.enqueue(apiErrorResponse(statusCode = 503, errorType = "ACCOUNT_UNAVAILABLE"))
+
+            val error =
+                assertFailsWith<PutioOperationException> {
+                    runBlocking {
+                        PutioClient(
+                            PutioConfig(
+                                accessToken = "secret-token",
+                                baseUrl = server.url("/v2/").toString(),
+                            ),
+                        ).use { sdk ->
+                            sdk.account.getSettings()
+                        }
+                    }
+                }
+
+            assertEquals("account", error.domain)
+            assertEquals("getSettings", error.operation)
+            assertNull(error.contract)
+            assertIs<PutioApiException>(error.underlyingError)
+        }
+
+    @Test
     fun `clearData posts typed destructive options`() =
         withServer { server ->
             server.enqueue(MockResponse.Builder().body("""{"status":"OK"}""").build())
@@ -178,4 +233,21 @@ class AccountApiTest {
             block(server)
         }
     }
+
+    private fun apiErrorResponse(
+        statusCode: Int,
+        errorType: String,
+    ): MockResponse =
+        MockResponse
+            .Builder()
+            .code(statusCode)
+            .body(
+                """
+                {
+                  "message": "account request failed",
+                  "status_code": $statusCode,
+                  "error_type": "$errorType"
+                }
+                """.trimIndent(),
+            ).build()
 }

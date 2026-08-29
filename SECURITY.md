@@ -25,6 +25,13 @@ Useful reports usually include issues involving:
 - keep testing non-destructive, low-volume, and service-safe
 - use private email for suspected vulnerabilities
 
+## Credential-bearing URLs
+
+- API requests use the `Authorization` header where the endpoint supports it
+- media URL builders include `oauth_token` because those endpoints accept URL authentication; treat returned URLs as credentials and do not log, persist, or share them
+- SDK-created exceptions replace sensitive query values with `REDACTED`; request methods, paths, query names, and non-sensitive query values remain available for diagnosis
+- redaction covers token, secret, password, credential, signature, API-key, authorization-code, session, and nonce parameter names, including common compound forms
+
 ## Supported Versions
 
 This repository does not publish versioned releases yet. Report issues against

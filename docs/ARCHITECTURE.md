@@ -129,8 +129,9 @@ graph LR
 
 ## Error Context
 
-- `auth`, `files`, `events`, and `trash` now wrap SDK failures with `domain.operation` context before surfacing them to consumers
+- domain namespaces wrap SDK failures with `domain.operation` context before surfacing them to consumers
 - `PutioErrorLocalizer` can layer operation-specific recovery guidance on top of the underlying typed API or transport error
+- SDK-created exceptions redact credential-bearing query values from request URLs while retaining the method, path, query names, and non-sensitive query values
 
 ## What This Package Is Not
 
