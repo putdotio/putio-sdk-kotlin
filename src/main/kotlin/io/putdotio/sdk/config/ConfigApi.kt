@@ -9,16 +9,18 @@ import io.putdotio.sdk.errors.putioOperation
 class ConfigApi internal constructor(
     private val transport: PutioTransport,
 ) {
-    suspend fun get(): UserConfig =
+    suspend fun get(): AppConfig =
         putioOperation(GET_CONFIG_ERROR_SPEC) {
-            transport
-                .get(
-                    path = "/config",
-                    serializer = UserConfigEnvelope.serializer(),
-                ).config
+            AppConfig(
+                transport
+                    .get(
+                        path = "/config",
+                        serializer = AppConfigEnvelope.serializer(),
+                    ).config,
+            )
         }
 
-    suspend fun save(update: UserConfigUpdate): OkResponse =
+    suspend fun save(update: AppConfigUpdate): OkResponse =
         putioOperation(SAVE_CONFIG_ERROR_SPEC) {
             transport.putJson(
                 pathSegments = listOf("config", update.key),
@@ -27,13 +29,6 @@ class ConfigApi internal constructor(
                 bodySerializer = ConfigValueUpdateBody.serializer(),
             )
         }
-
-    suspend fun setChromecastPlaybackType(playbackType: ChromecastPlaybackType): OkResponse =
-        save(UserConfigUpdate.chromecastPlaybackType(playbackType))
-
-    suspend fun setSearchHistory(searchHistory: List<String>): OkResponse = save(UserConfigUpdate.searchHistory(searchHistory))
-
-    suspend fun setSearchHistoryEnabled(enabled: Boolean): OkResponse = save(UserConfigUpdate.searchHistoryEnabled(enabled))
 }
 
 private val GET_CONFIG_ERROR_SPEC =

@@ -25,7 +25,7 @@ This repository is in its first bootstrap phase. The initial public surface is i
 
 - `account`
 - `auth`
-- `userConfig`
+- `appConfig`
 - `files`
 - `grants`
 - `history`
@@ -41,7 +41,7 @@ The current expansion is shaped around real put.io mobile and TV app needs. The 
 - auth login, device/OOB, token validation, and two-factor flows
 - OAuth grant listing, revocation, logout, and device linking
 - account settings updates for playback, sorting, and trash/history preferences
-- user config and tunnel route reads for playback and network preferences
+- app-scoped config and tunnel route reads for playback and network preferences
 - file listing/search, cursor continuation, subtitles, file management, next-media lookup, MP4 conversion, and playback resume helpers
 - history event listing and deletion flows
 - IFTTT playback event sending

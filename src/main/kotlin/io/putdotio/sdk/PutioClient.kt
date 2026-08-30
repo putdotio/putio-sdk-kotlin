@@ -26,7 +26,7 @@ class PutioClient(
 
     val account = AccountApi(transport)
     val auth = AuthApi(transport)
-    val userConfig = ConfigApi(transport)
+    val appConfig = ConfigApi(transport)
     val files = FilesApi(transport)
     val grants = GrantsApi(transport)
     val history = HistoryApi(transport)
