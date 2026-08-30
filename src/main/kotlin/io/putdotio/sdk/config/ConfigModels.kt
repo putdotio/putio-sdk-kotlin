@@ -3,6 +3,7 @@ package io.putdotio.sdk.config
 import io.putdotio.sdk.core.RawStringValueSerializer
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonPrimitive
 
@@ -40,6 +41,8 @@ value class ChromecastPlaybackType(
 @Serializable
 data class UserConfig(
     @SerialName("chromecast_playback_type") val chromecastPlaybackType: ChromecastPlaybackType = ChromecastPlaybackType.HLS,
+    @SerialName("searchHistory") val searchHistory: List<String> = emptyList(),
+    @SerialName("searchHistoryEnabled") val searchHistoryEnabled: Boolean = true,
 )
 
 data class UserConfigUpdate(
@@ -56,6 +59,18 @@ data class UserConfigUpdate(
             UserConfigUpdate(
                 key = "chromecast_playback_type",
                 value = JsonPrimitive(playbackType.raw),
+            )
+
+        fun searchHistory(searchHistory: List<String>): UserConfigUpdate =
+            UserConfigUpdate(
+                key = "searchHistory",
+                value = JsonArray(searchHistory.map(::JsonPrimitive)),
+            )
+
+        fun searchHistoryEnabled(enabled: Boolean): UserConfigUpdate =
+            UserConfigUpdate(
+                key = "searchHistoryEnabled",
+                value = JsonPrimitive(enabled),
             )
     }
 }

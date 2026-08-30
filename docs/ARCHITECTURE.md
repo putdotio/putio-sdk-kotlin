@@ -76,6 +76,8 @@ graph LR
   - `get`
   - `save`
   - `setChromecastPlaybackType`
+  - `setSearchHistory`
+  - `setSearchHistoryEnabled`
 - `files`
   - `list`
   - `continueList`

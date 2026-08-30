@@ -30,6 +30,10 @@ class ConfigApi internal constructor(
 
     suspend fun setChromecastPlaybackType(playbackType: ChromecastPlaybackType): OkResponse =
         save(UserConfigUpdate.chromecastPlaybackType(playbackType))
+
+    suspend fun setSearchHistory(searchHistory: List<String>): OkResponse = save(UserConfigUpdate.searchHistory(searchHistory))
+
+    suspend fun setSearchHistoryEnabled(enabled: Boolean): OkResponse = save(UserConfigUpdate.searchHistoryEnabled(enabled))
 }
 
 private val GET_CONFIG_ERROR_SPEC =

@@ -13,7 +13,7 @@ import kotlin.test.assertFalse
 
 class ConfigApiTest {
     @Test
-    fun `get decodes user config and preserves unknown playback types`() =
+    fun `get decodes typed search config and preserves unknown values`() =
         withServer { server ->
             server.enqueue(
                 MockResponse
@@ -23,7 +23,10 @@ class ConfigApiTest {
                         {
                           "status": "OK",
                           "config": {
-                            "chromecast_playback_type": "future-mode"
+                            "chromecast_playback_type": "future-mode",
+                            "searchHistory": ["one", "two words"],
+                            "searchHistoryEnabled": false,
+                            "futureConfig": {"nested": true}
                           }
                         }
                         """.trimIndent(),
@@ -40,6 +43,8 @@ class ConfigApiTest {
                     val config = sdk.userConfig.get()
                     assertEquals("future-mode", config.chromecastPlaybackType.raw)
                     assertFalse(config.chromecastPlaybackType.isKnown)
+                    assertEquals(listOf("one", "two words"), config.searchHistory)
+                    assertFalse(config.searchHistoryEnabled)
                 }
             }
 
@@ -93,6 +98,68 @@ class ConfigApiTest {
             UserConfigUpdate(" ", JsonPrimitive("value"))
         }
     }
+
+    @Test
+    fun `get defaults missing search config without weakening unknown field handling`() =
+        withServer { server ->
+            server.enqueue(
+                MockResponse
+                    .Builder()
+                    .body(
+                        """
+                        {
+                          "status": "OK",
+                          "config": {
+                            "unknownConfig": "preserved by the server"
+                          }
+                        }
+                        """.trimIndent(),
+                    ).build(),
+            )
+
+            runBlocking {
+                PutioClient(
+                    PutioConfig(
+                        accessToken = "token",
+                        baseUrl = server.url("/v2/").toString(),
+                    ),
+                ).use { sdk ->
+                    val config = sdk.userConfig.get()
+                    assertEquals(emptyList(), config.searchHistory)
+                    assertEquals(true, config.searchHistoryEnabled)
+                }
+            }
+        }
+
+    @Test
+    fun `search history helpers write camelCase config keys and typed JSON values`() =
+        withServer { server ->
+            repeat(2) {
+                server.enqueue(MockResponse.Builder().body("""{"status":"OK"}""").build())
+            }
+
+            runBlocking {
+                PutioClient(
+                    PutioConfig(
+                        accessToken = "token",
+                        baseUrl = server.url("/v2/").toString(),
+                    ),
+                ).use { sdk ->
+                    sdk.userConfig.setSearchHistory(listOf("one", "two words"))
+                    sdk.userConfig.setSearchHistoryEnabled(false)
+                }
+            }
+
+            val historyRequest = server.takeRequest()
+            assertEquals("/v2/config/searchHistory", historyRequest.target)
+            assertEquals("PUT", historyRequest.method)
+            assertEquals("""{"value":["one","two words"]}""", historyRequest.body!!.utf8())
+
+            val enabledRequest = server.takeRequest()
+            assertEquals("/v2/config/searchHistoryEnabled", enabledRequest.target)
+            assertEquals("PUT", enabledRequest.method)
+            assertEquals("""{"value":false}""", enabledRequest.body!!.utf8())
+        }
 
     @Test
     fun `config update rejects dot path segment keys`() {
