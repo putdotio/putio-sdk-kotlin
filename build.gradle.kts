@@ -7,6 +7,7 @@ import java.math.BigDecimal
 plugins {
     kotlin("jvm") version "2.4.10"
     kotlin("plugin.serialization") version "2.4.10"
+    `java-library`
     `maven-publish`
     jacoco
     id("com.diffplug.spotless") version "8.10.0"
@@ -59,7 +60,7 @@ dependencies {
     implementation(platform("com.squareup.okhttp3:okhttp-bom:5.4.0"))
     implementation("com.squareup.okhttp3:okhttp")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.11.0")
-    implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.11.0")
+    api("org.jetbrains.kotlinx:kotlinx-serialization-json:1.11.0")
 
     testImplementation(kotlin("test"))
     testImplementation("com.squareup.okhttp3:mockwebserver3")
