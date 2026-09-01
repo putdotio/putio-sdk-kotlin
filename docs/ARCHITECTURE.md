@@ -11,7 +11,7 @@ graph LR
   Consumer["consumer app"] --> Client["PutioClient"]
   Client --> Account["account namespace"]
   Client --> Auth["auth namespace"]
-  Client --> Config["userConfig namespace"]
+  Client --> Config["appConfig namespace"]
   Client --> Files["files namespace"]
   Client --> Grants["grants namespace"]
   Client --> History["history namespace"]
@@ -72,10 +72,9 @@ graph LR
   - `verifyTotp`
   - `getRecoveryCodes`
   - `regenerateRecoveryCodes`
-- `userConfig`
+- `appConfig`
   - `get`
   - `save`
-  - `setChromecastPlaybackType`
 - `files`
   - `list`
   - `continueList`
