@@ -128,11 +128,9 @@ class HistoryApiTest {
                         baseUrl = server.url("/v2/").toString(),
                     ),
                 ).use { sdk ->
-                    val event =
-                        sdk.history
-                            .list()
-                            .events
-                            .first()
+                    val response = sdk.history.list()
+                    val event = response.events.first()
+                    assertFalse(response.hasMore)
                     assertEquals("FUTURE_EVENT", event.type.raw)
                     assertFalse(event.type.isKnown)
                 }

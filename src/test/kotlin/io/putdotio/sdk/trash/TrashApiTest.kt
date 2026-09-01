@@ -3,14 +3,18 @@ package io.putdotio.sdk.trash
 import io.putdotio.sdk.PutioClient
 import io.putdotio.sdk.PutioConfig
 import io.putdotio.sdk.errors.PutioApiException
+import io.putdotio.sdk.errors.PutioOperationErrorReason
 import io.putdotio.sdk.errors.PutioOperationException
 import kotlinx.coroutines.runBlocking
 import mockwebserver3.MockResponse
 import mockwebserver3.MockWebServer
+import java.net.URLDecoder
+import java.nio.charset.StandardCharsets
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 import kotlin.test.assertIs
+import kotlin.test.assertNull
 
 class TrashApiTest {
     @Test
@@ -86,7 +90,7 @@ class TrashApiTest {
                 ).use { sdk ->
                     val response =
                         sdk.trash.continueList(
-                            cursor = "trash-cursor-123",
+                            cursor = "opaque+/=? cursor",
                             query = TrashContinueQuery(perPage = 10),
                         )
                     assertEquals("done", response.cursor)
@@ -95,7 +99,7 @@ class TrashApiTest {
 
             val request = server.takeRequest()
             assertEquals("/v2/trash/list/continue?per_page=10", request.target)
-            assertEquals("cursor=trash-cursor-123", request.body!!.utf8())
+            assertEquals("opaque+/=? cursor", decodeCursor(request.body!!.utf8()))
         }
 
     @Test
@@ -110,13 +114,44 @@ class TrashApiTest {
                         baseUrl = server.url("/v2/").toString(),
                     ),
                 ).use { sdk ->
-                    sdk.trash.continueList(cursor = "trash-cursor")
+                    val response = sdk.trash.continueList(cursor = "trash-cursor")
+                    assertNull(response.cursor)
                 }
             }
 
             val request = server.takeRequest()
             assertEquals("/v2/trash/list/continue", request.target)
             assertEquals("cursor=trash-cursor", request.body!!.utf8())
+        }
+
+    @Test
+    fun `continueList wraps invalid cursors with continuation context`() =
+        withServer { server ->
+            server.enqueue(
+                MockResponse
+                    .Builder()
+                    .code(400)
+                    .body(
+                        """
+                        {
+                          "status": "ERROR",
+                          "status_code": 400,
+                          "error_type": "INVALID_CURSOR",
+                          "message": "invalid cursor"
+                        }
+                        """.trimIndent(),
+                    ).build(),
+            )
+
+            val error =
+                assertFailsWith<PutioOperationException> {
+                    runBlocking { client(server).use { it.trash.continueList("invalid") } }
+                }
+
+            assertEquals("trash", error.domain)
+            assertEquals("continueList", error.operation)
+            assertEquals(400, assertIs<PutioOperationErrorReason.StatusCode>(error.reason).statusCode)
+            assertEquals("INVALID_CURSOR", assertIs<PutioApiException>(error.underlyingError).errorType)
         }
 
     @Test
@@ -229,4 +264,14 @@ class TrashApiTest {
             block(server)
         }
     }
+
+    private fun client(server: MockWebServer): PutioClient =
+        PutioClient(
+            PutioConfig(
+                accessToken = "token",
+                baseUrl = server.url("/v2/").toString(),
+            ),
+        )
+
+    private fun decodeCursor(body: String): String = URLDecoder.decode(body.substringAfter("cursor="), StandardCharsets.UTF_8)
 }

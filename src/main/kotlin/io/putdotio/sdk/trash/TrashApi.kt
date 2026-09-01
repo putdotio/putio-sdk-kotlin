@@ -22,7 +22,7 @@ class TrashApi internal constructor(
         cursor: String,
         query: TrashContinueQuery = TrashContinueQuery(),
     ): TrashListResponse =
-        putioOperation(LIST_TRASH_ERROR_SPEC) {
+        putioOperation(CONTINUE_TRASH_ERROR_SPEC) {
             transport.post(
                 path = "/trash/list/continue",
                 serializer = TrashListResponse.serializer(),
@@ -62,6 +62,17 @@ private val LIST_TRASH_ERROR_SPEC =
     PutioOperationErrorSpec(
         domain = "trash",
         operation = "list",
+    )
+
+private val CONTINUE_TRASH_ERROR_SPEC =
+    PutioOperationErrorSpec(
+        domain = "trash",
+        operation = "continueList",
+        knownErrors =
+            listOf(
+                PutioKnownErrorContract(errorType = "invalid_scope", statusCode = 401),
+                PutioKnownErrorContract(statusCode = 400),
+            ),
     )
 
 private val RESTORE_TRASH_ERROR_SPEC =
