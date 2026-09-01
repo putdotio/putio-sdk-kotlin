@@ -61,7 +61,7 @@ Until then, the repo supports local consumption through:
 ## Android Consumers
 
 The SDK emits Java 8 bytecode and leaves the Android minimum SDK to the
-consumer. The first-party Android app continuously verifies composite-build
+consumer. The first-party Android app has validated composite-build
 consumption at minSdk 26 with an unsigned, R8-minified release build. The
 current SDK, OkHttp, coroutines, and serialization stack needs no
 SDK-specific consumer keep rules.
