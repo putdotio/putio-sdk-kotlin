@@ -137,7 +137,7 @@ class FilesApi internal constructor(
         cursor: String,
         query: FilesContinueQuery = FilesContinueQuery(),
     ): FilesListResponse =
-        putioOperation(LIST_FILES_ERROR_SPEC) {
+        putioOperation(CONTINUE_FILES_ERROR_SPEC) {
             transport.post(
                 path = "/files/list/continue",
                 serializer = FilesListResponse.serializer(),
@@ -150,7 +150,7 @@ class FilesApi internal constructor(
         cursor: String,
         query: FilesContinueQuery = FilesContinueQuery(),
     ): FileSearchResponse =
-        putioOperation(SEARCH_FILES_ERROR_SPEC) {
+        putioOperation(CONTINUE_SEARCH_ERROR_SPEC) {
             transport.post(
                 path = "/files/search/continue",
                 serializer = FileSearchResponse.serializer(),
@@ -512,6 +512,17 @@ private val LIST_FILES_ERROR_SPEC =
         operation = "list",
     )
 
+private val CONTINUE_FILES_ERROR_SPEC =
+    PutioOperationErrorSpec(
+        domain = "files",
+        operation = "continueList",
+        knownErrors =
+            listOf(
+                PutioKnownErrorContract(errorType = "invalid_scope", statusCode = 401),
+                PutioKnownErrorContract(statusCode = 400),
+            ),
+    )
+
 private val GET_FILE_ERROR_SPEC =
     PutioOperationErrorSpec(
         domain = "files",
@@ -533,6 +544,18 @@ private val SEARCH_FILES_ERROR_SPEC =
         knownErrors =
             listOf(
                 PutioKnownErrorContract(errorType = "SEARCH_TOO_LONG_QUERY", statusCode = 400),
+                PutioKnownErrorContract(statusCode = 400),
+            ),
+    )
+
+private val CONTINUE_SEARCH_ERROR_SPEC =
+    PutioOperationErrorSpec(
+        domain = "files",
+        operation = "continueSearch",
+        knownErrors =
+            listOf(
+                PutioKnownErrorContract(errorType = "SEARCH_TOO_LONG_QUERY", statusCode = 400),
+                PutioKnownErrorContract(errorType = "invalid_scope", statusCode = 401),
                 PutioKnownErrorContract(statusCode = 400),
             ),
     )

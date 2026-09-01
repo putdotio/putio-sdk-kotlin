@@ -3,6 +3,7 @@ package io.putdotio.sdk.transfers
 import io.putdotio.sdk.PutioClient
 import io.putdotio.sdk.PutioConfig
 import io.putdotio.sdk.errors.PutioApiException
+import io.putdotio.sdk.errors.PutioOperationErrorReason
 import io.putdotio.sdk.errors.PutioOperationException
 import kotlinx.coroutines.runBlocking
 import mockwebserver3.MockResponse
@@ -228,6 +229,45 @@ class TransfersApiTest {
             val continueRequest = server.takeRequest()
             assertEquals("/v2/transfers/list/continue", continueRequest.target)
             assertEquals("cursor", formValues(continueRequest.body!!.utf8())["cursor"])
+        }
+
+    @Test
+    fun `continueList wraps invalid cursors with continuation context`() =
+        withServer { server ->
+            server.enqueue(
+                MockResponse
+                    .Builder()
+                    .code(400)
+                    .body(
+                        """
+                        {
+                          "status": "ERROR",
+                          "status_code": 400,
+                          "error_type": "INVALID_CURSOR",
+                          "message": "invalid cursor"
+                        }
+                        """.trimIndent(),
+                    ).build(),
+            )
+
+            val error =
+                kotlin.test.assertFailsWith<PutioOperationException> {
+                    runBlocking {
+                        PutioClient(
+                            PutioConfig(
+                                accessToken = "token",
+                                baseUrl = server.url("/v2/").toString(),
+                            ),
+                        ).use { sdk ->
+                            sdk.transfers.continueList("invalid")
+                        }
+                    }
+                }
+
+            assertEquals("transfers", error.domain)
+            assertEquals("continueList", error.operation)
+            assertEquals(400, assertIs<PutioOperationErrorReason.StatusCode>(error.reason).statusCode)
+            assertEquals("INVALID_CURSOR", assertIs<PutioApiException>(error.underlyingError).errorType)
         }
 
     @Test

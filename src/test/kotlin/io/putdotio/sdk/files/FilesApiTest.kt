@@ -3,6 +3,7 @@ package io.putdotio.sdk.files
 import io.putdotio.sdk.PutioClient
 import io.putdotio.sdk.PutioConfig
 import io.putdotio.sdk.errors.PutioApiException
+import io.putdotio.sdk.errors.PutioOperationErrorReason
 import io.putdotio.sdk.errors.PutioOperationException
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.launch
@@ -12,6 +13,8 @@ import kotlinx.coroutines.yield
 import mockwebserver3.MockResponse
 import mockwebserver3.MockWebServer
 import mockwebserver3.SocketEffect
+import java.net.URLDecoder
+import java.nio.charset.StandardCharsets
 import java.util.concurrent.TimeUnit
 import kotlin.coroutines.cancellation.CancellationException
 import kotlin.test.Test
@@ -20,6 +23,7 @@ import kotlin.test.assertFailsWith
 import kotlin.test.assertFalse
 import kotlin.test.assertIs
 import kotlin.test.assertNotNull
+import kotlin.test.assertNull
 
 class FilesApiTest {
     @Test
@@ -175,7 +179,7 @@ class FilesApiTest {
                 ).use { sdk ->
                     val response =
                         sdk.files.continueList(
-                            cursor = "cursor-123",
+                            cursor = "opaque+/=? cursor",
                             query = FilesContinueQuery(perPage = 25),
                         )
                     assertEquals("next-page", response.cursor)
@@ -184,7 +188,7 @@ class FilesApiTest {
 
             val request = server.takeRequest()
             assertEquals("/v2/files/list/continue?per_page=25", request.target)
-            assertEquals("cursor=cursor-123", request.body!!.utf8())
+            assertEquals("opaque+/=? cursor", decodeCursor(request.body!!.utf8()))
         }
 
     @Test
@@ -239,8 +243,10 @@ class FilesApiTest {
                         baseUrl = server.url("/v2/").toString(),
                     ),
                 ).use { sdk ->
-                    sdk.files.continueList(cursor = "list-cursor")
-                    sdk.files.continueSearch(cursor = "search-cursor")
+                    val list = sdk.files.continueList(cursor = "list-cursor")
+                    val search = sdk.files.continueSearch(cursor = "search-cursor")
+                    assertNull(list.cursor)
+                    assertNull(search.cursor)
                 }
             }
 
@@ -250,6 +256,45 @@ class FilesApiTest {
             assertEquals("cursor=list-cursor", listRequest.body!!.utf8())
             assertEquals("/v2/files/search/continue", searchRequest.target)
             assertEquals("cursor=search-cursor", searchRequest.body!!.utf8())
+        }
+
+    @Test
+    fun `continuation failures keep their operation context`() =
+        withServer { server ->
+            repeat(2) {
+                server.enqueue(
+                    MockResponse
+                        .Builder()
+                        .code(400)
+                        .body(
+                            """
+                            {
+                              "status": "ERROR",
+                              "status_code": 400,
+                              "error_type": "INVALID_CURSOR",
+                              "message": "invalid cursor"
+                            }
+                            """.trimIndent(),
+                        ).build(),
+                )
+            }
+
+            val errors =
+                listOf(
+                    assertFailsWith<PutioOperationException> {
+                        runBlocking { client(server).use { it.files.continueList("invalid") } }
+                    },
+                    assertFailsWith<PutioOperationException> {
+                        runBlocking { client(server).use { it.files.continueSearch("invalid") } }
+                    },
+                )
+
+            assertEquals(listOf("continueList", "continueSearch"), errors.map { it.operation })
+            errors.forEach { error ->
+                assertEquals("files", error.domain)
+                assertEquals(400, assertIs<PutioOperationErrorReason.StatusCode>(error.reason).statusCode)
+                assertEquals("INVALID_CURSOR", assertIs<PutioApiException>(error.underlyingError).errorType)
+            }
         }
 
     @Test
@@ -775,4 +820,14 @@ class FilesApiTest {
             block(server)
         }
     }
+
+    private fun client(server: MockWebServer): PutioClient =
+        PutioClient(
+            PutioConfig(
+                accessToken = "token",
+                baseUrl = server.url("/v2/").toString(),
+            ),
+        )
+
+    private fun decodeCursor(body: String): String = URLDecoder.decode(body.substringAfter("cursor="), StandardCharsets.UTF_8)
 }

@@ -73,24 +73,26 @@ class PutioErrorLocalizerTest {
     }
 
     @Test
-    fun `localizer gives operation-specific guidance for long file searches`() {
-        val localized =
-            PutioErrorLocalizer.localize(
-                operationError(
-                    domain = "files",
-                    operation = "search",
-                    statusCode = 400,
-                    errorType = "SEARCH_TOO_LONG_QUERY",
-                    message = "search query too long",
-                ),
-            )
+    fun `localizer gives operation-specific guidance for initial and continued long file searches`() {
+        listOf("search", "continueSearch").forEach { operation ->
+            val localized =
+                PutioErrorLocalizer.localize(
+                    operationError(
+                        domain = "files",
+                        operation = operation,
+                        statusCode = 400,
+                        errorType = "SEARCH_TOO_LONG_QUERY",
+                        message = "search query too long",
+                    ),
+                )
 
-        assertEquals("The search query is too long", localized.message)
-        assertEquals("search query too long", localized.failureReason)
-        assertEquals("files", localized.meta["domain"])
-        assertEquals("search", localized.meta["operation"])
-        assertEquals("SEARCH_TOO_LONG_QUERY", localized.meta["contractErrorType"])
-        assertIs<PutioRecoverySuggestion.Instruction>(localized.recoverySuggestion)
+            assertEquals("The search query is too long", localized.message)
+            assertEquals("search query too long", localized.failureReason)
+            assertEquals("files", localized.meta["domain"])
+            assertEquals(operation, localized.meta["operation"])
+            assertEquals("SEARCH_TOO_LONG_QUERY", localized.meta["contractErrorType"])
+            assertIs<PutioRecoverySuggestion.Instruction>(localized.recoverySuggestion)
+        }
     }
 
     @Test

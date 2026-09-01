@@ -24,7 +24,7 @@ class TransfersApi internal constructor(
         cursor: String,
         query: TransfersListQuery = TransfersListQuery(),
     ): TransfersListResponse =
-        putioOperation(LIST_TRANSFERS_ERROR_SPEC) {
+        putioOperation(CONTINUE_TRANSFERS_ERROR_SPEC) {
             transport.post(
                 path = "/transfers/list/continue",
                 serializer = TransfersListResponse.serializer(),
@@ -120,6 +120,17 @@ private val LIST_TRANSFERS_ERROR_SPEC =
     PutioOperationErrorSpec(
         domain = "transfers",
         operation = "list",
+        knownErrors =
+            listOf(
+                PutioKnownErrorContract(errorType = "invalid_scope", statusCode = 401),
+                PutioKnownErrorContract(statusCode = 400),
+            ),
+    )
+
+private val CONTINUE_TRANSFERS_ERROR_SPEC =
+    PutioOperationErrorSpec(
+        domain = "transfers",
+        operation = "continueList",
         knownErrors =
             listOf(
                 PutioKnownErrorContract(errorType = "invalid_scope", statusCode = 401),
