@@ -5,12 +5,35 @@ import io.putdotio.sdk.PutioConfig
 import io.putdotio.sdk.errors.PutioApiException
 import io.putdotio.sdk.errors.PutioConfigurationException
 import io.putdotio.sdk.errors.PutioSerializationException
+import io.putdotio.sdk.errors.PutioTransportException
+import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.withTimeout
+import kotlinx.coroutines.yield
 import mockwebserver3.MockResponse
 import mockwebserver3.MockWebServer
+import mockwebserver3.SocketEffect
+import okhttp3.Call
+import okhttp3.EventListener
+import okhttp3.MediaType
 import okhttp3.OkHttpClient
+import okhttp3.Protocol
+import okhttp3.Response
+import okhttp3.ResponseBody
+import okio.Buffer
+import okio.BufferedSource
+import okio.Source
+import okio.Timeout
+import okio.buffer
+import java.io.IOException
+import java.util.concurrent.TimeUnit
+import kotlin.coroutines.cancellation.CancellationException
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
+import kotlin.test.assertIs
+import kotlin.test.assertNotNull
 import kotlin.test.assertNull
 
 class PutioTransportTest {
@@ -75,6 +98,131 @@ class PutioTransportTest {
 
             assertEquals("GET", error.request.method)
             assertEquals("""{"status":"OK","unexpected":true}""", error.responseBody)
+        }
+
+    @Test
+    fun `transport preserves cancellation while awaiting a response`() =
+        withServer { server ->
+            server.enqueue(
+                MockResponse
+                    .Builder()
+                    .onResponseStart(SocketEffect.Stall)
+                    .build(),
+            )
+
+            val callCancelled = CompletableDeferred<Unit>()
+            val httpClient =
+                OkHttpClient
+                    .Builder()
+                    .eventListener(
+                        object : EventListener() {
+                            override fun canceled(call: Call) {
+                                callCancelled.complete(Unit)
+                            }
+                        },
+                    ).build()
+            val transport = newTransport(server, accessToken = "secret-token", httpClient = httpClient)
+            val observedFailure = CompletableDeferred<Throwable>()
+
+            runBlocking {
+                val request =
+                    launch {
+                        try {
+                            transport.get(
+                                path = "/files/list",
+                                serializer = OkResponse.serializer(),
+                            )
+                        } catch (cause: Throwable) {
+                            observedFailure.complete(cause)
+                        }
+                    }
+
+                yield()
+                assertNotNull(server.takeRequest(5, TimeUnit.SECONDS))
+
+                val cancellation = CancellationException("cancel transport request")
+                request.cancel(cancellation)
+
+                withTimeout(5_000) { callCancelled.await() }
+                val error = assertIs<CancellationException>(withTimeout(5_000) { observedFailure.await() })
+                assertEquals(cancellation.message, error.message)
+                withTimeout(5_000) { request.join() }
+            }
+        }
+
+    @Test
+    fun `transport wraps response body IO failures as transport errors`() {
+        val cause = IOException("response body failed")
+        val transport = newTransportWithBodyFailure(cause)
+
+        val error =
+            assertFailsWith<PutioTransportException> {
+                runBlocking {
+                    transport.get(
+                        path = "/files/list",
+                        serializer = OkResponse.serializer(),
+                    )
+                }
+            }
+
+        assertEquals("GET", error.request.method)
+        assertEquals("https://example.test/v2/files/list", error.request.url)
+        assertIs<IOException>(error.cause)
+        assertEquals(cause.message, error.cause?.message)
+    }
+
+    @Test
+    fun `transport cancels the OkHttp call while reading a stalled response body`() =
+        withServer { server ->
+            server.enqueue(
+                MockResponse
+                    .Builder()
+                    .body("""{"status":"OK"}""")
+                    .onResponseBody(SocketEffect.Stall)
+                    .build(),
+            )
+            val bodyReadStarted = CompletableDeferred<Unit>()
+            val callCancelled = CompletableDeferred<Unit>()
+            val httpClient =
+                OkHttpClient
+                    .Builder()
+                    .eventListener(
+                        object : EventListener() {
+                            override fun responseBodyStart(call: Call) {
+                                bodyReadStarted.complete(Unit)
+                            }
+
+                            override fun canceled(call: Call) {
+                                callCancelled.complete(Unit)
+                            }
+                        },
+                    ).build()
+            val transport = newTransport(server, accessToken = "secret-token", httpClient = httpClient)
+            val observedFailure = CompletableDeferred<Throwable>()
+
+            runBlocking {
+                val request =
+                    launch {
+                        try {
+                            transport.get(
+                                path = "/files/list",
+                                serializer = OkResponse.serializer(),
+                            )
+                        } catch (cause: Throwable) {
+                            observedFailure.complete(cause)
+                        }
+                    }
+
+                withTimeout(5_000) { bodyReadStarted.await() }
+
+                val cancellation = CancellationException("cancel stalled response body read")
+                request.cancel(cancellation)
+
+                withTimeout(5_000) { callCancelled.await() }
+                val error = assertIs<CancellationException>(withTimeout(5_000) { observedFailure.await() })
+                assertEquals(cancellation.message, error.message)
+                withTimeout(5_000) { request.join() }
+            }
         }
 
     @Test
@@ -153,15 +301,40 @@ class PutioTransportTest {
     private fun newTransport(
         server: MockWebServer,
         accessToken: String?,
+        httpClient: OkHttpClient = OkHttpClient(),
     ) = PutioTransport(
         config =
             PutioConfig(
                 baseUrl = server.url("/v2/").toString(),
                 accessToken = accessToken,
             ),
-        httpClient = OkHttpClient(),
+        httpClient = httpClient,
         json = PutioTransport.defaultJson,
     )
+
+    private fun newTransportWithBodyFailure(failure: Throwable): PutioTransport = newTransportWithBody(FailingResponseBody(failure))
+
+    private fun newTransportWithBody(responseBody: ResponseBody): PutioTransport {
+        val httpClient =
+            OkHttpClient
+                .Builder()
+                .addInterceptor { chain ->
+                    Response
+                        .Builder()
+                        .request(chain.request())
+                        .protocol(Protocol.HTTP_1_1)
+                        .code(200)
+                        .message("OK")
+                        .body(responseBody)
+                        .build()
+                }.build()
+
+        return PutioTransport(
+            config = PutioConfig(baseUrl = "https://example.test/v2/", accessToken = "secret-token"),
+            httpClient = httpClient,
+            json = PutioTransport.defaultJson,
+        )
+    }
 
     private fun withServer(block: (MockWebServer) -> Unit) {
         MockWebServer().use { server ->
@@ -169,6 +342,26 @@ class PutioTransportTest {
             block(server)
         }
     }
+}
+
+private class FailingResponseBody(
+    private val failure: Throwable,
+) : ResponseBody() {
+    override fun contentType(): MediaType? = null
+
+    override fun contentLength(): Long = -1L
+
+    override fun source(): BufferedSource =
+        object : Source {
+            override fun read(
+                sink: Buffer,
+                byteCount: Long,
+            ): Long = throw failure
+
+            override fun timeout(): Timeout = Timeout.NONE
+
+            override fun close() = Unit
+        }.buffer()
 }
 
 @kotlinx.serialization.Serializable

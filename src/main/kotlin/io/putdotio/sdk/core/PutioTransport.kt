@@ -17,6 +17,9 @@ import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
 import okhttp3.Response
+import java.io.IOException
+import java.util.concurrent.atomic.AtomicBoolean
+import kotlin.coroutines.cancellation.CancellationException
 import kotlin.coroutines.resume
 import kotlin.coroutines.resumeWithException
 
@@ -212,23 +215,21 @@ internal class PutioTransport(
         val request = buildRequest(method = method, url = url, form = form, jsonBody = jsonBody, auth = auth)
         val response =
             try {
-                httpClient.newCall(request).await()
+                httpClient.newCall(request).awaitResponseBody()
+            } catch (cancellation: CancellationException) {
+                throw cancellation
             } catch (cause: Exception) {
                 throw PutioTransportException(requestData, cause)
             }
 
-        response.use {
-            val body = response.body.string()
+        if (!response.isSuccessful) {
+            throw decodeApiException(requestData, response.statusCode, response.body)
+        }
 
-            if (!response.isSuccessful) {
-                throw decodeApiException(requestData, response, body)
-            }
-
-            return try {
-                json.decodeFromString(serializer, body)
-            } catch (cause: Exception) {
-                throw PutioSerializationException(requestData, body, cause)
-            }
+        return try {
+            json.decodeFromString(serializer, response.body)
+        } catch (cause: Exception) {
+            throw PutioSerializationException(requestData, response.body, cause)
         }
     }
 
@@ -287,7 +288,7 @@ internal class PutioTransport(
 
     private fun decodeApiException(
         request: PutioRequestData,
-        response: Response,
+        responseStatusCode: Int,
         body: String,
     ): PutioApiException {
         val envelope =
@@ -295,7 +296,7 @@ internal class PutioTransport(
                 json.decodeFromString(PutioApiErrorEnvelope.serializer(), body)
             }.getOrNull()
 
-        val statusCode = envelope?.statusCode ?: response.code
+        val statusCode = envelope?.statusCode ?: responseStatusCode
         val errorType = envelope?.errorType
         val message = envelope?.message ?: "put.io returned HTTP $statusCode"
 
@@ -320,29 +321,56 @@ private fun okhttp3.HttpUrl.Builder.addLiteralPathSegment(segment: String): okht
 
 private val JSON_MEDIA_TYPE = "application/json; charset=utf-8".toMediaType()
 
-private suspend fun okhttp3.Call.await(): Response =
+private data class PutioHttpResponse(
+    val statusCode: Int,
+    val isSuccessful: Boolean,
+    val body: String,
+)
+
+private suspend fun okhttp3.Call.awaitResponseBody(): PutioHttpResponse =
     suspendCancellableCoroutine { continuation ->
+        val completed = AtomicBoolean(false)
+
         enqueue(
             object : okhttp3.Callback {
                 override fun onFailure(
                     call: okhttp3.Call,
-                    e: java.io.IOException,
+                    e: IOException,
                 ) {
-                    if (continuation.isCancelled) {
-                        return
+                    if (completed.compareAndSet(false, true)) {
+                        continuation.resumeWithException(e)
                     }
-
-                    continuation.resumeWithException(e)
                 }
 
                 override fun onResponse(
                     call: okhttp3.Call,
                     response: Response,
                 ) {
-                    continuation.resume(response)
+                    response.use {
+                        val result =
+                            try {
+                                PutioHttpResponse(
+                                    statusCode = response.code,
+                                    isSuccessful = response.isSuccessful,
+                                    body = response.body.string(),
+                                )
+                            } catch (cause: Exception) {
+                                if (completed.compareAndSet(false, true)) {
+                                    continuation.resumeWithException(cause)
+                                }
+                                return
+                            }
+
+                        if (completed.compareAndSet(false, true)) {
+                            continuation.resume(result)
+                        }
+                    }
                 }
             },
         )
 
-        continuation.invokeOnCancellation { cancel() }
+        continuation.invokeOnCancellation {
+            completed.compareAndSet(false, true)
+            cancel()
+        }
     }
