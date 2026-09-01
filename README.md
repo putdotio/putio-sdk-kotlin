@@ -72,7 +72,7 @@ dispatcher must add the Android dispatcher:
 
 ```kotlin
 dependencies {
-    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:<version>")
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.11.0")
 }
 ```
 
