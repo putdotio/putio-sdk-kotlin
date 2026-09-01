@@ -5,16 +5,24 @@ import io.putdotio.sdk.PutioConfig
 import io.putdotio.sdk.errors.PutioApiException
 import io.putdotio.sdk.errors.PutioOperationErrorReason
 import io.putdotio.sdk.errors.PutioOperationException
+import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.withTimeout
+import kotlinx.coroutines.yield
 import mockwebserver3.MockResponse
 import mockwebserver3.MockWebServer
+import mockwebserver3.SocketEffect
 import java.net.URLDecoder
 import java.nio.charset.StandardCharsets
+import java.util.concurrent.TimeUnit
+import kotlin.coroutines.cancellation.CancellationException
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 import kotlin.test.assertFalse
 import kotlin.test.assertIs
+import kotlin.test.assertNotNull
 import kotlin.test.assertNull
 
 class FilesApiTest {
@@ -52,6 +60,46 @@ class FilesApiTest {
                 "/v2/files/list?parent_id=0&mp4_status_parent=1&stream_url_parent=1&mp4_stream_url_parent=1&video_metadata_parent=1",
                 request.target,
             )
+        }
+
+    @Test
+    fun `list preserves request cancellation through the public client`() =
+        withServer { server ->
+            server.enqueue(
+                MockResponse
+                    .Builder()
+                    .onResponseStart(SocketEffect.Stall)
+                    .build(),
+            )
+
+            runBlocking {
+                PutioClient(
+                    PutioConfig(
+                        accessToken = "token",
+                        baseUrl = server.url("/v2/").toString(),
+                    ),
+                ).use { sdk ->
+                    val observedFailure = CompletableDeferred<Throwable>()
+                    val request =
+                        launch {
+                            try {
+                                sdk.files.list(parentId = 0)
+                            } catch (cause: Throwable) {
+                                observedFailure.complete(cause)
+                            }
+                        }
+
+                    yield()
+                    assertNotNull(server.takeRequest(5, TimeUnit.SECONDS))
+
+                    val cancellation = CancellationException("cancel files list request")
+                    request.cancel(cancellation)
+
+                    val error = assertIs<CancellationException>(withTimeout(5_000) { observedFailure.await() })
+                    assertEquals(cancellation.message, error.message)
+                    withTimeout(5_000) { request.join() }
+                }
+            }
         }
 
     @Test
@@ -551,7 +599,7 @@ class FilesApiTest {
         }
 
     @Test
-    fun `get can omit file detail flags`() =
+    fun `get sends only selected file detail flags`() =
         withServer { server ->
             server.enqueue(
                 MockResponse
@@ -584,6 +632,7 @@ class FilesApiTest {
                         query =
                             FileDetailsQuery(
                                 mp4Size = false,
+                                mp4Status = true,
                                 startFrom = false,
                                 streamUrl = false,
                                 mp4StreamUrl = false,
@@ -593,7 +642,7 @@ class FilesApiTest {
             }
 
             val request = server.takeRequest()
-            assertEquals("/v2/files/9", request.target)
+            assertEquals("/v2/files/9?mp4_status=1", request.target)
         }
 
     @Test

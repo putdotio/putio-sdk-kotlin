@@ -9,11 +9,10 @@ class ConfigGrantsRoutesLiveTest {
     fun `config grants and routes read-only surfaces decode from the live API`() {
         runBlocking {
             LiveSupport.newAuthedClient().use { sdk ->
-                val config = sdk.userConfig.get()
+                sdk.appConfig.get()
                 val grants = sdk.grants.list()
                 val routes = sdk.routes.list()
 
-                assertTrue(config.chromecastPlaybackType.raw.isNotBlank())
                 grants.firstOrNull()?.let { grant ->
                     assertTrue(grant.id > 0)
                     assertTrue(grant.name.isNotBlank())

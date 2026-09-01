@@ -1,7 +1,7 @@
 package io.putdotio.sdk
 
 data class PutioConfig(
-    var accessToken: String? = null,
+    @Volatile var accessToken: String? = null,
     var clientId: String? = null,
     var clientName: String? = null,
     var baseUrl: String = DEFAULT_API_BASE_URL,

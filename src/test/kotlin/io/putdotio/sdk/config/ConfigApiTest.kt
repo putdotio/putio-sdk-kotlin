@@ -3,18 +3,28 @@ package io.putdotio.sdk.config
 import io.putdotio.sdk.PutioClient
 import io.putdotio.sdk.PutioConfig
 import kotlinx.coroutines.runBlocking
+import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonPrimitive
+import kotlinx.serialization.json.jsonObject
 import mockwebserver3.MockResponse
 import mockwebserver3.MockWebServer
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
-import kotlin.test.assertFalse
 
 class ConfigApiTest {
     @Test
-    fun `get decodes user config and preserves unknown playback types`() =
+    fun `get preserves every app-owned config value`() =
         withServer { server ->
+            val rawConfig =
+                """
+                {
+                  "playbackMode": "future-mode",
+                  "recentTerms": ["one", "two words"],
+                  "featureEnabled": false,
+                  "futureConfig": {"nested": true}
+                }
+                """.trimIndent()
             server.enqueue(
                 MockResponse
                     .Builder()
@@ -22,9 +32,7 @@ class ConfigApiTest {
                         """
                         {
                           "status": "OK",
-                          "config": {
-                            "chromecast_playback_type": "future-mode"
-                          }
+                          "config": $rawConfig
                         }
                         """.trimIndent(),
                     ).build(),
@@ -37,9 +45,7 @@ class ConfigApiTest {
                         baseUrl = server.url("/v2/").toString(),
                     ),
                 ).use { sdk ->
-                    val config = sdk.userConfig.get()
-                    assertEquals("future-mode", config.chromecastPlaybackType.raw)
-                    assertFalse(config.chromecastPlaybackType.isKnown)
+                    assertEquals(Json.parseToJsonElement(rawConfig).jsonObject, sdk.appConfig.get().values)
                 }
             }
 
@@ -47,7 +53,7 @@ class ConfigApiTest {
         }
 
     @Test
-    fun `setChromecastPlaybackType writes typed config key`() =
+    fun `save writes an app-owned key and JSON value`() =
         withServer { server ->
             server.enqueue(MockResponse.Builder().body("""{"status":"OK"}""").build())
 
@@ -58,14 +64,14 @@ class ConfigApiTest {
                         baseUrl = server.url("/v2/").toString(),
                     ),
                 ).use { sdk ->
-                    sdk.userConfig.setChromecastPlaybackType(ChromecastPlaybackType.MP4)
+                    sdk.appConfig.save(AppConfigUpdate("consumerPreference", JsonPrimitive("value")))
                 }
             }
 
             val request = server.takeRequest()
-            assertEquals("/v2/config/chromecast_playback_type", request.target)
+            assertEquals("/v2/config/consumerPreference", request.target)
             assertEquals("PUT", request.method)
-            assertEquals("""{"value":"mp4"}""", request.body!!.utf8())
+            assertEquals("""{"value":"value"}""", request.body!!.utf8())
         }
 
     @Test
@@ -80,7 +86,7 @@ class ConfigApiTest {
                         baseUrl = server.url("/v2/").toString(),
                     ),
                 ).use { sdk ->
-                    sdk.userConfig.save(UserConfigUpdate("../account/info", JsonPrimitive("value")))
+                    sdk.appConfig.save(AppConfigUpdate("../account/info", JsonPrimitive("value")))
                 }
             }
 
@@ -90,14 +96,14 @@ class ConfigApiTest {
     @Test
     fun `config update rejects blank keys`() {
         assertFailsWith<IllegalArgumentException> {
-            UserConfigUpdate(" ", JsonPrimitive("value"))
+            AppConfigUpdate(" ", JsonPrimitive("value"))
         }
     }
 
     @Test
     fun `config update rejects dot path segment keys`() {
         assertFailsWith<IllegalArgumentException> {
-            UserConfigUpdate("..", JsonPrimitive("value"))
+            AppConfigUpdate("..", JsonPrimitive("value"))
         }
     }
 

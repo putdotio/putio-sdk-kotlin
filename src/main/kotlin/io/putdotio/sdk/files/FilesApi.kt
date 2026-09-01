@@ -2,9 +2,13 @@ package io.putdotio.sdk.files
 
 import io.putdotio.sdk.OkResponse
 import io.putdotio.sdk.core.PutioTransport
+import io.putdotio.sdk.errors.PutioApiException
 import io.putdotio.sdk.errors.PutioKnownErrorContract
 import io.putdotio.sdk.errors.PutioOperationErrorSpec
+import io.putdotio.sdk.errors.PutioSerializationException
+import io.putdotio.sdk.errors.PutioTransportException
 import io.putdotio.sdk.errors.putioOperation
+import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
 
 class FilesApi internal constructor(
     private val transport: PutioTransport,
@@ -33,6 +37,92 @@ class FilesApi internal constructor(
                     query = query.toQueryMap(),
                 ).file
         }
+
+    suspend fun resolvePlayback(request: PlaybackRequest): PlaybackResolution =
+        putioOperation(RESOLVE_PLAYBACK_ERROR_SPEC) {
+            val file =
+                transport
+                    .get(
+                        path = "/files/${request.fileId}",
+                        serializer = PlaybackFileEnvelope.serializer(),
+                        query =
+                            mapOf(
+                                "mp4_status" to "1",
+                                "start_from" to "1",
+                            ),
+                    ).file
+
+            val sourceKind = file.selectPlaybackSource(request)
+            if (sourceKind == null) {
+                return@putioOperation when (file.fileType) {
+                    PutioFileType.AUDIO, PutioFileType.VIDEO -> {
+                        val conversion =
+                            transport
+                                .get(
+                                    path = "/files/${request.fileId}/mp4",
+                                    serializer = FileMp4ConversionEnvelope.serializer(),
+                                ).mp4
+                        PlaybackResolution.Conversion(conversion.toPlaybackState())
+                    }
+
+                    else -> {
+                        PlaybackResolution.Unsupported(file.fileType)
+                    }
+                }
+            }
+
+            val subtitles = resolvePlaybackSubtitles(file, sourceKind, request)
+
+            PlaybackResolution.Ready(
+                PlaybackSource(
+                    fileId = request.fileId,
+                    kind = sourceKind,
+                    url = buildPlaybackUrl(request.fileId, sourceKind, request),
+                    startFromSeconds = if (request.useStartFrom) requireNotNull(file.startFrom) else 0.0,
+                    subtitles = subtitles,
+                ),
+            )
+        }
+
+    private suspend fun resolvePlaybackSubtitles(
+        file: PlaybackFile,
+        sourceKind: PlaybackSourceKind,
+        request: PlaybackRequest,
+    ): PlaybackSubtitles {
+        if (sourceKind == PlaybackSourceKind.HLS) {
+            return PlaybackSubtitles.Embedded
+        }
+        if (file.fileType != PutioFileType.VIDEO || !request.includeSidecarSubtitles) {
+            return PlaybackSubtitles.None
+        }
+
+        return try {
+            val subtitles =
+                transport
+                    .get(
+                        path = "/files/${request.fileId}/subtitles",
+                        serializer = FileSubtitlesResponse.serializer(),
+                        query =
+                            request.subtitleLanguages
+                                .takeIf { it.isNotEmpty() }
+                                ?.let { mapOf("languages" to it.joinToString(",")) }
+                                ?: emptyMap(),
+                    ).subtitles
+            val tracks =
+                subtitles.map { subtitle ->
+                    subtitle.toPlaybackSubtitleOrNull()
+                        ?: return PlaybackSubtitles.Unavailable(PlaybackSubtitleFailure.InvalidResponse)
+                }
+            if (tracks.isEmpty()) PlaybackSubtitles.None else PlaybackSubtitles.Sidecar(tracks)
+        } catch (error: PutioApiException) {
+            if (error.httpStatusCode == 401 || error.httpStatusCode == 403) throw error
+            PlaybackSubtitles.Unavailable(PlaybackSubtitleFailure.Rejected(error.statusCode))
+        } catch (error: PutioTransportException) {
+            PlaybackSubtitles.Unavailable(PlaybackSubtitleFailure.Transport(error.failureKind))
+        } catch (_: PutioSerializationException) {
+            PlaybackSubtitles.Unavailable(PlaybackSubtitleFailure.InvalidResponse)
+        }
+    }
 
     suspend fun search(query: FilesSearchQuery): FileSearchResponse =
         putioOperation(SEARCH_FILES_ERROR_SPEC) {
@@ -264,7 +354,21 @@ class FilesApi internal constructor(
             query = mapOf("oauth_token" to accessToken),
         )
 
+    internal fun buildMp4StreamUrl(
+        fileId: Long,
+        accessToken: String,
+    ): String =
+        transport.buildUrl(
+            path = "/files/$fileId/mp4/stream",
+            query = mapOf("oauth_token" to accessToken),
+        )
+
     fun buildAudioStreamUrl(
+        fileId: Long,
+        accessToken: String,
+    ): String = buildOriginalStreamUrl(fileId = fileId, accessToken = accessToken)
+
+    internal fun buildOriginalStreamUrl(
         fileId: Long,
         accessToken: String,
     ): String =
@@ -296,16 +400,111 @@ class FilesApi internal constructor(
     fun buildHlsStreamUrl(
         fileId: Long,
         accessToken: String,
+        subtitleLanguages: List<String> = emptyList(),
     ): String =
         transport.buildUrl(
             path = "/files/$fileId/hls/media.m3u8",
             query =
-                mapOf(
-                    "oauth_token" to accessToken,
-                    "subtitle_key" to "all",
-                ),
+                buildMap {
+                    put("oauth_token", accessToken)
+                    put("subtitle_key", "all")
+                    if (subtitleLanguages.isNotEmpty()) {
+                        put("subtitle_languages", subtitleLanguages.joinToString(","))
+                    }
+                },
         )
 }
+
+private fun PlaybackFile.selectPlaybackSource(request: PlaybackRequest): PlaybackSourceKind? =
+    when (fileType) {
+        PutioFileType.AUDIO -> {
+            PlaybackSourceKind.ORIGINAL
+        }
+
+        PutioFileType.VIDEO -> {
+            when {
+                request.capabilities.originalVideoPlayable -> PlaybackSourceKind.ORIGINAL
+                request.preference == PlaybackPreference.MP4 && isMp4Available == true -> PlaybackSourceKind.MP4
+                needConvert == true -> null
+                request.preference == PlaybackPreference.HLS -> PlaybackSourceKind.HLS
+                else -> PlaybackSourceKind.HLS
+            }
+        }
+
+        else -> {
+            null
+        }
+    }
+
+private fun FileMp4Conversion.toPlaybackState(): PlaybackConversionState =
+    when (status) {
+        FileMp4ConversionStatus.IN_QUEUE -> {
+            PlaybackConversionState.Queued
+        }
+
+        FileMp4ConversionStatus.CONVERTING -> {
+            val invalidPercent = percentDone?.takeUnless { it.isFinite() && it in 0.0..100.0 }
+            if (invalidPercent != null) {
+                PlaybackConversionState.Unknown(status.raw, percentDone)
+            } else {
+                PlaybackConversionState.Converting(percentDone)
+            }
+        }
+
+        FileMp4ConversionStatus.COMPLETED -> {
+            PlaybackConversionState.Completed
+        }
+
+        FileMp4ConversionStatus.ERROR -> {
+            PlaybackConversionState.Failed
+        }
+
+        FileMp4ConversionStatus.NOT_AVAILABLE -> {
+            PlaybackConversionState.NotAvailable
+        }
+
+        else -> {
+            PlaybackConversionState.Unknown(status.raw, percentDone)
+        }
+    }
+
+private fun FileSubtitle.toPlaybackSubtitleOrNull(): PlaybackSubtitle? {
+    if (url.toHttpUrlOrNull() == null) return null
+    return PlaybackSubtitle(
+        format = format,
+        key = key,
+        language = language,
+        languageCode = languageCode,
+        name = name,
+        source = source,
+        url = PutioCredentialUrl(url),
+    )
+}
+
+private fun FilesApi.buildPlaybackUrl(
+    fileId: Long,
+    kind: PlaybackSourceKind,
+    request: PlaybackRequest,
+): PutioCredentialUrl =
+    PutioCredentialUrl(
+        when (kind) {
+            PlaybackSourceKind.ORIGINAL -> {
+                buildOriginalStreamUrl(fileId, request.mediaCredential.value)
+            }
+
+            PlaybackSourceKind.HLS -> {
+                buildHlsStreamUrl(
+                    fileId = fileId,
+                    accessToken = request.mediaCredential.value,
+                    subtitleLanguages = request.subtitleLanguages,
+                )
+            }
+
+            PlaybackSourceKind.MP4 -> {
+                buildMp4StreamUrl(fileId, request.mediaCredential.value)
+            }
+        },
+    )
 
 private val LIST_FILES_ERROR_SPEC =
     PutioOperationErrorSpec(
@@ -328,6 +527,13 @@ private val GET_FILE_ERROR_SPEC =
     PutioOperationErrorSpec(
         domain = "files",
         operation = "get",
+        knownErrors = listOf(PutioKnownErrorContract(statusCode = 404)),
+    )
+
+private val RESOLVE_PLAYBACK_ERROR_SPEC =
+    PutioOperationErrorSpec(
+        domain = "files",
+        operation = "resolvePlayback",
         knownErrors = listOf(PutioKnownErrorContract(statusCode = 404)),
     )
 

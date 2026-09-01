@@ -11,7 +11,7 @@ graph LR
   Consumer["consumer app"] --> Client["PutioClient"]
   Client --> Account["account namespace"]
   Client --> Auth["auth namespace"]
-  Client --> Config["userConfig namespace"]
+  Client --> Config["appConfig namespace"]
   Client --> Files["files namespace"]
   Client --> Grants["grants namespace"]
   Client --> History["history namespace"]
@@ -72,14 +72,14 @@ graph LR
   - `verifyTotp`
   - `getRecoveryCodes`
   - `regenerateRecoveryCodes`
-- `userConfig`
+- `appConfig`
   - `get`
   - `save`
-  - `setChromecastPlaybackType`
 - `files`
   - `list`
   - `continueList`
   - `get`
+  - `resolvePlayback`
   - `search`
   - `continueSearch`
   - `createFolder`
@@ -127,10 +127,51 @@ graph LR
   - `clean`
   - `retry`
 
+## Playback Contract
+
+`FilesApi.resolvePlayback` composes strict file details, HLS/MP4/original selection,
+conversion state, resume position, and sidecar subtitles into one typed result.
+The consumer must supply its app-scoped HLS/MP4 preference and account-wide resume
+setting. It may also declare `originalVideoPlayable` after platform proof; the SDK
+does not read or own `/config` playback keys.
+
+Direct media URLs use the account `download_token`, decoded as an
+`AccountDownloadToken` and supplied as a `PlaybackMediaCredential`. The account token,
+playback credential, and resolved URL redact their debug representations. Consumers may reveal the URL only at the player boundary and must
+not log, persist, cache, share, or attach it to analytics, notifications, or errors.
+
+The account-wide resume setting is `use_start_from` (`AccountSettings.useStartFrom`);
+the app passes it as `PlaybackRequest.useStartFrom`, while the per-file offset remains
+`start_from` (`PlaybackSource.startFromSeconds`). Optional sidecar subtitle failures do
+not block an otherwise ready source: consumers receive `PlaybackSubtitles.Unavailable`
+with a typed API, transport, or invalid-response reason and may show a non-blocking
+warning. Authentication failures still surface normally.
+Next-file
+lookup stays on `FilesApi.findNextFile` so an autoplay lookup failure cannot block the
+current playback source.
+
+When a video still needs conversion, resolution reads the canonical
+`GET /files/{id}/mp4` status endpoint. The backend may use that read to recover an
+existing stalled conversion; the resolver never starts conversion with `POST`.
+
+Consumers handle `PlaybackConversionState` as follows:
+
+- `Queued` and `Converting` render the interstitial and poll `resolvePlayback` with
+  bounded delay and lifecycle cancellation.
+- `Completed` triggers one immediate resolution refresh so strict file details can
+  produce `Ready`; if it remains completed, stop and offer retry or Back.
+- `Failed` stops polling and offers an explicit retry action. Only that user action
+  may call `startMp4Conversion`.
+- `NotAvailable` is terminal for the parity source; offer Back or download instead.
+- `Unknown` preserves the backend value, stops automatic polling, and offers retry
+  or Back.
+
 ## Error Context
 
-- `auth`, `files`, `events`, and `trash` now wrap SDK failures with `domain.operation` context before surfacing them to consumers
+- domain namespaces wrap SDK failures with `domain.operation` context before surfacing them to consumers
 - `PutioErrorLocalizer` can layer operation-specific recovery guidance on top of the underlying typed API or transport error
+- transport exceptions expose a stable failure kind and retain sanitized timeout, DNS, connection, TLS, protocol, and I/O cause types
+- SDK-created exceptions redact credential-bearing query values from request URLs while retaining the method, path, query names, and non-sensitive query values
 
 ## What This Package Is Not
 

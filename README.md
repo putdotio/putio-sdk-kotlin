@@ -25,7 +25,7 @@ This repository is in its first bootstrap phase. The initial public surface is i
 
 - `account`
 - `auth`
-- `userConfig`
+- `appConfig`
 - `files`
 - `grants`
 - `history`
@@ -41,8 +41,9 @@ The current expansion is shaped around real put.io mobile and TV app needs. The 
 - auth login, device/OOB, token validation, and two-factor flows
 - OAuth grant listing, revocation, logout, and device linking
 - account settings updates for playback, sorting, and trash/history preferences
-- user config and tunnel route reads for playback and network preferences
+- app-scoped config and tunnel route reads for playback and network preferences
 - file listing/search, cursor continuation, subtitles, file management, next-media lookup, MP4 conversion, and playback resume helpers
+- typed HLS/MP4/original playback resolution using an app-supplied preference and account download token
 - history event listing and deletion flows
 - IFTTT playback event sending
 - trash listing, cursor continuation, restore, delete, and empty flows
@@ -57,6 +58,43 @@ Until then, the repo supports local consumption through:
 ```bash
 ./gradlew publishToMavenLocal
 ```
+
+## Android Consumers
+
+The SDK emits Java 8 bytecode and leaves the Android minimum SDK to the
+consumer. The first-party Android app has validated composite-build
+consumption at minSdk 26 with an unsigned, R8-minified release build. The
+current SDK, OkHttp, coroutines, and serialization stack needs no
+SDK-specific consumer keep rules.
+
+The SDK depends on `kotlinx-coroutines-core` and does not select
+`Dispatchers.Main`. Android apps that run their own coroutines on the main
+dispatcher must add the Android dispatcher:
+
+```kotlin
+dependencies {
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.11.0")
+}
+```
+
+Pass an `OkHttpClient` to add application interceptors, caching, or other
+consumer policy:
+
+```kotlin
+val httpClient = OkHttpClient.Builder()
+    .addInterceptor(appInterceptor)
+    .cache(Cache(cacheDirectory, 50L * 1024 * 1024))
+    .build()
+
+val sdk = PutioClient(
+    config = PutioConfig(accessToken = accessToken),
+    okHttpClient = httpClient,
+)
+```
+
+An injected client remains caller-owned: `PutioClient.close()` does not close
+its cache, dispatcher, or connection pool. A client created internally by
+`PutioClient` is closed with the SDK.
 
 ## Quick Start
 
@@ -92,7 +130,7 @@ val sdk = PutioClient(
 )
 
 val loginUrl = sdk.auth.buildLoginUrl(
-    redirectUri = "putio://auth/callback",
+    redirectUri = "putio://auth",
     state = "android-login"
 )
 ```

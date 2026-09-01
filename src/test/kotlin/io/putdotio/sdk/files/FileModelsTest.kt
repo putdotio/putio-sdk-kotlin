@@ -95,6 +95,15 @@ class FileModelsTest {
     }
 
     @Test
+    fun `file details query preserves positional constructor semantics`() {
+        assertEquals(emptyMap(), FileDetailsQuery(false, false, false, false).toQueryMap())
+        assertEquals(
+            mapOf("mp4_status" to "1"),
+            FileDetailsQuery(false, false, false, false, true).toQueryMap(),
+        )
+    }
+
+    @Test
     fun `list search and subtitle envelopes keep optional fields nullable by default`() {
         val list =
             json.decodeFromString(
