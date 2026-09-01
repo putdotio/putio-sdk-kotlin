@@ -554,7 +554,7 @@ class FilesApiTest {
         }
 
     @Test
-    fun `get can omit file detail flags`() =
+    fun `get sends only selected file detail flags`() =
         withServer { server ->
             server.enqueue(
                 MockResponse
@@ -587,6 +587,7 @@ class FilesApiTest {
                         query =
                             FileDetailsQuery(
                                 mp4Size = false,
+                                mp4Status = true,
                                 startFrom = false,
                                 streamUrl = false,
                                 mp4StreamUrl = false,
@@ -596,7 +597,7 @@ class FilesApiTest {
             }
 
             val request = server.takeRequest()
-            assertEquals("/v2/files/9", request.target)
+            assertEquals("/v2/files/9?mp4_status=1", request.target)
         }
 
     @Test

@@ -303,6 +303,7 @@ internal class PutioTransport(
         return PutioApiException(
             request = request,
             resolvedStatusCode = statusCode,
+            httpStatusCode = responseStatusCode,
             resolvedErrorType = errorType,
             envelope = envelope ?: PutioApiErrorEnvelope(message = message, statusCode = statusCode, errorType = errorType),
             responseBody = body,

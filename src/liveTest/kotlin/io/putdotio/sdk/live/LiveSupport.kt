@@ -85,5 +85,9 @@ internal object LiveSupport {
 
     fun requireClientId(): String = requiredEnv("PUTIO_CLIENT_ID")
 
+    fun requirePlaybackFixtureId(): Long =
+        requiredEnv("PUTIO_PLAYBACK_FIXTURE_ID").toLongOrNull()?.takeIf { it > 0 }
+            ?: error("PUTIO_PLAYBACK_FIXTURE_ID must be a positive integer")
+
     fun uniqueName(prefix: String): String = "$prefix-${UUID.randomUUID().toString().take(12)}"
 }
