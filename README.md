@@ -58,6 +58,43 @@ Until then, the repo supports local consumption through:
 ./gradlew publishToMavenLocal
 ```
 
+## Android Consumers
+
+The SDK emits Java 8 bytecode and leaves the Android minimum SDK to the
+consumer. The first-party Android app continuously verifies composite-build
+consumption at minSdk 26 with an unsigned, R8-minified release build. The
+current SDK, OkHttp, coroutines, and serialization stack needs no
+SDK-specific consumer keep rules.
+
+The SDK depends on `kotlinx-coroutines-core` and does not select
+`Dispatchers.Main`. Android apps that run their own coroutines on the main
+dispatcher must add the Android dispatcher:
+
+```kotlin
+dependencies {
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:<version>")
+}
+```
+
+Pass an `OkHttpClient` to add application interceptors, caching, or other
+consumer policy:
+
+```kotlin
+val httpClient = OkHttpClient.Builder()
+    .addInterceptor(appInterceptor)
+    .cache(Cache(cacheDirectory, 50L * 1024 * 1024))
+    .build()
+
+val sdk = PutioClient(
+    config = PutioConfig(accessToken = accessToken),
+    okHttpClient = httpClient,
+)
+```
+
+An injected client remains caller-owned: `PutioClient.close()` does not close
+its cache, dispatcher, or connection pool. A client created internally by
+`PutioClient` is closed with the SDK.
+
 ## Quick Start
 
 ```kotlin
@@ -92,7 +129,7 @@ val sdk = PutioClient(
 )
 
 val loginUrl = sdk.auth.buildLoginUrl(
-    redirectUri = "putio://auth/callback",
+    redirectUri = "putio://auth",
     state = "android-login"
 )
 ```
