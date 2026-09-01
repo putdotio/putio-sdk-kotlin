@@ -338,7 +338,8 @@ object PutioErrorLocalizer {
                 )
             }
 
-            error.matches(domain = "files", operation = "search", errorType = "SEARCH_TOO_LONG_QUERY") -> {
+            error.matches(domain = "files", operation = "search", errorType = "SEARCH_TOO_LONG_QUERY") ||
+                error.matches(domain = "files", operation = "continueSearch", errorType = "SEARCH_TOO_LONG_QUERY") -> {
                 PutioLocalizedError(
                     message = "The search query is too long",
                     failureReason = apiMessage(error),

@@ -18,13 +18,29 @@ class CursorContinuationLiveTest {
     fun `files cursors continue without sdk interpretation`() {
         runBlocking {
             LiveSupport.newAuthedClient().use { sdk ->
-                val first = sdk.files.list(parentId = 0, query = FilesListQuery(perPage = 1))
-                val cursor = assertNotNull(first.cursor)
+                val createdIds = mutableListOf<Long>()
+                try {
+                    repeat(2) {
+                        createdIds +=
+                            sdk.files
+                                .createFolder(
+                                    name = LiveSupport.uniqueName("putio-kotlin-cursor"),
+                                    parentId = 0,
+                                ).id
+                    }
 
-                val continued = sdk.files.continueList(cursor, FilesContinueQuery(perPage = 1))
+                    val first = sdk.files.list(parentId = 0, query = FilesListQuery(perPage = 1))
+                    val cursor = assertNotNull(first.cursor)
 
-                assertTrue(continued.files.size <= 1)
-                continued.cursor?.let { assertTrue(it.isNotBlank()) }
+                    val continued = sdk.files.continueList(cursor, FilesContinueQuery(perPage = 1))
+
+                    assertTrue(continued.files.size <= 1)
+                    continued.cursor?.let { assertTrue(it.isNotBlank()) }
+                } finally {
+                    if (createdIds.isNotEmpty()) {
+                        sdk.files.delete(fileIds = createdIds, skipTrash = true)
+                    }
+                }
             }
         }
     }

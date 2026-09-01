@@ -54,6 +54,7 @@ Current live targets cover:
 - read-only user config, OAuth grants, and tunnel routes decode
 - history listing decode against the real API
 - transfer list/count/info decode and typed pagination errors
+- Files cursor continuation plus typed invalid-cursor errors for Files, Search, Trash, and Transfers
 
 ## Safety Rules
 
