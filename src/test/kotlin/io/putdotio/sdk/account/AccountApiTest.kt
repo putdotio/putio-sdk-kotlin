@@ -4,12 +4,14 @@ import io.putdotio.sdk.PutioClient
 import io.putdotio.sdk.PutioConfig
 import io.putdotio.sdk.errors.PutioApiException
 import io.putdotio.sdk.errors.PutioOperationException
+import io.putdotio.sdk.errors.PutioSerializationException
 import kotlinx.coroutines.runBlocking
 import mockwebserver3.MockResponse
 import mockwebserver3.MockWebServer
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
+import kotlin.test.assertFalse
 import kotlin.test.assertIs
 import kotlin.test.assertNotNull
 import kotlin.test.assertNull
@@ -40,7 +42,7 @@ class AccountApiTest {
                             "settings": {
                               "sort_by": "NAME_ASC",
                               "next_episode": true,
-                              "start_from": true,
+                              "use_start_from": true,
                               "history_enabled": true,
                               "trash_enabled": true,
                               "show_optimistic_usage": false,
@@ -88,7 +90,7 @@ class AccountApiTest {
                             "sort_by": "NAME_ASC",
                             "tunnel_route_name": "eu-west",
                             "next_episode": true,
-                            "start_from": true,
+                            "use_start_from": true,
                             "history_enabled": true,
                             "trash_enabled": true,
                             "show_optimistic_usage": false,
@@ -119,6 +121,39 @@ class AccountApiTest {
 
             val request = server.takeRequest()
             assertEquals("/v2/account/settings", request.target)
+        }
+
+    @Test
+    fun `getInfo redacts download token from malformed response diagnostics`() =
+        withServer { server ->
+            server.enqueue(
+                MockResponse
+                    .Builder()
+                    .body(
+                        """{"info":{"download\u005ftoken":{"value":"download-secret"},"user_id":"invalid"}}""",
+                    ).build(),
+            )
+
+            val error =
+                assertFailsWith<PutioOperationException> {
+                    runBlocking {
+                        PutioClient(
+                            PutioConfig(
+                                accessToken = "token",
+                                baseUrl = server.url("/v2/").toString(),
+                            ),
+                        ).use { sdk -> sdk.account.getInfo(AccountInfoQuery(downloadToken = true)) }
+                    }
+                }
+            val serialization = assertIs<PutioSerializationException>(error.underlyingError)
+
+            assertFalse(serialization.responseBody.contains("download-secret"))
+            assertFalse(
+                serialization.cause
+                    ?.message
+                    .orEmpty()
+                    .contains("download-secret"),
+            )
         }
 
     @Test

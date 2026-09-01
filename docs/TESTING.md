@@ -32,6 +32,7 @@ Supported environment variables:
 - `PUTIO_ACCESS_TOKEN`
 - `PUTIO_TOKEN`
 - `PUTIO_CLIENT_ID`
+- `PUTIO_PLAYBACK_FIXTURE_ID` (stable owned, converted video in the dedicated profile)
 - `PUTIO_BASE_URL`
 
 Run `make secrets-setup` with `PUTIO_SDK_KOTLIN_SOPS_FILE` pointing to the
@@ -50,7 +51,7 @@ Current live targets cover:
 - token validation and OOB auth-code fetch
 - account info and reversible account settings mutation
 - disposable file create, search, trash restore, and cleanup flows
-- playback-adjacent subtitles decode and reversible start-from roundtrips for owned video fixtures
+- playback source resolution, subtitles decode, and reversible start-from roundtrips for owned video fixtures
 - read-only user config, OAuth grants, and tunnel routes decode
 - history listing decode against the real API
 - transfer list/count/info decode and typed pagination errors
@@ -66,6 +67,7 @@ Allowed in `liveTest`:
 Excluded from `liveTest`:
 
 - destructive account mutations
+- `use_start_from` mutations; disabling it permanently clears every saved per-file resume position
 - IFTTT event mutations unless a dedicated non-production event target is available
 - history clearing
 - trash emptying

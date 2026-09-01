@@ -27,6 +27,7 @@ class AccountSettingsApiTest {
                 ).use { sdk ->
                     sdk.account.saveSettings(
                         AccountSettingsPatch(
+                            useStartFrom = true,
                             historyEnabled = false,
                             hideSubtitles = true,
                             sortBy = "NAME_ASC",
@@ -38,7 +39,10 @@ class AccountSettingsApiTest {
             val request = server.takeRequest()
             assertEquals("/v2/account/settings", request.target)
             assertEquals("application/json; charset=utf-8", request.headers["Content-Type"])
-            assertEquals("""{"history_enabled":false,"hide_subtitles":true,"sort_by":"NAME_ASC"}""", request.body!!.utf8())
+            assertEquals(
+                """{"history_enabled":false,"hide_subtitles":true,"sort_by":"NAME_ASC","use_start_from":true}""",
+                request.body!!.utf8(),
+            )
         }
 
     @Test

@@ -36,14 +36,18 @@ data class AccountSettings(
     @SerialName("sort_by") val sortBy: String,
     @SerialName("tunnel_route_name") val tunnelRouteName: String? = null,
     @SerialName("next_episode") val nextEpisode: Boolean = false,
-    @SerialName("start_from") val startFrom: Boolean = false,
+    @SerialName("use_start_from") val useStartFrom: Boolean = false,
     @SerialName("history_enabled") val historyEnabled: Boolean = false,
     @SerialName("trash_enabled") val trashEnabled: Boolean = false,
     @SerialName("show_optimistic_usage") val showOptimisticUsage: Boolean = false,
     @SerialName("two_factor_enabled") val twoFactorEnabled: Boolean = false,
     @SerialName("hide_subtitles") val hideSubtitles: Boolean = false,
     @SerialName("dont_autoselect_subtitles") val dontAutoselectSubtitles: Boolean = false,
-)
+) {
+    @Deprecated("Use useStartFrom; the canonical account setting is use_start_from")
+    val startFrom: Boolean
+        get() = useStartFrom
+}
 
 @Serializable
 data class AccountInfo(
@@ -56,12 +60,24 @@ data class AccountInfo(
     @SerialName("account_status") val accountStatus: String,
     @SerialName("trash_size") val trashSize: Long = 0,
     @SerialName("account_active") val accountActive: Boolean? = null,
-    @SerialName("download_token") val downloadToken: String? = null,
+    @SerialName("download_token") val downloadToken: AccountDownloadToken? = null,
     val features: Map<String, Boolean> = emptyMap(),
     @SerialName("files_will_be_deleted_at") val filesWillBeDeletedAt: String? = null,
     @SerialName("password_last_changed_at") val passwordLastChangedAt: String? = null,
     @SerialName("user_hash") val userHash: String? = null,
 )
+
+@JvmInline
+@Serializable
+value class AccountDownloadToken(
+    val value: String,
+) {
+    init {
+        require(value.isNotBlank()) { "Download token must not be blank" }
+    }
+
+    override fun toString(): String = "<redacted download token>"
+}
 
 data class AccountInfoQuery(
     val downloadToken: Boolean = false,
@@ -102,6 +118,7 @@ data class AccountSettingsPatch(
     @SerialName("tunnel_route_name") val tunnelRouteName: String? = null,
     @SerialName("show_optimistic_usage") val showOptimisticUsage: Boolean? = null,
     @SerialName("sort_by") val sortBy: String? = null,
+    @SerialName("use_start_from") val useStartFrom: Boolean? = null,
 ) : AccountSettingsUpdate
 
 @Serializable

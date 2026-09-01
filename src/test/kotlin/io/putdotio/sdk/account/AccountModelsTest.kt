@@ -43,6 +43,10 @@ class AccountModelsTest {
     @Test
     fun `account settings serializer encodes every supported update shape`() {
         assertEquals(
+            """{"history_enabled":false}""",
+            json.encodeToString(AccountSettingsUpdateSerializer, AccountSettingsPatch(false)),
+        )
+        assertEquals(
             """{"username":"new-name"}""",
             json.encodeToString(AccountSettingsUpdateSerializer, AccountUsernameUpdate(username = "new-name")),
         )
@@ -116,7 +120,7 @@ class AccountModelsTest {
                   "sort_by": "NAME_ASC",
                   "tunnel_route_name": "eu-west",
                   "next_episode": true,
-                  "start_from": true,
+                  "use_start_from": true,
                   "history_enabled": true,
                   "trash_enabled": true,
                   "show_optimistic_usage": false,
@@ -153,7 +157,7 @@ class AccountModelsTest {
                   "settings": {
                     "sort_by": "NAME_ASC",
                     "next_episode": true,
-                    "start_from": true,
+                    "use_start_from": true,
                     "history_enabled": true,
                     "trash_enabled": true,
                     "show_optimistic_usage": false,
@@ -166,12 +170,18 @@ class AccountModelsTest {
             )
 
         assertEquals("eu-west", settings.tunnelRouteName)
+        assertEquals(true, settings.useStartFrom)
+        @Suppress("DEPRECATION")
+        assertEquals(settings.useStartFrom, settings.startFrom)
         assertEquals(true, settings.historyEnabled)
         assertEquals(42L, info.userId)
         assertEquals(90L, info.disk.available)
-        assertEquals("download-token", info.downloadToken)
+        assertEquals("download-token", info.downloadToken?.value)
+        assertEquals("<redacted download token>", info.downloadToken.toString())
+        assertEquals(false, info.toString().contains("download-token"))
         assertEquals(true, info.features["beta"])
         assertEquals("user-hash", info.userHash)
+        assertEquals(true, info.settings.useStartFrom)
     }
 
     @Test

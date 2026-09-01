@@ -15,11 +15,11 @@ def render:
 
 if type != "object" then
   fail("decrypted payload must be a JSON object")
-elif keys != ["PUTIO_CLIENT_ID", "PUTIO_TOKEN_FIRST_PARTY", "PUTIO_TOKEN_THIRD_PARTY"] then
+elif keys != ["PUTIO_CLIENT_ID", "PUTIO_PLAYBACK_FIXTURE_ID", "PUTIO_TOKEN_FIRST_PARTY", "PUTIO_TOKEN_THIRD_PARTY"] then
   fail("decrypted payload key inventory does not match the SDK contract")
 elif any(.[]; type != "string" or test("^\\s*$") or quote_wrapped or control_character) then
   fail("decrypted payload contains an empty, blank, non-string, quote-wrapped, or control-character value")
-elif (.PUTIO_CLIENT_ID | test("^[0-9]+$") | not) then
+elif any([.PUTIO_CLIENT_ID, .PUTIO_PLAYBACK_FIXTURE_ID][]; test("^[0-9]+$") | not) then
   fail("decrypted payload contains an invalid numeric identifier")
 else
   to_entries

@@ -198,11 +198,13 @@ data class FileDetailsQuery(
     val startFrom: Boolean = true,
     val streamUrl: Boolean = true,
     val mp4StreamUrl: Boolean = true,
+    val mp4Status: Boolean = false,
 )
 
 internal fun FileDetailsQuery.toQueryMap(): Map<String, String> =
     buildMap {
         if (mp4Size) put("mp4_size", "1")
+        if (mp4Status) put("mp4_status", "1")
         if (startFrom) put("start_from", "1")
         if (streamUrl) put("stream_url", "1")
         if (mp4StreamUrl) put("mp4_stream_url", "1")

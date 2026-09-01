@@ -43,6 +43,7 @@ The current expansion is shaped around real put.io mobile and TV app needs. The 
 - account settings updates for playback, sorting, and trash/history preferences
 - user config and tunnel route reads for playback and network preferences
 - file listing/search, cursor continuation, subtitles, file management, next-media lookup, MP4 conversion, and playback resume helpers
+- typed HLS/MP4/original playback resolution using an app-supplied preference and account download token
 - history event listing and deletion flows
 - IFTTT playback event sending
 - trash listing, cursor continuation, restore, delete, and empty flows

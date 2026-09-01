@@ -3,6 +3,8 @@ package io.putdotio.sdk.errors
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.SerializationException
+import kotlinx.serialization.decodeFromString
+import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonObject
@@ -85,12 +87,13 @@ class PutioSerializationException(
         cause.redactedSerializationCause(),
     ) {
     val request: PutioRequestData = request.redacted()
-    val responseBody: String = redactSensitiveUrlsInText(responseBody)
+    val responseBody: String = redactSensitiveResponseBody(responseBody)
 }
 
 class PutioApiException(
     request: PutioRequestData,
     private val resolvedStatusCode: Int,
+    val httpStatusCode: Int = resolvedStatusCode,
     resolvedErrorType: String?,
     envelope: PutioApiErrorEnvelope,
     responseBody: String,
@@ -98,7 +101,7 @@ class PutioApiException(
 ) : PutioException(redactSensitiveUrlsInText(message)) {
     val request: PutioRequestData = request.redacted()
     val envelope: PutioApiErrorEnvelope = envelope.redacted()
-    val responseBody: String = redactSensitiveUrlsInText(responseBody)
+    val responseBody: String = redactSensitiveResponseBody(responseBody)
     private val resolvedErrorType: String? = resolvedErrorType?.let(::redactSensitiveUrlsInText)
 
     val statusCode: Int
@@ -211,8 +214,40 @@ internal fun redactSensitiveUrlsInText(text: String): String {
             val redactedUrl = redactSensitiveQueryValues(unescapedUrl)
             if (redactedUrl == unescapedUrl) match.value else redactedUrl.replace("/", "\\/")
         }
-    return redactSensitiveQueryParametersInText(escapedUrlsRedacted)
+    return redactSensitiveJsonStringFields(redactSensitiveQueryParametersInText(escapedUrlsRedacted))
 }
+
+private fun redactSensitiveJsonStringFields(text: String): String =
+    JSON_STRING_FIELD_IN_TEXT_REGEX.replace(text) { match ->
+        val key = decodeJsonStringContent(match.groupValues[2])
+        if (key.isSensitiveQueryParameterName()) {
+            match.groupValues[1] + "\"$REDACTED_QUERY_VALUE\""
+        } else {
+            match.value
+        }
+    }
+
+private fun redactSensitiveResponseBody(text: String): String {
+    val urlRedacted = redactSensitiveUrlsInText(text)
+    return try {
+        val parsed = Json.parseToJsonElement(urlRedacted)
+        parsed.redacted().toString()
+    } catch (_: SerializationException) {
+        REDACTED_RESPONSE_BODY
+    }
+}
+
+private fun decodeJsonStringContent(content: String): String =
+    try {
+        Json.decodeFromString<String>("\"$content\"")
+    } catch (_: SerializationException) {
+        JSON_UNICODE_ESCAPE_REGEX.replace(content) { escaped ->
+            escaped.groupValues[1]
+                .toInt(radix = 16)
+                .toChar()
+                .toString()
+        }
+    }
 
 private fun PutioApiErrorEnvelope.redacted(): PutioApiErrorEnvelope =
     copy(
@@ -231,7 +266,12 @@ private fun JsonElement.redacted(): JsonElement =
         is JsonObject -> {
             JsonObject(
                 entries.associate { (key, value) ->
-                    redactSensitiveUrlsInText(key) to value.redacted()
+                    redactSensitiveUrlsInText(key) to
+                        if (key.isSensitiveQueryParameterName()) {
+                            JsonPrimitive(REDACTED_QUERY_VALUE)
+                        } else {
+                            value.redacted()
+                        }
                 },
             )
         }
@@ -244,7 +284,7 @@ private fun JsonElement.redacted(): JsonElement =
 private fun Throwable.redactedTransportCause(): Throwable = redactedDiagnosticCopy(depth = 0)
 
 private fun Throwable.redactedSerializationCause(): Throwable =
-    SerializationException(redactedDiagnosticMessage()).also {
+    SerializationException(javaClass.name).also {
         it.stackTrace = stackTrace
     }
 
@@ -340,6 +380,7 @@ private fun String.isSensitiveQueryParameterName(): Boolean {
 }
 
 private const val REDACTED_QUERY_VALUE = "REDACTED"
+private const val REDACTED_RESPONSE_BODY = "<redacted response body>"
 private const val QUERY_PARAMETER_DECODING_BASE_URL = "https://redaction.invalid/"
 private const val MAX_REDACTED_CAUSE_DEPTH = 8
 private const val MAX_REDACTED_SUPPRESSED_EXCEPTIONS = 8
@@ -358,6 +399,8 @@ private val QUERY_PARAMETER_IN_TEXT_REGEX =
         RegexOption.IGNORE_CASE,
     )
 private val JSON_UNICODE_ESCAPE_REGEX = Regex("""\\u([0-9a-f]{4})""", RegexOption.IGNORE_CASE)
+private val JSON_STRING_FIELD_IN_TEXT_REGEX =
+    Regex("""("((?:\\.|[^"\\])*)"\s*:\s*)"((?:\\.|[^"\\])*)"""")
 private val ACRONYM_WORD_BOUNDARY_REGEX = Regex("([A-Z]+)([A-Z][a-z])")
 private val CAMEL_CASE_WORD_BOUNDARY_REGEX = Regex("([a-z0-9])([A-Z])")
 private val NON_ALPHANUMERIC_REGEX = Regex("[^a-z0-9]+")

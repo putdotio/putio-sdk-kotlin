@@ -3,6 +3,7 @@ package io.putdotio.sdk.errors
 import kotlinx.coroutines.runBlocking
 import kotlinx.serialization.SerializationException
 import kotlinx.serialization.json.JsonArray
+import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.buildJsonObject
 import java.io.IOException
@@ -249,6 +250,7 @@ class PutioExceptionTest {
                         details =
                             buildJsonObject {
                                 put(backendUrl, JsonPrimitive("credential URL key"))
+                                put("download_token", JsonPrimitive("details-secret"))
                                 put("redirect", JsonPrimitive(backendUrl))
                                 put("nested", JsonArray(listOf(JsonPrimitive(backendUrl))))
                             },
@@ -261,6 +263,11 @@ class PutioExceptionTest {
         assertTrue(envelopeText.contains("oauth_token=REDACTED"))
         assertTrue(envelopeText.contains("cursor=next-page"))
         assertFalse(envelopeText.contains("envelope-secret"))
+        assertFalse(envelopeText.contains("details-secret"))
+        assertEquals(
+            JsonPrimitive("REDACTED"),
+            assertIs<JsonObject>(error.envelope.details)["download_token"],
+        )
         assertFalse(error.errorType.orEmpty().contains("envelope-secret"))
     }
 
@@ -276,14 +283,35 @@ class PutioExceptionTest {
                 cause = IllegalArgumentException("Unexpected JSON input: $responseBody"),
             )
 
-        assertTrue(error.responseBody.contains("""https:\/\/api.put.io"""))
+        assertTrue(error.responseBody.contains("https://api.put.io"))
         assertTrue(error.responseBody.contains("oauth_token=REDACTED"))
         assertTrue(error.responseBody.contains("cursor=next-page"))
         assertFalse(error.responseBody.contains("body-secret"))
         val cause = assertIs<SerializationException>(error.cause)
-        assertTrue(cause.message.orEmpty().contains("oauth_token=REDACTED"))
         assertTrue(cause.message.orEmpty().contains(IllegalArgumentException::class.java.name))
         assertFalse(cause.message.orEmpty().contains("body-secret"))
+    }
+
+    @Test
+    fun `response body redaction handles duplicate sensitive keys and invalid json`() {
+        val request = PutioRequestData(method = "GET", url = "https://api.put.io/v2/account/info")
+        val duplicateKeys =
+            PutioSerializationException(
+                request = request,
+                responseBody =
+                    """{"download_token":{"value":"nested-secret"},"download_token":"last-secret"}""",
+                cause = SerializationException("bad shape"),
+            )
+        val invalidJson =
+            PutioSerializationException(
+                request = request,
+                responseBody = """{"download_token" "invalid-secret"}""",
+                cause = SerializationException("bad syntax"),
+            )
+
+        assertFalse(duplicateKeys.responseBody.contains("nested-secret"))
+        assertFalse(duplicateKeys.responseBody.contains("last-secret"))
+        assertEquals("<redacted response body>", invalidJson.responseBody)
     }
 
     @Test

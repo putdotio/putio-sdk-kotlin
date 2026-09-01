@@ -251,7 +251,7 @@ class PutioTransportTest {
             assertEquals(502, error.statusCode)
             assertEquals(null, error.errorType)
             assertEquals("put.io returned HTTP 502", error.message)
-            assertEquals("bad gateway", error.responseBody)
+            assertEquals("<redacted response body>", error.responseBody)
         }
 
     @Test
