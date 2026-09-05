@@ -32,7 +32,7 @@
 
 ## Repo-Specific Guidance
 
-- Keep the public API closer to `putio-sdk-typescript` than the legacy Swift callback surface
+- Mirror the domain-first public API shape of `putio-sdk-typescript`
 - Prefer coroutine-first suspend functions and typed SDK errors
 - Live tests accept maintainer-supplied `PUTIO_SDK_KOTLIN_SOPS_FILE`; `make secrets-setup` validates and writes ignored `.env.local`, and `make secrets-clean` removes it.
 - Parse external data at the boundary and keep models domain-first
