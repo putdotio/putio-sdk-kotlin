@@ -521,7 +521,7 @@ class FilesApiTest {
         }
 
     @Test
-    fun `move returns per-file errors`() =
+    fun `move preserves per-file errors including unknown types and null names`() =
         withServer { server ->
             server.enqueue(
                 MockResponse
@@ -536,6 +536,12 @@ class FilesApiTest {
                               "id": 2,
                               "name": "Missing.mkv",
                               "status_code": 404
+                            },
+                            {
+                              "error_type": "FUTURE_MOVE_ERROR",
+                              "id": 1,
+                              "name": null,
+                              "status_code": 409
                             }
                           ]
                         }
@@ -551,9 +557,63 @@ class FilesApiTest {
                     ),
                 ).use { sdk ->
                     val errors = sdk.files.move(fileIds = listOf(1, 2), parentId = 9)
-                    assertEquals(1, errors.size)
-                    assertEquals("NOT_FOUND", errors.first().errorType)
-                    assertEquals(2L, errors.first().id)
+                    assertEquals(
+                        listOf(
+                            FileMoveError(errorType = "NOT_FOUND", id = 2, name = "Missing.mkv", statusCode = 404),
+                            FileMoveError(errorType = "FUTURE_MOVE_ERROR", id = 1, name = null, statusCode = 409),
+                        ),
+                        errors,
+                    )
+                }
+            }
+
+            val request = server.takeRequest()
+            assertEquals("POST", request.method)
+            assertEquals("/v2/files/move", request.target)
+            assertEquals("file_ids=1%2C2&parent_id=9", assertNotNull(request.body).utf8())
+        }
+
+    @Test
+    fun `move posts a root destination and returns an explicit empty errors list`() =
+        withServer { server ->
+            server.enqueue(MockResponse.Builder().body("""{"status":"OK","errors":[]}""").build())
+
+            runBlocking {
+                client(server).use { sdk ->
+                    assertEquals(emptyList(), sdk.files.move(fileIds = listOf(7), parentId = 0))
+                }
+            }
+
+            val request = server.takeRequest()
+            assertEquals("POST", request.method)
+            assertEquals("/v2/files/move", request.target)
+            assertEquals("file_ids=7&parent_id=0", assertNotNull(request.body).utf8())
+        }
+
+    @Test
+    fun `move rejects invalid successful response envelopes with typed operation errors`() =
+        withServer { server ->
+            val invalidResponses =
+                listOf(
+                    """{"status":"OK"}""",
+                    """{"status":"ERROR","errors":[]}""",
+                    """{"status":"OK","errors":null}""",
+                    """{"status":"OK","errors":{}}""",
+                    """{"errors":[]}""",
+                )
+
+            runBlocking {
+                client(server).use { sdk ->
+                    invalidResponses.forEach { body ->
+                        server.enqueue(MockResponse.Builder().body(body).build())
+                        val error =
+                            assertFailsWith<PutioOperationException>(body) {
+                                sdk.files.move(fileIds = listOf(7), parentId = 0)
+                            }
+                        assertEquals("files", error.domain)
+                        assertEquals("move", error.operation)
+                        assertIs<PutioSerializationException>(error.underlyingError)
+                    }
                 }
             }
         }

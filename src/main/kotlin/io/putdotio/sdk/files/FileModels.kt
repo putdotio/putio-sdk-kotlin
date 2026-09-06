@@ -261,9 +261,13 @@ data class FileMoveError(
 
 @Serializable
 internal data class FileMoveEnvelope(
-    val errors: List<FileMoveError> = emptyList(),
+    val errors: List<FileMoveError>,
     val status: String,
-)
+) {
+    init {
+        require(status == "OK") { "Move result status must be OK" }
+    }
+}
 
 @Serializable(with = NextFileType.Serializer::class)
 @JvmInline
