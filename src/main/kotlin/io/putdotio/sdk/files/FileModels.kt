@@ -234,12 +234,22 @@ internal data class FileStartFromResponse(
     val status: String,
 )
 
+/**
+ * Acknowledges a delete request without guaranteeing that every selected item was removed.
+ * [cursor] identifies skipped items; it is not a deletion continuation to execute automatically.
+ */
 @Serializable
 data class FileDeleteResult(
     val cursor: String? = null,
     val skipped: Int = 0,
     val status: String,
-)
+) {
+    init {
+        require(status == "OK") { "Delete result status must be OK" }
+        require(skipped >= 0) { "Delete result skipped count must be nonnegative" }
+        require(cursor == null || cursor.isNotBlank()) { "Delete result cursor must not be blank" }
+    }
+}
 
 @Serializable
 data class FileMoveError(
