@@ -5,6 +5,7 @@ import io.putdotio.sdk.PutioConfig
 import io.putdotio.sdk.errors.PutioApiException
 import io.putdotio.sdk.errors.PutioOperationErrorReason
 import io.putdotio.sdk.errors.PutioOperationException
+import io.putdotio.sdk.errors.PutioSerializationException
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
@@ -391,7 +392,7 @@ class FilesApiTest {
                         """
                         {
                           "status": "OK",
-                          "cursor": "next-page",
+                          "cursor": "skipped-folders",
                           "skipped": 2
                         }
                         """.trimIndent(),
@@ -406,7 +407,8 @@ class FilesApiTest {
                     ),
                 ).use { sdk ->
                     val result = sdk.files.delete(fileIds = listOf(1, 2), skipTrash = true)
-                    assertEquals("next-page", result.cursor)
+                    assertEquals("OK", result.status)
+                    assertEquals("skipped-folders", result.cursor)
                     assertEquals(2, result.skipped)
                 }
             }
@@ -452,6 +454,49 @@ class FilesApiTest {
                 "/v2/files/delete?skip_nonexistents=true&skip_owner_check=false&skip_trash=false",
                 server.takeRequest().target,
             )
+        }
+
+    @Test
+    fun `delete preserves optional result defaults`() =
+        withServer { server ->
+            server.enqueue(MockResponse.Builder().body("""{"status":"OK"}""").build())
+
+            runBlocking {
+                client(server).use { sdk ->
+                    val result = sdk.files.delete(fileIds = listOf(1))
+                    assertEquals("OK", result.status)
+                    assertEquals(0, result.skipped)
+                    assertNull(result.cursor)
+                }
+            }
+        }
+
+    @Test
+    fun `delete rejects invalid successful response envelopes with typed operation errors`() =
+        withServer { server ->
+            val invalidResponses =
+                listOf(
+                    """{"status":"ERROR","skipped":0,"cursor":null}""",
+                    """{"status":"OK","skipped":-1,"cursor":null}""",
+                    """{"status":"OK","skipped":0,"cursor":""}""",
+                    """{"status":"OK","skipped":0,"cursor":"   "}""",
+                    """{"skipped":0,"cursor":null}""",
+                )
+
+            runBlocking {
+                client(server).use { sdk ->
+                    invalidResponses.forEach { body ->
+                        server.enqueue(MockResponse.Builder().body(body).build())
+                        val error =
+                            assertFailsWith<PutioOperationException>(body) {
+                                sdk.files.delete(fileIds = listOf(1))
+                            }
+                        assertEquals("files", error.domain)
+                        assertEquals("delete", error.operation)
+                        assertIs<PutioSerializationException>(error.underlyingError)
+                    }
+                }
+            }
         }
 
     @Test
