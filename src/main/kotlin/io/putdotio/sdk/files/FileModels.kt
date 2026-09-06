@@ -124,7 +124,11 @@ data class PutioFile(
 internal data class FileEnvelope(
     val file: PutioFile,
     val status: String,
-)
+) {
+    init {
+        require(status == "OK") { "File response status must be OK" }
+    }
+}
 
 @Serializable
 data class FilesListResponse(
