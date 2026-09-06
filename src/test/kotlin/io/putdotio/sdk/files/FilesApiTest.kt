@@ -141,6 +141,7 @@ class FilesApiTest {
                                 fileType = PutioFileType.VIDEO,
                                 sortBy = "NAME_ASC",
                                 mp4Status = true,
+                                videoMetadata = true,
                             ),
                     )
                 }
@@ -148,7 +149,7 @@ class FilesApiTest {
 
             val request = server.takeRequest()
             assertEquals(
-                "/v2/files/list?parent_id=42&mp4_status_parent=1&stream_url_parent=1&mp4_stream_url_parent=1&video_metadata_parent=1&per_page=25&total=1&hidden=1&no_cursor=1&content_type=video&file_type=VIDEO&sort_by=NAME_ASC&mp4_status=1",
+                "/v2/files/list?parent_id=42&mp4_status_parent=1&stream_url_parent=1&mp4_stream_url_parent=1&video_metadata_parent=1&per_page=25&total=1&hidden=1&no_cursor=1&content_type=video&file_type=VIDEO&sort_by=NAME_ASC&mp4_status=1&video_metadata=1",
                 request.target,
             )
         }
