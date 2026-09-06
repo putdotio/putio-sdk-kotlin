@@ -74,7 +74,6 @@ class TrashApiTest {
                         {
                           "status": "OK",
                           "cursor": "done",
-                          "trash_size": 0,
                           "files": []
                         }
                         """.trimIndent(),
@@ -105,7 +104,7 @@ class TrashApiTest {
     @Test
     fun `continueList can omit pagination query`() =
         withServer { server ->
-            server.enqueue(MockResponse.Builder().body("""{"status":"OK","cursor":null,"trash_size":0,"files":[]}""").build())
+            server.enqueue(MockResponse.Builder().body("""{"status":"OK","cursor":null,"files":[]}""").build())
 
             runBlocking {
                 PutioClient(

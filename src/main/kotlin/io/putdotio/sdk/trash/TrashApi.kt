@@ -11,11 +11,12 @@ class TrashApi internal constructor(
 ) {
     suspend fun list(query: TrashListQuery = TrashListQuery()): TrashListResponse =
         putioOperation(LIST_TRASH_ERROR_SPEC) {
-            transport.get(
-                path = "/trash/list",
-                serializer = TrashListResponse.serializer(),
-                query = query.toQueryMap(),
-            )
+            transport
+                .get(
+                    path = "/trash/list",
+                    serializer = TrashListEnvelope.serializer(),
+                    query = query.toQueryMap(),
+                ).toResponse()
         }
 
     suspend fun continueList(
@@ -23,12 +24,13 @@ class TrashApi internal constructor(
         query: TrashContinueQuery = TrashContinueQuery(),
     ): TrashListResponse =
         putioOperation(CONTINUE_TRASH_ERROR_SPEC) {
-            transport.post(
-                path = "/trash/list/continue",
-                serializer = TrashListResponse.serializer(),
-                query = query.toQueryMap(),
-                form = mapOf("cursor" to cursor),
-            )
+            transport
+                .post(
+                    path = "/trash/list/continue",
+                    serializer = TrashContinueEnvelope.serializer(),
+                    query = query.toQueryMap(),
+                    form = mapOf("cursor" to cursor),
+                ).toResponse()
         }
 
     suspend fun restore(input: TrashBulkInput): OkResponse =

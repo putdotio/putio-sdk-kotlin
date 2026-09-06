@@ -9,4 +9,8 @@ data class OkResponse
         val status: String,
         val cursor: String? = null,
         val skipped: Int? = null,
-    )
+    ) {
+        init {
+            require(status == "OK") { "Acknowledgement status must be OK" }
+        }
+    }
