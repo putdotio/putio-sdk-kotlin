@@ -21,6 +21,10 @@ data class TrashFile(
     @SerialName("video_metadata") val videoMetadata: PutioVideoMetadata? = null,
 )
 
+/**
+ * [total] and [trashSize] describe the initial list. Continuation responses can omit
+ * these aggregates; their compatibility defaults do not replace initial-list totals.
+ */
 @Serializable
 data class TrashListResponse(
     val cursor: String? = null,
@@ -29,6 +33,40 @@ data class TrashListResponse(
     @SerialName("trash_size") val trashSize: Long = 0,
     val status: String,
 )
+
+@Serializable
+internal data class TrashListEnvelope(
+    val cursor: String? = null,
+    val files: List<TrashFile>,
+    val total: Int,
+    @SerialName("trash_size") val trashSize: Long,
+    val status: String,
+) {
+    init {
+        require(status == "OK") { "Trash list status must be OK" }
+        require(total >= 0) { "Trash total must be nonnegative" }
+        require(trashSize >= 0) { "Trash size must be nonnegative" }
+    }
+
+    fun toResponse(): TrashListResponse = TrashListResponse(cursor, files, total, trashSize, status)
+}
+
+@Serializable
+internal data class TrashContinueEnvelope(
+    val cursor: String? = null,
+    val files: List<TrashFile>,
+    val total: Int? = null,
+    @SerialName("trash_size") val trashSize: Long = 0,
+    val status: String,
+) {
+    init {
+        require(status == "OK") { "Trash continuation status must be OK" }
+        require(total == null || total >= 0) { "Trash total must be nonnegative" }
+        require(trashSize >= 0) { "Trash size must be nonnegative" }
+    }
+
+    fun toResponse(): TrashListResponse = TrashListResponse(cursor, files, total, trashSize, status)
+}
 
 data class TrashListQuery(
     val perPage: Int? = null,

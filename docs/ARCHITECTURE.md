@@ -168,6 +168,8 @@ Consumers handle `PlaybackConversionState` as follows:
 
 ## Error Context
 
+- `OkResponse` requires `status: "OK"`; a non-OK acknowledgement on HTTP 2xx is a serialization failure with operation context
+- Trash list decoding requires explicit files and nonnegative initial totals; continuation may omit totals, so consumers retain the initial aggregates instead of replacing them with continuation defaults
 - domain namespaces wrap SDK failures with `domain.operation` context before surfacing them to consumers
 - `PutioErrorLocalizer` can layer operation-specific recovery guidance on top of the underlying typed API or transport error
 - transport exceptions expose a stable failure kind and retain sanitized timeout, DNS, connection, TLS, protocol, and I/O cause types
