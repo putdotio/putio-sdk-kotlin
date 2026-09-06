@@ -174,6 +174,8 @@ data class FilesListQuery(
     val fileType: PutioFileType? = null,
     val sortBy: String? = null,
     val mp4Status: Boolean = false,
+    /** Include `video_metadata` (duration, codec, dimensions) on each listed child. */
+    val videoMetadata: Boolean = false,
 )
 
 internal fun FilesListQuery.toQueryMap(parentId: Long): Map<String, String> =
@@ -191,6 +193,7 @@ internal fun FilesListQuery.toQueryMap(parentId: Long): Map<String, String> =
         if (fileType != null) put("file_type", fileType.raw)
         if (sortBy != null) put("sort_by", sortBy)
         if (mp4Status) put("mp4_status", "1")
+        if (videoMetadata) put("video_metadata", "1")
     }
 
 data class FileDetailsQuery(
