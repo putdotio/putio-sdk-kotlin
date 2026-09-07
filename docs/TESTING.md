@@ -48,7 +48,7 @@ The first live layer follows the TypeScript SDK convention of separating safe ru
 
 Current live targets cover:
 
-- token validation and OOB auth-code fetch
+- token validation, OOB auth-code fetch, and the device-code orchestrator reaching `AwaitingLink` then `Expired` on a one-poll budget
 - account info and reversible account settings mutation
 - disposable file create, search, trash restore, and cleanup flows
 - playback source resolution, subtitles decode, and reversible start-from roundtrips for owned video fixtures

@@ -2,6 +2,7 @@ package io.putdotio.sdk
 
 import io.putdotio.sdk.account.AccountApi
 import io.putdotio.sdk.auth.AuthApi
+import io.putdotio.sdk.auth.DeviceCodeAuth
 import io.putdotio.sdk.config.ConfigApi
 import io.putdotio.sdk.core.PutioTransport
 import io.putdotio.sdk.files.FilesApi
@@ -26,6 +27,7 @@ class PutioClient(
 
     val account = AccountApi(transport)
     val auth = AuthApi(transport)
+    val deviceCodeAuth = DeviceCodeAuth(auth, account)
     val appConfig = ConfigApi(transport)
     val files = FilesApi(transport)
     val grants = GrantsApi(transport)

@@ -23,6 +23,6 @@ This document tracks how ready `putio-sdk-kotlin` is for autonomous agent work a
 
 ## Highest-Value Next Gaps
 
-1. decide whether IFTTT should grow beyond playback events into a generic event surface
+1. decide whether IFTTT should grow beyond playback events into a generic event surface (the device-code orchestrator for TV auth landed with #21)
 2. deepen deterministic coverage for more conditional payload branches and transport failure paths so the `90%` floor stays comfortable as the surface grows
 3. expand live verification as new safe namespaces land, following the shared-account rules

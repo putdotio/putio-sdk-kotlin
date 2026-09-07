@@ -72,6 +72,8 @@ graph LR
   - `verifyTotp`
   - `getRecoveryCodes`
   - `regenerateRecoveryCodes`
+- `deviceCodeAuth`
+  - `link` (see Device-Code Contract)
 - `appConfig`
   - `get`
   - `save`
@@ -126,6 +128,19 @@ graph LR
   - `cancel`
   - `clean`
   - `retry`
+
+## Device-Code Contract
+
+`DeviceCodeAuth.link` is a cold `Flow<DeviceCodeAuthState>` that runs one linking
+attempt from the auth-and-device-linking contract: `Requesting` → `AwaitingLink(code,
+qrCodeUrl, budget)` → `Validating` → `Linked(accessToken, account)`. The consumer shows the
+code and `put.io/link`, and stores the token from `Linked`; it never polls. Polling uses
+`DeviceCodeAuthOptions` (three-second interval, five-minute budget by default, matching the
+shipping TV app). A 404 from the match endpoint or a rejected validation ends the attempt in
+`Expired(CODE_REJECTED)`; running out the budget ends it in `Expired(BUDGET_ELAPSED)`; either
+way "Get new code" is a fresh collection. Transport failures while polling are retried inside
+the budget; any other SDK error ends the attempt in `Failed(error)` for `PutioErrorLocalizer`.
+Cancelling the collector stops polling. `Linked.toString()` omits the token.
 
 ## Playback Contract
 
