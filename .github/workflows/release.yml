@@ -23,7 +23,9 @@ jobs:
     environment:
       name: release
     permissions:
-      contents: write
+      contents: read
+    outputs:
+      version: ${{ steps.version.outputs.version }}
 
     steps:
       # Defence in depth only: the real gate is the admin-only tag ruleset plus the
@@ -74,12 +76,28 @@ jobs:
           ORG_GRADLE_PROJECT_signingInMemoryKey: ${{ secrets.SIGNING_KEY }}
           ORG_GRADLE_PROJECT_signingInMemoryKeyPassword: ${{ secrets.SIGNING_PASSWORD }}
 
+  # Separate job so a transient GitHub failure here can be rerun on its own
+  # ("Re-run failed jobs") without touching the immutable Central version.
+  github-release:
+    name: Create GitHub release
+    needs: publish
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 10
+    permissions:
+      contents: write
+
+    steps:
       - name: Create GitHub release
         env:
           GH_TOKEN: ${{ github.token }}
-          VERSION: ${{ steps.version.outputs.version }}
+          GH_REPO: ${{ github.repository }}
+          VERSION: ${{ needs.publish.outputs.version }}
         run: |
           set -euo pipefail
+          if gh release view "${GITHUB_REF_NAME}" >/dev/null 2>&1; then
+            echo "release ${GITHUB_REF_NAME} already exists"
+            exit 0
+          fi
           gh release create "${GITHUB_REF_NAME}" \
             --title "putio-sdk-kotlin ${VERSION}" \
             --generate-notes \
