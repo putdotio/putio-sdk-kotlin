@@ -29,7 +29,7 @@ class AuthLiveTest {
             val clientId = LiveSupport.requireClientId()
             LiveSupport.newAuthedClient(clientId = clientId).use { sdk ->
                 // Nobody approves the code, so the attempt must end in Expired without hanging.
-                val states = sdk.deviceCodeAuth.link(DeviceCodeAuthOptions(1.seconds, 1.seconds)).toList()
+                val states = sdk.deviceCodeAuth.link(DeviceCodeAuthOptions(1.seconds, 2.seconds)).toList()
                 assertEquals(DeviceCodeAuthState.Requesting, states.first())
                 val awaiting = assertIs<DeviceCodeAuthState.AwaitingLink>(states[1])
                 assertTrue(awaiting.code.isNotBlank())

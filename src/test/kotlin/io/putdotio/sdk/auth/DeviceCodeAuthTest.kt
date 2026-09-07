@@ -21,6 +21,7 @@ import kotlin.test.assertFailsWith
 import kotlin.test.assertIs
 import kotlin.test.assertNull
 import kotlin.test.assertSame
+import kotlin.test.assertTrue
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.minutes
@@ -126,6 +127,32 @@ class DeviceCodeAuthTest {
                 states.last(),
             )
             assertEquals(2, server.requestCount)
+        }
+
+    @Test
+    fun `a poll that stalls past the budget expires the attempt without waiting for the transport`() =
+        withServer { server ->
+            server.enqueue(json(CODE_ENVELOPE))
+            server.enqueue(
+                json("""{"status":"OK","oauth_token":"tok-1"}""")
+                    .newBuilder()
+                    .headersDelay(30, java.util.concurrent.TimeUnit.SECONDS)
+                    .build(),
+            )
+
+            val (orchestrator, _) = orchestrator(server, sleep = { kotlinx.coroutines.delay(it) })
+            val elapsed =
+                kotlin.system.measureTimeMillis {
+                    val states =
+                        runBlocking {
+                            orchestrator.link(DeviceCodeAuthOptions(50.milliseconds, 300.milliseconds)).toList()
+                        }
+                    assertEquals(
+                        DeviceCodeAuthState.Expired(DeviceCodeAuthState.Expired.Reason.BUDGET_ELAPSED),
+                        states.last(),
+                    )
+                }
+            assertTrue(elapsed < 5_000, "expired in ${elapsed}ms, not bounded by the 30s response delay")
         }
 
     @Test

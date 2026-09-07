@@ -9,6 +9,7 @@ import io.putdotio.sdk.errors.PutioTransportException
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.withTimeoutOrNull
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.minutes
 import kotlin.time.Duration.Companion.seconds
@@ -145,9 +146,15 @@ class DeviceCodeAuth internal constructor(
             val remaining = -deadline.elapsedNow()
             if (remaining <= Duration.ZERO) return PollOutcome.Terminal(budgetElapsed())
             sleep(minOf(options.pollInterval, remaining))
-            if (deadline.hasPassedNow()) return PollOutcome.Terminal(budgetElapsed())
+            val left = -deadline.elapsedNow()
+            if (left <= Duration.ZERO) return PollOutcome.Terminal(budgetElapsed())
+            // A stalled request must not hold AwaitingLink past the budget; the timeout
+            // cancels only this call, so collector cancellation still propagates.
+            val call =
+                withTimeoutOrNull(left) { sdkCall { auth.checkCodeMatch(code) } }
+                    ?: return PollOutcome.Terminal(budgetElapsed())
             val token =
-                when (val call = sdkCall { auth.checkCodeMatch(code) }) {
+                when (call) {
                     is SdkCall.Ok -> {
                         call.value ?: continue
                     }
