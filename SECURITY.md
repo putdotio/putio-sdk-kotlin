@@ -34,8 +34,8 @@ Useful reports usually include issues involving:
 
 ## Supported Versions
 
-This repository does not publish versioned releases yet. Report issues against
-the current `main` branch unless maintainers say otherwise.
+Only the latest release on Maven Central (`io.put:putio-sdk-kotlin`) and the
+current `main` branch receive fixes.
 
 ## Disclosure
 

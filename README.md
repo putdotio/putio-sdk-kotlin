@@ -51,13 +51,13 @@ The surface grows with the put.io mobile and TV apps. The primary consumer is [p
 
 ## Installation
 
-Not on Maven Central yet ([#43](https://github.com/putdotio/putio-sdk-kotlin/issues/43)). Until then, consume it from a checkout:
-
-```bash
-./gradlew publishToMavenLocal
+```kotlin
+dependencies {
+    implementation("io.put:putio-sdk-kotlin:0.1.0")
+}
 ```
 
-or as a Gradle composite build with `includeBuild("../putio-sdk-kotlin")`, which is how the Android app consumes it today.
+Releases are tagged `vX.Y.Z` and published to Maven Central; see [Release](./docs/RELEASE.md). From a checkout, `./gradlew publishToMavenLocal -Pversion=0.1.0` or a Gradle composite build with `includeBuild("../putio-sdk-kotlin")` both work.
 
 ## Android Consumers
 

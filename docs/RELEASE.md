@@ -1,17 +1,53 @@
 # Release
 
-## Current State
+## Coordinates
 
-This repo is bootstrapped for local verification and local Maven publishing:
+`io.put:putio-sdk-kotlin` on Maven Central, published through the Sonatype
+Central Portal by `.github/workflows/release.yml`. The Maven group is the
+reverse DNS of put.io; the Kotlin package stays `io.putdotio.sdk`.
+
+## Cut a release
+
+1. Land the release commit on `main` with CI green.
+2. Tag it and push the tag:
+
+   ```bash
+   git tag v0.1.0
+   git push origin v0.1.0
+   ```
+
+3. The workflow verifies the tagged commit, publishes with the tag's version,
+   waits for Central validation, and creates the GitHub release with generated
+   notes. Central lists the version within about half an hour.
+
+Local builds keep the version `0.1.0-SNAPSHOT`. A version is only ever set from
+a tag through `-Pversion`, so `main` never publishes by accident.
+
+## Credentials
+
+All secrets live in the `release` environment on the GitHub repository. None are
+checked in or read by `./gradlew verify`.
+
+| Secret | Source |
+| --- | --- |
+| `MAVEN_CENTRAL_USERNAME`, `MAVEN_CENTRAL_PASSWORD` | Central Portal user token for an account that owns the verified `io.put` namespace |
+| `SIGNING_KEY_ID` | Last eight hex characters of the GPG key id |
+| `SIGNING_KEY` | ASCII-armored private key: `gpg --armor --export-secret-keys <id>` |
+| `SIGNING_PASSWORD` | The key's passphrase |
+
+The public key must be on `keyserver.ubuntu.com` or Central rejects the
+signature:
 
 ```bash
-./gradlew publishToMavenLocal
+gpg --full-generate-key                # RSA 4096, devs@put.io, 2y expiry
+gpg --keyserver keyserver.ubuntu.com --send-keys <id>
 ```
 
-Maven Central publishing is tracked in [#43](https://github.com/putdotio/putio-sdk-kotlin/issues/43):
-coordinates `io.putdotio:putio-sdk-kotlin`, GPG signing from an Actions secret,
-and a tag-driven release lane gated on `./gradlew verify`.
+## Local dry run
 
-Until the first release ships, keep `main` verify-first and do not document an
-external package coordinate that does not resolve yet.
+```bash
+./gradlew publishToMavenLocal -Pversion=0.1.0
+ls ~/.m2/repository/io/put/putio-sdk-kotlin/0.1.0/
+```
 
+Signing is skipped locally when no signing key is configured.

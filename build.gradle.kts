@@ -1,3 +1,5 @@
+import com.vanniktech.maven.publish.JavadocJar
+import com.vanniktech.maven.publish.KotlinJvm
 import org.gradle.api.tasks.testing.Test
 import org.gradle.testing.jacoco.tasks.JacocoCoverageVerification
 import org.gradle.testing.jacoco.tasks.JacocoReport
@@ -8,13 +10,15 @@ plugins {
     kotlin("jvm") version "2.4.10"
     kotlin("plugin.serialization") version "2.4.10"
     `java-library`
-    `maven-publish`
     jacoco
     id("com.diffplug.spotless") version "8.10.1"
+    id("com.vanniktech.maven.publish") version "0.37.0"
 }
 
-group = "io.putdotio"
-version = "0.1.0-SNAPSHOT"
+// Reverse DNS of put.io; the Kotlin package stays io.putdotio.sdk.
+group = "io.put"
+// Release tags set the version: `./gradlew publish -Pversion=0.1.0`. Local builds stay SNAPSHOT.
+version = providers.gradleProperty("version").orNull?.takeUnless { it == "unspecified" } ?: "0.1.0-SNAPSHOT"
 
 repositories {
     mavenCentral()
@@ -112,38 +116,43 @@ tasks.register("verify") {
     dependsOn("check", "jar", "jacocoTestCoverageVerification")
 }
 
-publishing {
-    publications {
-        create<MavenPublication>("mavenJava") {
-            from(components["java"])
-            artifactId = "putio-sdk-kotlin"
+mavenPublishing {
+    // Central Portal publishing; credentials come from ORG_GRADLE_PROJECT_mavenCentralUsername/Password.
+    // Waits for Central validation, then releases without a manual portal step.
+    publishToMavenCentral(automaticRelease = true)
+    // Central requires signed artifacts. The release workflow supplies the key through
+    // ORG_GRADLE_PROJECT_signingInMemoryKey*; without one, local dry runs publish unsigned to mavenLocal.
+    if (providers.gradleProperty("signingInMemoryKey").isPresent) {
+        signAllPublications()
+    }
+    configure(KotlinJvm(javadocJar = JavadocJar.Empty(), sourcesJar = true))
+    coordinates(group.toString(), "putio-sdk-kotlin", version.toString())
 
-            pom {
-                name.set("putio-sdk-kotlin")
-                description.set("Coroutine-first Kotlin SDK for the put.io API")
-                url.set("https://github.com/putdotio/putio-sdk-kotlin")
+    pom {
+        name.set("putio-sdk-kotlin")
+        description.set("Coroutine-first Kotlin SDK for the put.io API")
+        url.set("https://github.com/putdotio/putio-sdk-kotlin")
+        inceptionYear.set("2026")
 
-                licenses {
-                    license {
-                        name.set("MIT")
-                        url.set("https://opensource.org/license/mit")
-                    }
-                }
-
-                developers {
-                    developer {
-                        id.set("putdotio")
-                        name.set("put.io")
-                        email.set("devs@put.io")
-                    }
-                }
-
-                scm {
-                    connection.set("scm:git:https://github.com/putdotio/putio-sdk-kotlin.git")
-                    developerConnection.set("scm:git:ssh://git@github.com/putdotio/putio-sdk-kotlin.git")
-                    url.set("https://github.com/putdotio/putio-sdk-kotlin")
-                }
+        licenses {
+            license {
+                name.set("MIT")
+                url.set("https://opensource.org/license/mit")
             }
+        }
+
+        developers {
+            developer {
+                id.set("putdotio")
+                name.set("put.io")
+                email.set("devs@put.io")
+            }
+        }
+
+        scm {
+            connection.set("scm:git:https://github.com/putdotio/putio-sdk-kotlin.git")
+            developerConnection.set("scm:git:ssh://git@github.com/putdotio/putio-sdk-kotlin.git")
+            url.set("https://github.com/putdotio/putio-sdk-kotlin")
         }
     }
 }
