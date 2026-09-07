@@ -221,6 +221,10 @@ class AccountModelsTest {
         assertEquals(false, settings.nextEpisode)
         assertEquals(false, settings.historyEnabled)
         assertEquals(false, settings.hideSubtitles)
+        // Older deployments omit the privacy keys; the contract default is opt-in.
+        assertEquals(true, settings.diagnosticsEnabled)
+        assertEquals(true, settings.productAnalyticsEnabled)
+        assertEquals(true, settings.supportWidgetEnabled)
         assertEquals(0L, info.trashSize)
         assertEquals(null, info.accountActive)
         assertEquals(null, info.downloadToken)
