@@ -21,7 +21,13 @@ reverse DNS of put.io; the Kotlin package stays `io.putdotio.sdk`.
    notes. Central lists the version within about half an hour.
 
 Local builds keep the version `0.1.0-SNAPSHOT`. A version is only ever set from
-a tag through `-Pversion`, so `main` never publishes by accident.
+a tag through `-Pversion`; every remote `publish*` task refuses a SNAPSHOT version,
+so `main` cannot publish by accident even with credentials present.
+
+The workflow refuses tags that are not strict `vMAJOR.MINOR.PATCH` or whose commit
+is not reachable from `main`, because the tagged commit's build scripts run with
+the publishing credentials. Keep the `release` environment restricted to the
+`main` branch and protect `v*` tags so only maintainers can push them.
 
 ## Credentials
 

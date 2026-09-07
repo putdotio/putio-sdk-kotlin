@@ -116,6 +116,15 @@ tasks.register("verify") {
     dependsOn("check", "jar", "jacocoTestCoverageVerification")
 }
 
+// Only the release workflow passes -Pversion; a default SNAPSHOT must never reach Central.
+tasks.matching { it.name.startsWith("publish") && !it.name.endsWith("ToMavenLocal") }.configureEach {
+    doFirst {
+        check(!project.version.toString().endsWith("-SNAPSHOT")) {
+            "Remote publishing needs an explicit release version, e.g. -Pversion=0.1.0"
+        }
+    }
+}
+
 mavenPublishing {
     // Central Portal publishing; credentials come from ORG_GRADLE_PROJECT_mavenCentralUsername/Password.
     // Waits for Central validation, then releases without a manual portal step.
