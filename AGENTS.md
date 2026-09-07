@@ -20,7 +20,7 @@
 - `./gradlew test`
 - `./gradlew liveTest`
 - `./gradlew spotlessApply`
-- `./gradlew publishToMavenLocal`
+- `./gradlew publishToMavenLocal -Pversion=X.Y.Z`
 - `make secrets-setup`
 - `make secrets-clean`
 
