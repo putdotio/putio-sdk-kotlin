@@ -63,7 +63,8 @@ configurations[liveTestSourceSet.runtimeOnlyConfigurationName].extendsFrom(confi
 dependencies {
     implementation(platform("com.squareup.okhttp3:okhttp-bom:5.5.0"))
     implementation("com.squareup.okhttp3:okhttp")
-    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.11.0")
+    // `api`: Flow is part of the public surface (DeviceCodeAuth.link) and suspend functions need it on consumers.
+    api("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.11.0")
     api("org.jetbrains.kotlinx:kotlinx-serialization-json:1.11.0")
 
     testImplementation(kotlin("test"))
