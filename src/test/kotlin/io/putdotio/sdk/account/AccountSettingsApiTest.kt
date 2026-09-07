@@ -31,6 +31,9 @@ class AccountSettingsApiTest {
                             historyEnabled = false,
                             hideSubtitles = true,
                             sortBy = "NAME_ASC",
+                            diagnosticsEnabled = false,
+                            productAnalyticsEnabled = false,
+                            supportWidgetEnabled = true,
                         ),
                     )
                 }
@@ -40,7 +43,8 @@ class AccountSettingsApiTest {
             assertEquals("/v2/account/settings", request.target)
             assertEquals("application/json; charset=utf-8", request.headers["Content-Type"])
             assertEquals(
-                """{"history_enabled":false,"hide_subtitles":true,"sort_by":"NAME_ASC","use_start_from":true}""",
+                """{"history_enabled":false,"hide_subtitles":true,"sort_by":"NAME_ASC","use_start_from":true,""" +
+                    """"diagnostics_enabled":false,"product_analytics_enabled":false,"support_widget_enabled":true}""",
                 request.body!!.utf8(),
             )
         }

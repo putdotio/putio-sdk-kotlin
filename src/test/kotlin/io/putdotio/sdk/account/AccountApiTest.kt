@@ -96,7 +96,10 @@ class AccountApiTest {
                             "show_optimistic_usage": false,
                             "two_factor_enabled": true,
                             "hide_subtitles": true,
-                            "dont_autoselect_subtitles": false
+                            "dont_autoselect_subtitles": false,
+                            "diagnostics_enabled": false,
+                            "product_analytics_enabled": true,
+                            "support_widget_enabled": false
                           }
                         }
                         """.trimIndent(),
@@ -116,6 +119,9 @@ class AccountApiTest {
                     assertEquals("eu-west", settings.tunnelRouteName)
                     assertEquals(true, settings.twoFactorEnabled)
                     assertEquals(true, settings.hideSubtitles)
+                    assertEquals(false, settings.diagnosticsEnabled)
+                    assertEquals(true, settings.productAnalyticsEnabled)
+                    assertEquals(false, settings.supportWidgetEnabled)
                 }
             }
 
