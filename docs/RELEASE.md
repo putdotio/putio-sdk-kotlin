@@ -26,8 +26,9 @@ so `main` cannot publish by accident even with credentials present.
 
 The workflow refuses tags that are not strict `vMAJOR.MINOR.PATCH` or whose commit
 is not reachable from `main`, because the tagged commit's build scripts run with
-the publishing credentials. Keep the `release` environment restricted to the
-`main` branch and protect `v*` tags so only maintainers can push them.
+the publishing credentials. The `release` environment's deployment rule allows
+only `v*` tags (the workflow runs on tag refs, so a branch rule would block every
+release), and the "Release tags" ruleset blocks deleting or moving `v*` tags.
 
 ## Credentials
 
