@@ -23,7 +23,9 @@ jobs:
     environment:
       name: release
     permissions:
-      contents: write
+      contents: read
+    outputs:
+      version: ${{ steps.version.outputs.version }}
 
     steps:
       # Defence in depth only: the real gate is the admin-only tag ruleset plus the
@@ -64,17 +66,8 @@ jobs:
         env:
           VERSION: ${{ steps.version.outputs.version }}
 
-      # Central versions are immutable, so a rerun after a successful publish must not
-      # upload again. Skip when the artifact is already there and continue to the release step.
       - name: Publish to Maven Central
-        run: |
-          set -euo pipefail
-          url="https://repo1.maven.org/maven2/io/put/putio-sdk-kotlin/${VERSION}/putio-sdk-kotlin-${VERSION}.pom"
-          if curl -fsIL "$url" >/dev/null 2>&1; then
-            echo "io.put:putio-sdk-kotlin:${VERSION} is already on Maven Central; skipping publish"
-            exit 0
-          fi
-          ./gradlew publishToMavenCentral --no-configuration-cache -Pversion="${VERSION}"
+        run: ./gradlew publishToMavenCentral --no-configuration-cache -Pversion="${VERSION}"
         env:
           VERSION: ${{ steps.version.outputs.version }}
           ORG_GRADLE_PROJECT_mavenCentralUsername: ${{ secrets.MAVEN_CENTRAL_USERNAME }}
@@ -83,11 +76,22 @@ jobs:
           ORG_GRADLE_PROJECT_signingInMemoryKey: ${{ secrets.SIGNING_KEY }}
           ORG_GRADLE_PROJECT_signingInMemoryKeyPassword: ${{ secrets.SIGNING_PASSWORD }}
 
-      # Idempotent so a rerun after a transient GitHub failure does not fail on "already exists".
+  # Separate job so a transient GitHub failure here can be rerun on its own
+  # ("Re-run failed jobs") without touching the immutable Central version.
+  github-release:
+    name: Create GitHub release
+    needs: publish
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 10
+    permissions:
+      contents: write
+
+    steps:
       - name: Create GitHub release
         env:
           GH_TOKEN: ${{ github.token }}
-          VERSION: ${{ steps.version.outputs.version }}
+          GH_REPO: ${{ github.repository }}
+          VERSION: ${{ needs.publish.outputs.version }}
         run: |
           set -euo pipefail
           if gh release view "${GITHUB_REF_NAME}" >/dev/null 2>&1; then
