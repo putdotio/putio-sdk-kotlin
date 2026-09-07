@@ -199,6 +199,7 @@ private sealed interface SdkCall<out T> {
 }
 
 // Only SDK exceptions are caught; cancellation and collector failures pass through.
+// Inline, so the lambda may call suspend functions from the suspending call sites above.
 private inline fun <T> sdkCall(block: () -> T): SdkCall<T> =
     try {
         SdkCall.Ok(block())

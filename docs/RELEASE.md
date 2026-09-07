@@ -20,6 +20,9 @@ reverse DNS of put.io; the Kotlin package stays `io.putdotio.sdk`.
    waits for Central validation, and creates the GitHub release with generated
    notes. Central lists the version within about half an hour.
 
+Rerunning a failed job is safe: the publish step skips when the version is
+already on Central, and the release step skips when the GitHub release exists.
+
 Local builds keep the version `0.1.0-SNAPSHOT`. A version is only ever set from
 a tag through `-Pversion`; every remote `publish*` task refuses a SNAPSHOT version,
 so `main` cannot publish by accident even with credentials present.
