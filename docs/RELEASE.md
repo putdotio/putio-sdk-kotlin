@@ -8,11 +8,10 @@ This repo is bootstrapped for local verification and local Maven publishing:
 ./gradlew publishToMavenLocal
 ```
 
-Automated public release publishing is not wired yet. The next release-focused step should decide:
+Maven Central publishing is tracked in [#43](https://github.com/putdotio/putio-sdk-kotlin/issues/43):
+coordinates `io.putdotio:putio-sdk-kotlin`, GPG signing from an Actions secret,
+and a tag-driven release lane gated on `./gradlew verify`.
 
-1. public artifact coordinates
-2. signing and registry credentials
-3. whether release automation should mirror the semantic-release flow used by the Swift SDK or use a Gradle-native publish path
-
-Until those decisions are made, keep `main` verify-first and avoid documenting an external package coordinate that does not exist yet.
+Until the first release ships, keep `main` verify-first and do not document an
+external package coordinate that does not resolve yet.
 

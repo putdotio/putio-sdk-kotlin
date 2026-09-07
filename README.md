@@ -21,7 +21,7 @@
 
 ## Status
 
-This repository is in its first bootstrap phase. The initial public surface is intentionally smaller than `putio-sdk-typescript` and currently focuses on:
+Pre-1.0. The public surface is deliberately smaller than [`putio-sdk-typescript`](https://github.com/putdotio/putio-sdk-typescript) and covers:
 
 - `account`
 - `auth`
@@ -34,9 +34,9 @@ This repository is in its first bootstrap phase. The initial public surface is i
 - `trash`
 - `transfers`
 
-The design goal is to stay closer to the TypeScript SDK than the legacy Swift SDK: coroutine-first APIs, typed errors, explicit boundary parsing, forward-compatible value types at the API edge, and a user-facing error localization layer for recovery guidance.
+Design: coroutine-first APIs, typed errors, explicit boundary parsing, forward-compatible value types at the API edge, and a user-facing error localization layer for recovery guidance. It follows the shape of the TypeScript SDK rather than the older Swift one.
 
-The current expansion is shaped around real put.io mobile and TV app needs. The primary consumer is the sibling [putio-android](https://github.com/putdotio/putio-android) app, which uses this SDK as its API boundary through a Gradle composite build; the covered flows mirror what the put.io mobile and TV apps use, especially:
+The surface grows with the put.io mobile and TV apps. The primary consumer is [putio-android](https://github.com/putdotio/putio-android), which uses this SDK as its API boundary through a Gradle composite build. Covered flows:
 
 - auth login, device/OOB, token validation, and two-factor flows
 - OAuth grant listing, revocation, logout, and device linking
@@ -51,13 +51,13 @@ The current expansion is shaped around real put.io mobile and TV app needs. The 
 
 ## Installation
 
-The first public Maven release is not wired yet.
-
-Until then, the repo supports local consumption through:
+Not on Maven Central yet ([#43](https://github.com/putdotio/putio-sdk-kotlin/issues/43)). Until then, consume it from a checkout:
 
 ```bash
 ./gradlew publishToMavenLocal
 ```
+
+or as a Gradle composite build with `includeBuild("../putio-sdk-kotlin")`, which is how the Android app consumes it today.
 
 ## Android Consumers
 
@@ -146,9 +146,9 @@ The repo exposes one canonical verification command:
 
 The repository targets JDK `21`. Install a Java `21` runtime with your preferred version manager or system package manager before running Gradle. The checked-in [.java-version](./.java-version) is only a compatibility hint for tools that choose to honor it.
 
-This currently runs compile, format, and test guardrails for the bootstrap surface. Tests use `MockWebServer` to verify request shaping, auth handling, and response decoding. `./gradlew verify` also runs `spotlessCheck` (stock ktlint rules) and enforces a `90%` line coverage floor for the current source set. Fix formatting findings with `./gradlew spotlessApply`.
+`verify` runs compile, `spotlessCheck` (stock ktlint rules), the `MockWebServer` unit suite, and a `90%` line coverage floor. Fix formatting findings with `./gradlew spotlessApply`.
 
-An opt-in live suite is also available through `./gradlew liveTest`. It follows the TypeScript SDK convention of keeping real API verification separate from the default unit suite.
+`liveTest` runs an opt-in suite against the real put.io API and needs credentials; see [Testing](./docs/TESTING.md).
 
 ## Docs
 
