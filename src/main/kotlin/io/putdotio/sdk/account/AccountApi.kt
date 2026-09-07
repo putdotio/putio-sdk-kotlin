@@ -1,6 +1,7 @@
 package io.putdotio.sdk.account
 
 import io.putdotio.sdk.OkResponse
+import io.putdotio.sdk.core.PutioAuth
 import io.putdotio.sdk.core.PutioTransport
 import io.putdotio.sdk.errors.PutioKnownErrorContract
 import io.putdotio.sdk.errors.PutioOperationErrorSpec
@@ -9,13 +10,22 @@ import io.putdotio.sdk.errors.putioOperation
 class AccountApi internal constructor(
     private val transport: PutioTransport,
 ) {
-    suspend fun getInfo(query: AccountInfoQuery = AccountInfoQuery()): AccountInfo =
+    suspend fun getInfo(query: AccountInfoQuery = AccountInfoQuery()): AccountInfo = getInfo(query, PutioAuth.ConfigToken)
+
+    // Device-code linking validates a token before the caller has stored it in config.
+    internal suspend fun getInfoWith(token: String): AccountInfo = getInfo(AccountInfoQuery(), PutioAuth.Token(token))
+
+    private suspend fun getInfo(
+        query: AccountInfoQuery,
+        auth: PutioAuth,
+    ): AccountInfo =
         putioOperation(GET_ACCOUNT_INFO_ERROR_SPEC) {
             transport
                 .get(
                     path = "/account/info",
                     serializer = AccountInfoEnvelope.serializer(),
                     query = query.toQueryMap(),
+                    auth = auth,
                 ).info
         }
 

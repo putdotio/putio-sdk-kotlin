@@ -1,10 +1,15 @@
 package io.putdotio.sdk.live
 
+import io.putdotio.sdk.auth.DeviceCodeAuthOptions
+import io.putdotio.sdk.auth.DeviceCodeAuthState
+import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.runBlocking
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertIs
 import kotlin.test.assertNotNull
 import kotlin.test.assertTrue
+import kotlin.time.Duration.Companion.seconds
 
 class AuthLiveTest {
     @Test
@@ -14,6 +19,21 @@ class AuthLiveTest {
                 val validation = sdk.auth.validateToken()
                 assertTrue(validation.result)
                 assertNotNull(validation.userId)
+            }
+        }
+    }
+
+    @Test
+    fun `device code orchestrator reaches awaiting link and stops on a one-poll budget`() {
+        runBlocking {
+            val clientId = LiveSupport.requireClientId()
+            LiveSupport.newAuthedClient(clientId = clientId).use { sdk ->
+                // Nobody approves the code, so the attempt must end in Expired without hanging.
+                val states = sdk.deviceCodeAuth.link(DeviceCodeAuthOptions(1.seconds, 2.seconds)).toList()
+                assertEquals(DeviceCodeAuthState.Requesting, states.first())
+                val awaiting = assertIs<DeviceCodeAuthState.AwaitingLink>(states[1])
+                assertTrue(awaiting.code.isNotBlank())
+                assertIs<DeviceCodeAuthState.Expired>(states.last())
             }
         }
     }

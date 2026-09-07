@@ -119,6 +119,23 @@ suspend fun loadAccount() {
 }
 ```
 
+## Device-Code Linking (TV)
+
+```kotlin
+sdk.deviceCodeAuth.link().collect { state ->
+    when (state) {
+        is DeviceCodeAuthState.AwaitingLink -> showCode(state.code, state.qrCodeUrl)
+        is DeviceCodeAuthState.Linked -> tokenStore.save(state.accessToken)
+        is DeviceCodeAuthState.Expired -> offerNewCode()
+        is DeviceCodeAuthState.Failed -> showError(PutioErrorLocalizer.localize(state.error))
+        DeviceCodeAuthState.Requesting, DeviceCodeAuthState.Validating -> showSpinner()
+    }
+}
+```
+
+One collection is one attempt; collect again for a new code. Polling, timeout, and
+token validation live in the SDK.
+
 ## Authentication URL Example
 
 ```kotlin
