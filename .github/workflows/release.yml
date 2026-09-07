@@ -26,8 +26,8 @@ jobs:
       contents: write
 
     steps:
-      # The tagged commit's build scripts run with publishing credentials below, so it
-      # must already be reviewed history: reachable from main and a strict semver tag.
+      # Defence in depth only: the real gate is the admin-only tag ruleset plus the
+      # release environment's required approval, which a tagged commit cannot edit.
       - name: Check out tagged commit
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:

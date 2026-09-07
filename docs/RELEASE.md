@@ -24,11 +24,24 @@ Local builds keep the version `0.1.0-SNAPSHOT`. A version is only ever set from
 a tag through `-Pversion`; every remote `publish*` task refuses a SNAPSHOT version,
 so `main` cannot publish by accident even with credentials present.
 
-The workflow refuses tags that are not strict `vMAJOR.MINOR.PATCH` or whose commit
-is not reachable from `main`, because the tagged commit's build scripts run with
-the publishing credentials. The `release` environment's deployment rule allows
-only `v*` tags (the workflow runs on tag refs, so a branch rule would block every
-release), and the "Release tags" ruleset blocks deleting or moving `v*` tags.
+The tagged commit's build scripts run with the publishing credentials, so the
+trust boundary sits outside the workflow, where a tag cannot rewrite it:
+
+- The "Release tags" ruleset lets only repository admins create, move, or delete
+  `v*` tags.
+- The `release` environment requires a maintainer to approve each run before the
+  publish job can read its secrets, and its deployment rule allows only `v*` tags
+  (a branch rule would block every tag-triggered run).
+
+Before approving, confirm the tag is on `main`:
+
+```bash
+git fetch origin main --tags
+git merge-base --is-ancestor v0.1.0 origin/main && echo on-main
+```
+
+The workflow repeats that ancestry check and rejects tags that are not strict
+`vMAJOR.MINOR.PATCH`, as a guard against mistakes rather than the control.
 
 ## Credentials
 
