@@ -61,7 +61,7 @@ data class DeviceCodeAuthOptions(
 ) {
     init {
         require(pollInterval.isPositive()) { "pollInterval must be positive" }
-        require(budget >= pollInterval) { "budget must cover at least one poll" }
+        require(budget > pollInterval) { "budget must exceed pollInterval so at least one poll runs" }
     }
 }
 
@@ -81,64 +81,123 @@ class DeviceCodeAuth internal constructor(
         flow {
             emit(DeviceCodeAuthState.Requesting)
             val issued =
-                try {
-                    auth.getCode()
-                } catch (error: PutioException) {
-                    emit(DeviceCodeAuthState.Failed(error))
-                    return@flow
+                when (val call = sdkCall { auth.getCode() }) {
+                    is SdkCall.Ok -> {
+                        call.value
+                    }
+
+                    is SdkCall.Error -> {
+                        emit(DeviceCodeAuthState.Failed(call.error))
+                        return@flow
+                    }
                 }
             emit(DeviceCodeAuthState.AwaitingLink(issued.code, issued.qrCodeUrl, options.budget))
 
-            val token = pollForToken(issued.code, options) ?: return@flow
-            emit(DeviceCodeAuthState.Validating)
-            try {
-                val validation = auth.validateToken(token)
-                if (!validation.result) {
-                    emit(DeviceCodeAuthState.Expired(DeviceCodeAuthState.Expired.Reason.CODE_REJECTED))
-                    return@flow
+            val token =
+                when (val outcome = pollForToken(issued.code, options)) {
+                    is PollOutcome.Token -> {
+                        outcome.value
+                    }
+
+                    is PollOutcome.Terminal -> {
+                        emit(outcome.state)
+                        return@flow
+                    }
                 }
-                val info = account.getInfoWith(token)
-                emit(DeviceCodeAuthState.Linked(token, info))
-            } catch (error: PutioException) {
-                emit(DeviceCodeAuthState.Failed(error))
-            }
+            emit(DeviceCodeAuthState.Validating)
+            emit(validateAndLoad(token))
         }
 
-    // Returns the token, or null after emitting a terminal state.
-    private suspend fun kotlinx.coroutines.flow.FlowCollector<DeviceCodeAuthState>.pollForToken(
-        code: String,
-        options: DeviceCodeAuthOptions,
-    ): String? {
-        val started = timeSource.markNow()
-        while (true) {
-            sleep(options.pollInterval)
-            if (started.elapsedNow() >= options.budget) {
-                emit(DeviceCodeAuthState.Expired(DeviceCodeAuthState.Expired.Reason.BUDGET_ELAPSED))
-                return null
+    // Only SDK calls sit inside try blocks; collector exceptions propagate untouched.
+    private suspend fun validateAndLoad(token: String): DeviceCodeAuthState {
+        val validation =
+            when (val call = sdkCall { auth.validateToken(token) }) {
+                is SdkCall.Ok -> call.value
+                is SdkCall.Error -> return DeviceCodeAuthState.Failed(call.error)
             }
-            try {
-                auth.checkCodeMatch(code)?.let { return it }
-            } catch (error: PutioOperationException) {
-                when {
-                    error.isCodeRejection() -> {
-                        emit(DeviceCodeAuthState.Expired(DeviceCodeAuthState.Expired.Reason.CODE_REJECTED))
-                        return null
-                    }
-
-                    // Flaky TV networks: keep polling until the budget runs out.
-                    error.underlyingError is PutioTransportException -> {
-                        Unit
-                    }
-
-                    else -> {
-                        emit(DeviceCodeAuthState.Failed(error))
-                        return null
-                    }
-                }
-            }
+        if (!validation.result) {
+            return DeviceCodeAuthState.Expired(DeviceCodeAuthState.Expired.Reason.CODE_REJECTED)
+        }
+        return when (val call = sdkCall { account.getInfoWith(token) }) {
+            is SdkCall.Ok -> DeviceCodeAuthState.Linked(token, call.value)
+            is SdkCall.Error -> DeviceCodeAuthState.Failed(call.error)
         }
     }
+
+    private sealed interface PollOutcome {
+        data class Token(
+            val value: String,
+        ) : PollOutcome
+
+        data class Terminal(
+            val state: DeviceCodeAuthState,
+        ) : PollOutcome
+    }
+
+    // The budget bounds both the sleep and the time a response may arrive; a token that
+    // lands after the deadline is treated as expired so the caller re-requests a code.
+    private suspend fun pollForToken(
+        code: String,
+        options: DeviceCodeAuthOptions,
+    ): PollOutcome {
+        val deadline = timeSource.markNow() + options.budget
+        while (true) {
+            val remaining = -deadline.elapsedNow()
+            if (remaining <= Duration.ZERO) return PollOutcome.Terminal(budgetElapsed())
+            sleep(minOf(options.pollInterval, remaining))
+            if (deadline.hasPassedNow()) return PollOutcome.Terminal(budgetElapsed())
+            val token =
+                when (val call = sdkCall { auth.checkCodeMatch(code) }) {
+                    is SdkCall.Ok -> {
+                        call.value ?: continue
+                    }
+
+                    is SdkCall.Error -> {
+                        pollFailure(call.error)?.let { return PollOutcome.Terminal(it) }
+                        continue
+                    }
+                }
+            if (deadline.hasPassedNow()) return PollOutcome.Terminal(budgetElapsed())
+            return PollOutcome.Token(token)
+        }
+    }
+
+    // Null means keep polling: flaky TV networks should not end the attempt before the budget does.
+    private fun pollFailure(error: PutioException): DeviceCodeAuthState? =
+        when {
+            error is PutioOperationException && error.isCodeRejection() -> {
+                DeviceCodeAuthState.Expired(DeviceCodeAuthState.Expired.Reason.CODE_REJECTED)
+            }
+
+            error is PutioOperationException && error.underlyingError is PutioTransportException -> {
+                null
+            }
+
+            else -> {
+                DeviceCodeAuthState.Failed(error)
+            }
+        }
+
+    private fun budgetElapsed(): DeviceCodeAuthState = DeviceCodeAuthState.Expired(DeviceCodeAuthState.Expired.Reason.BUDGET_ELAPSED)
 }
+
+private sealed interface SdkCall<out T> {
+    data class Ok<T>(
+        val value: T,
+    ) : SdkCall<T>
+
+    data class Error(
+        val error: PutioException,
+    ) : SdkCall<Nothing>
+}
+
+// Only SDK exceptions are caught; cancellation and collector failures pass through.
+private inline fun <T> sdkCall(block: () -> T): SdkCall<T> =
+    try {
+        SdkCall.Ok(block())
+    } catch (error: PutioException) {
+        SdkCall.Error(error)
+    }
 
 private fun PutioOperationException.isCodeRejection(): Boolean = (underlyingError as? PutioApiException)?.statusCode == HTTP_NOT_FOUND
 

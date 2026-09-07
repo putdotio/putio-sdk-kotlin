@@ -4,9 +4,14 @@ import io.putdotio.sdk.PutioClient
 import io.putdotio.sdk.PutioConfig
 import io.putdotio.sdk.account.AccountApi
 import io.putdotio.sdk.core.PutioTransport
+import io.putdotio.sdk.errors.PutioConfigurationException
 import io.putdotio.sdk.errors.PutioOperationException
+import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.flow.toList
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.withTimeout
+import kotlinx.coroutines.yield
 import mockwebserver3.MockResponse
 import mockwebserver3.MockWebServer
 import mockwebserver3.SocketEffect
@@ -15,8 +20,10 @@ import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 import kotlin.test.assertIs
 import kotlin.test.assertNull
+import kotlin.test.assertSame
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
+import kotlin.time.Duration.Companion.minutes
 import kotlin.time.Duration.Companion.seconds
 import kotlin.time.TestTimeSource
 
@@ -72,13 +79,13 @@ class DeviceCodeAuthTest {
         }
 
     @Test
-    fun `the budget elapsing reports expiry without another poll`() =
+    fun `the budget elapsing reports expiry after exactly the polls it allows`() =
         withServer { server ->
             server.enqueue(json(CODE_ENVELOPE))
             server.enqueue(json("""{"status":"OK","oauth_token":null}"""))
 
             val time = TestTimeSource()
-            val (orchestrator, _) = orchestrator(server, time) { time += it }
+            val (orchestrator, sleeps) = orchestrator(server, time) { time += it }
             val states = runBlocking { orchestrator.link(DeviceCodeAuthOptions(1.seconds, 2.seconds)).toList() }
 
             assertEquals(
@@ -86,6 +93,107 @@ class DeviceCodeAuthTest {
                 states.last(),
             )
             assertEquals(2, server.requestCount)
+            assertEquals(listOf(1.seconds, 1.seconds), sleeps)
+        }
+
+    @Test
+    fun `the last sleep is clipped to the remaining budget`() =
+        withServer { server ->
+            server.enqueue(json(CODE_ENVELOPE))
+            server.enqueue(json("""{"status":"OK","oauth_token":null}"""))
+
+            val time = TestTimeSource()
+            val (orchestrator, sleeps) = orchestrator(server, time) { time += it }
+            runBlocking { orchestrator.link(DeviceCodeAuthOptions(3.seconds, 4.seconds)).toList() }
+
+            assertEquals(listOf(3.seconds, 1.seconds), sleeps)
+            assertEquals(2, server.requestCount)
+        }
+
+    @Test
+    fun `a token that arrives after the deadline is treated as expired`() =
+        withServer { server ->
+            server.enqueue(json(CODE_ENVELOPE))
+            server.enqueue(json("""{"status":"OK","oauth_token":"tok-late"}"""))
+
+            val time = TestTimeSource()
+            // The poll itself takes longer than the whole budget.
+            val (orchestrator, _) = orchestrator(server, time, beforeRequest = { time += 10.seconds }) { time += it }
+            val states = runBlocking { orchestrator.link(DeviceCodeAuthOptions(1.seconds, 5.seconds)).toList() }
+
+            assertEquals(
+                DeviceCodeAuthState.Expired(DeviceCodeAuthState.Expired.Reason.BUDGET_ELAPSED),
+                states.last(),
+            )
+            assertEquals(2, server.requestCount)
+        }
+
+    @Test
+    fun `a collector exception propagates instead of becoming a Failed state`() =
+        withServer { server ->
+            server.enqueue(json(CODE_ENVELOPE))
+            server.enqueue(json("""{"status":"OK","oauth_token":"tok-1"}"""))
+            server.enqueue(json("""{"status":"OK","result":true,"user_id":7}"""))
+            server.enqueue(json(ACCOUNT_ENVELOPE))
+
+            val (orchestrator, _) = orchestrator(server)
+            val boom = PutioConfigurationException("collector refused the token")
+            val seen = mutableListOf<DeviceCodeAuthState>()
+            val thrown =
+                assertFailsWith<PutioConfigurationException> {
+                    runBlocking {
+                        orchestrator.link(fastOptions).collect { state ->
+                            seen += state
+                            if (state is DeviceCodeAuthState.Linked) throw boom
+                        }
+                    }
+                }
+            assertSame(boom, thrown)
+            assertIs<DeviceCodeAuthState.Linked>(seen.last())
+            assertEquals(4, seen.size)
+        }
+
+    @Test
+    fun `cancelling the collector during the poll delay stops without a terminal state`() =
+        withServer { server ->
+            server.enqueue(json(CODE_ENVELOPE))
+            val seen = mutableListOf<DeviceCodeAuthState>()
+            val (orchestrator, _) = orchestrator(server, sleep = { kotlinx.coroutines.delay(it) })
+            runBlocking {
+                val job =
+                    launch {
+                        orchestrator.link(DeviceCodeAuthOptions(10.seconds, 1.minutes)).collect { seen += it }
+                    }
+                withTimeout(5.seconds) {
+                    while (seen.size < 2) yield()
+                }
+                job.cancelAndJoin()
+            }
+            assertIs<DeviceCodeAuthState.AwaitingLink>(seen.last())
+            assertEquals(2, seen.size)
+            assertEquals(1, server.requestCount)
+        }
+
+    @Test
+    fun `cancelling the collector during an in-flight poll stops without a terminal state`() =
+        withServer { server ->
+            server.enqueue(json(CODE_ENVELOPE))
+            server.enqueue(
+                json(
+                    """{"status":"OK","oauth_token":"tok-1"}""",
+                ).newBuilder().headersDelay(30, java.util.concurrent.TimeUnit.SECONDS).build(),
+            )
+            val seen = mutableListOf<DeviceCodeAuthState>()
+            val (orchestrator, _) = orchestrator(server)
+            runBlocking {
+                val job = launch { orchestrator.link(fastOptions).collect { seen += it } }
+                withTimeout(5.seconds) {
+                    while (server.requestCount < 2) yield()
+                }
+                job.cancelAndJoin()
+            }
+            assertIs<DeviceCodeAuthState.AwaitingLink>(seen.last())
+            assertEquals(2, seen.size)
         }
 
     @Test
@@ -155,9 +263,9 @@ class DeviceCodeAuthTest {
         }
 
     @Test
-    fun `options reject a non-positive interval or a budget shorter than one poll`() {
+    fun `options reject a non-positive interval or a budget that allows no poll`() {
         assertFailsWith<IllegalArgumentException> { DeviceCodeAuthOptions(pollInterval = Duration.ZERO) }
-        assertFailsWith<IllegalArgumentException> { DeviceCodeAuthOptions(pollInterval = 3.seconds, budget = 1.seconds) }
+        assertFailsWith<IllegalArgumentException> { DeviceCodeAuthOptions(pollInterval = 3.seconds, budget = 3.seconds) }
         assertNull(runCatching { DeviceCodeAuthOptions() }.exceptionOrNull())
     }
 
@@ -169,10 +277,14 @@ class DeviceCodeAuthTest {
             val states =
                 runBlocking {
                     PutioClient(PutioConfig(clientId = "tv-app", baseUrl = server.url("/v2/").toString())).use { sdk ->
-                        sdk.deviceCodeAuth.link(DeviceCodeAuthOptions(1.milliseconds, 1.milliseconds)).toList()
+                        sdk.deviceCodeAuth.link(DeviceCodeAuthOptions(1.milliseconds, 10.seconds)).toList()
                     }
                 }
-            assertIs<DeviceCodeAuthState.Expired>(states.last())
+            assertEquals(
+                DeviceCodeAuthState.Expired(DeviceCodeAuthState.Expired.Reason.CODE_REJECTED),
+                states.last(),
+            )
+            assertEquals(2, server.requestCount)
         }
 
     private val fastOptions = DeviceCodeAuthOptions(pollInterval = 10.milliseconds, budget = 10.seconds)
@@ -180,13 +292,21 @@ class DeviceCodeAuthTest {
     private fun orchestrator(
         server: MockWebServer,
         timeSource: TestTimeSource = TestTimeSource(),
+        beforeRequest: () -> Unit = {},
         sleep: suspend (Duration) -> Unit = {},
     ): Pair<DeviceCodeAuth, MutableList<Duration>> {
         val sleeps = mutableListOf<Duration>()
+        val httpClient =
+            okhttp3.OkHttpClient
+                .Builder()
+                .addInterceptor { chain ->
+                    beforeRequest()
+                    chain.proceed(chain.request())
+                }.build()
         val transport =
             PutioTransport(
                 config = PutioConfig(clientId = "tv-app", clientName = "put.io TV", baseUrl = server.url("/v2/").toString()),
-                httpClient = okhttp3.OkHttpClient(),
+                httpClient = httpClient,
                 json = PutioTransport.defaultJson,
             )
         val orchestrator =
