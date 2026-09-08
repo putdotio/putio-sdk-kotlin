@@ -297,6 +297,11 @@ class DeviceCodeAuthTest {
     }
 
     @Test
+    fun `default options poll every three seconds for five minutes`() {
+        assertEquals(DeviceCodeAuthOptions(pollInterval = 3.seconds, budget = 5.minutes), DeviceCodeAuthOptions())
+    }
+
+    @Test
     fun `the client exposes the orchestrator over its own auth and account namespaces`() =
         withServer { server ->
             server.enqueue(json(CODE_ENVELOPE))

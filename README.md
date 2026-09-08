@@ -158,8 +158,8 @@ val sdk = PutioClient(
 )
 
 val loginUrl = sdk.auth.buildLoginUrl(
-    redirectUri = "putio://auth",
-    state = "android-login"
+    redirectUri = "myapp://oauth",
+    state = "login"
 )
 ```
 
