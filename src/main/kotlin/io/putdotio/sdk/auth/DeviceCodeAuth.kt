@@ -20,7 +20,6 @@ import kotlin.time.TimeSource
  * [Linked], [Expired], and [Failed]; the flow completes after emitting one.
  */
 sealed interface DeviceCodeAuthState {
-    /** Requesting a fresh code from put.io. */
     data object Requesting : DeviceCodeAuthState
 
     /** Show [code] and point the user to put.io/link; polling runs until [budget] elapses. */
@@ -30,7 +29,6 @@ sealed interface DeviceCodeAuthState {
         val budget: Duration,
     ) : DeviceCodeAuthState
 
-    /** put.io issued a token; validating it and loading the account. */
     data object Validating : DeviceCodeAuthState
 
     /** Linked. The token is unredacted here and only here; store it, do not log it. */

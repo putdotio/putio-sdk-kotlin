@@ -25,6 +25,7 @@ Pre-1.0. The public surface is deliberately smaller than [`putio-sdk-typescript`
 
 - `account`
 - `auth`
+- `deviceCodeAuth`
 - `appConfig`
 - `files`
 - `grants`
@@ -34,7 +35,7 @@ Pre-1.0. The public surface is deliberately smaller than [`putio-sdk-typescript`
 - `trash`
 - `transfers`
 
-Design: coroutine-first APIs, typed errors, explicit boundary parsing, forward-compatible value types at the API edge, and a user-facing error localization layer for recovery guidance. It follows the shape of the TypeScript SDK rather than the older Swift one.
+Design: coroutine-first APIs, typed errors, explicit boundary parsing, forward-compatible value types at the API edge, and a user-facing error localization layer for recovery guidance.
 
 The surface grows with the put.io mobile and TV apps. The primary consumer is [putio-android](https://github.com/putdotio/putio-android), which uses this SDK as its API boundary through a Gradle composite build. Covered flows:
 
@@ -51,7 +52,7 @@ The surface grows with the put.io mobile and TV apps. The primary consumer is [p
 
 ## Installation
 
-The first Maven Central release is not out yet ([#43](https://github.com/putdotio/putio-sdk-kotlin/issues/43)). Until `v0.1.0` is tagged, consume the SDK from a checkout:
+Publishing to Maven Central is wired to version tags ([Release](./docs/RELEASE.md)); the first tag, `v0.1.0`, is tracked in [#43](https://github.com/putdotio/putio-sdk-kotlin/issues/43). Until then, consume the SDK from a checkout:
 
 ```bash
 ./gradlew publishToMavenLocal -Pversion=0.1.0
@@ -164,7 +165,7 @@ val loginUrl = sdk.auth.buildLoginUrl(
 
 ## Verification
 
-The repo exposes one canonical verification command:
+Verification commands:
 
 ```bash
 ./gradlew verify
@@ -173,7 +174,7 @@ The repo exposes one canonical verification command:
 
 The repository targets JDK `21`. Install a Java `21` runtime with your preferred version manager or system package manager before running Gradle. The checked-in [.java-version](./.java-version) is only a compatibility hint for tools that choose to honor it.
 
-`verify` runs compile, `spotlessCheck` (stock ktlint rules), the `MockWebServer` unit suite, and a `90%` line coverage floor. Fix formatting findings with `./gradlew spotlessApply`.
+`verify` runs compile, `spotlessCheck` (stock ktlint rules), the `MockWebServer` unit suite, `jar`, and a `90%` line coverage floor. Fix formatting findings with `./gradlew spotlessApply`.
 
 `liveTest` runs an opt-in suite against the real put.io API and needs credentials; see [Testing](./docs/TESTING.md).
 

@@ -28,12 +28,10 @@ Default example env file:
 
 Supported environment variables:
 
-- `PUTIO_TOKEN_FIRST_PARTY`
-- `PUTIO_ACCESS_TOKEN`
-- `PUTIO_TOKEN`
+- `PUTIO_TOKEN_FIRST_PARTY` (`PUTIO_ACCESS_TOKEN` and `PUTIO_TOKEN` are accepted fallbacks)
 - `PUTIO_CLIENT_ID`
 - `PUTIO_PLAYBACK_FIXTURE_ID` (stable owned, converted video in the dedicated profile)
-- `PUTIO_BASE_URL`
+- `PUTIO_BASE_URL` (optional, defaults to `https://api.put.io/v2/`)
 
 Run `make secrets-setup` with `PUTIO_SDK_KOTLIN_SOPS_FILE` pointing to the
 maintainer-supplied SOPS ciphertext. The command requires SOPS 3.10 or newer

@@ -4,7 +4,7 @@
 
 - Standalone Kotlin SDK repo for the put.io API
 - Public package bootstrap focused on Android-friendly Kotlin consumers
-- Current namespace scope: `account`, `auth`, `appConfig`, `files`, `grants`, `history`, `ifttt`, `routes`, `trash`, and `transfers`
+- Current namespace scope: `account`, `auth`, `deviceCodeAuth`, `appConfig`, `files`, `grants`, `history`, `ifttt`, `routes`, `trash`, and `transfers`
 
 ## Start Here
 
