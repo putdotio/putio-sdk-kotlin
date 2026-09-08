@@ -11,6 +11,7 @@ graph LR
   Consumer["consumer app"] --> Client["PutioClient"]
   Client --> Account["account namespace"]
   Client --> Auth["auth namespace"]
+  Client --> DeviceCode["deviceCodeAuth orchestrator"]
   Client --> Config["appConfig namespace"]
   Client --> Files["files namespace"]
   Client --> Grants["grants namespace"]
@@ -21,6 +22,8 @@ graph LR
   Client --> Transfers["transfers namespace"]
   Account --> Transport["shared transport"]
   Auth --> Transport
+  DeviceCode --> Auth
+  DeviceCode --> Account
   Config --> Transport
   Files --> Transport
   Grants --> Transport
@@ -46,7 +49,7 @@ graph LR
 
 ## Design Rules
 
-- keep the public surface closer to `putio-sdk-typescript` than the legacy Swift SDK
+- keep the public surface close to `putio-sdk-typescript`
 - use coroutine-first suspend APIs for network operations
 - parse response JSON at the boundary with `kotlinx.serialization`
 - preserve unknown backend string values in public value types instead of failing whole payloads
@@ -184,6 +187,7 @@ Consumers handle `PlaybackConversionState` as follows:
 ## Error Context
 
 - `files.get` and `files.createFolder` require `status: "OK"` before returning the response file; non-OK HTTP 2xx envelopes are typed serialization failures
+- `files.delete` requires `status: "OK"`, a nonnegative `skipped`, and a non-blank `cursor` when present; `files.move` requires `status: "OK"` and an `errors` list
 - `OkResponse` requires `status: "OK"`; a non-OK acknowledgement on HTTP 2xx is a serialization failure with operation context
 - Trash list decoding requires explicit files and nonnegative initial totals; continuation may omit totals, so consumers retain the initial aggregates instead of replacing them with continuation defaults
 - domain namespaces wrap SDK failures with `domain.operation` context before surfacing them to consumers
@@ -194,6 +198,5 @@ Consumers handle `PlaybackConversionState` as follows:
 ## What This Package Is Not
 
 - not a generated OpenAPI dump
-- not a callback-oriented wrapper around the old Swift SDK
 - not a full namespace-by-namespace parity port on day one
 - not tied to Android UI code or app lifecycle types

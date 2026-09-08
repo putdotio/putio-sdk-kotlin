@@ -7,6 +7,7 @@ import io.putdotio.sdk.core.PutioTransport
 import io.putdotio.sdk.errors.PutioConfigurationException
 import io.putdotio.sdk.errors.PutioOperationException
 import kotlinx.coroutines.cancelAndJoin
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
@@ -15,11 +16,11 @@ import kotlinx.coroutines.yield
 import mockwebserver3.MockResponse
 import mockwebserver3.MockWebServer
 import mockwebserver3.SocketEffect
+import java.util.concurrent.TimeUnit
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 import kotlin.test.assertIs
-import kotlin.test.assertNull
 import kotlin.test.assertSame
 import kotlin.test.assertTrue
 import kotlin.time.Duration
@@ -136,11 +137,11 @@ class DeviceCodeAuthTest {
             server.enqueue(
                 json("""{"status":"OK","oauth_token":"tok-1"}""")
                     .newBuilder()
-                    .headersDelay(30, java.util.concurrent.TimeUnit.SECONDS)
+                    .headersDelay(30, TimeUnit.SECONDS)
                     .build(),
             )
 
-            val (orchestrator, _) = orchestrator(server, sleep = { kotlinx.coroutines.delay(it) })
+            val (orchestrator, _) = orchestrator(server, sleep = { delay(it) })
             val elapsed =
                 kotlin.system.measureTimeMillis {
                     val states =
@@ -185,7 +186,7 @@ class DeviceCodeAuthTest {
         withServer { server ->
             server.enqueue(json(CODE_ENVELOPE))
             val seen = mutableListOf<DeviceCodeAuthState>()
-            val (orchestrator, _) = orchestrator(server, sleep = { kotlinx.coroutines.delay(it) })
+            val (orchestrator, _) = orchestrator(server, sleep = { delay(it) })
             runBlocking {
                 val job =
                     launch {
@@ -208,7 +209,7 @@ class DeviceCodeAuthTest {
             server.enqueue(
                 json(
                     """{"status":"OK","oauth_token":"tok-1"}""",
-                ).newBuilder().headersDelay(30, java.util.concurrent.TimeUnit.SECONDS).build(),
+                ).newBuilder().headersDelay(30, TimeUnit.SECONDS).build(),
             )
             val seen = mutableListOf<DeviceCodeAuthState>()
             val (orchestrator, _) = orchestrator(server)
@@ -293,7 +294,11 @@ class DeviceCodeAuthTest {
     fun `options reject a non-positive interval or a budget that allows no poll`() {
         assertFailsWith<IllegalArgumentException> { DeviceCodeAuthOptions(pollInterval = Duration.ZERO) }
         assertFailsWith<IllegalArgumentException> { DeviceCodeAuthOptions(pollInterval = 3.seconds, budget = 3.seconds) }
-        assertNull(runCatching { DeviceCodeAuthOptions() }.exceptionOrNull())
+    }
+
+    @Test
+    fun `default options poll every three seconds for five minutes`() {
+        assertEquals(DeviceCodeAuthOptions(pollInterval = 3.seconds, budget = 5.minutes), DeviceCodeAuthOptions())
     }
 
     @Test

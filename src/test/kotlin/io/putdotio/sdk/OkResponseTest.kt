@@ -14,12 +14,8 @@ class OkResponseTest {
     }
 
     @Test
-    fun `valid acknowledgement roundtrip preserves optional fields`() {
-        val response = OkResponse("OK", cursor = "cursor", skipped = 2)
-
-        val encoded = Json.encodeToString(OkResponse.serializer(), response)
-
-        assertEquals(response, Json.decodeFromString(OkResponse.serializer(), encoded))
+    fun `a bare OK acknowledgement decodes with no cursor or skipped count`() {
+        assertEquals(OkResponse("OK"), Json.decodeFromString(OkResponse.serializer(), """{"status":"OK"}"""))
     }
 
     @Test
