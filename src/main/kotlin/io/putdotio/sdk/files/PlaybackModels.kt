@@ -4,6 +4,7 @@ import io.putdotio.sdk.account.AccountDownloadToken
 import io.putdotio.sdk.errors.PutioTransportFailureKind
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
+import okhttp3.HttpUrl
 import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
 
 enum class PlaybackPreference {
@@ -130,11 +131,15 @@ sealed interface PlaybackConversionState {
 class PutioCredentialUrl internal constructor(
     val value: String,
 ) {
+    private val parsed: HttpUrl by lazy {
+        requireNotNull(value.toHttpUrlOrNull()) { "Invalid credential URL" }
+    }
+
     val encodedPath: String
-        get() = parsedUrl().encodedPath
+        get() = parsed.encodedPath
 
     val queryParameterNames: Set<String>
-        get() = parsedUrl().queryParameterNames
+        get() = parsed.queryParameterNames
 
     override fun equals(other: Any?): Boolean = other is PutioCredentialUrl && value == other.value
 
@@ -142,10 +147,14 @@ class PutioCredentialUrl internal constructor(
 
     override fun toString(): String = "<redacted credential URL>"
 
-    private fun parsedUrl() =
-        requireNotNull(value.toHttpUrlOrNull()) {
-            "Invalid credential URL"
-        }
+    companion object {
+        /**
+         * Wraps a media URL the consumer already holds under the redaction contract,
+         * for example a downloaded rendition it replays through its own cache.
+         * Validates once; the internal constructor keeps the resolver's lazy contract.
+         */
+        fun of(value: String): PutioCredentialUrl = PutioCredentialUrl(value).also { it.parsed }
+    }
 }
 
 @Serializable
