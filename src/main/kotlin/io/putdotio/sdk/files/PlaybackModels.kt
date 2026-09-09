@@ -146,6 +146,17 @@ class PutioCredentialUrl internal constructor(
         requireNotNull(value.toHttpUrlOrNull()) {
             "Invalid credential URL"
         }
+
+    companion object {
+        /**
+         * Wraps a media URL the consumer already holds under the redaction contract,
+         * for example a downloaded rendition it replays through its own cache.
+         */
+        fun of(value: String): PutioCredentialUrl {
+            require(value.toHttpUrlOrNull() != null) { "Invalid credential URL" }
+            return PutioCredentialUrl(value)
+        }
+    }
 }
 
 @Serializable
