@@ -560,6 +560,16 @@ class FilesPlaybackApiTest {
     }
 
     @Test
+    fun `consumer-owned credential URLs validate at construction and stay redacted`() {
+        val url = PutioCredentialUrl.of("https://api.put.io/v2/files/7/hls/media.m3u8?subtitle_key=all")
+        assertEquals("/v2/files/7/hls/media.m3u8", url.encodedPath)
+        assertEquals(setOf("subtitle_key"), url.queryParameterNames)
+        assertEquals("<redacted credential URL>", url.toString())
+        val error = assertFailsWith<IllegalArgumentException> { PutioCredentialUrl.of("not a url") }
+        assertEquals("Invalid credential URL", error.message)
+    }
+
+    @Test
     fun `search uses files search endpoint`() =
         withServer { server ->
             server.enqueue(
