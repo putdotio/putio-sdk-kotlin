@@ -906,6 +906,10 @@ class FilesApiTest {
             sdk.files.buildAudioStreamUrl(fileId = 10, accessToken = "abc"),
         )
         assertEquals(
+            "https://api.put.io/v2/files/12/stream?oauth_token=abc",
+            sdk.files.buildOriginalStreamUrl(fileId = 12, accessToken = "abc"),
+        )
+        assertEquals(
             "https://api.put.io/v2/files/10/hls/media.m3u8?oauth_token=abc&subtitle_key=all",
             sdk.files.buildHlsStreamUrl(fileId = 10, accessToken = "abc"),
         )
