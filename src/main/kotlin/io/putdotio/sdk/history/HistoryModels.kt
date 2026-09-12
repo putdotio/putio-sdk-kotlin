@@ -10,7 +10,7 @@ value class HistoryEventType(
     val raw: String,
 ) {
     val isKnown: Boolean
-        get() = knownValues[raw] == this
+        get() = raw in knownValues
 
     override fun toString(): String = raw
 
@@ -28,6 +28,13 @@ value class HistoryEventType(
         val VOUCHER = HistoryEventType("voucher")
         val ZIP_CREATED = HistoryEventType("zip_created")
         val OTHER = HistoryEventType("other")
+
+        @Deprecated(
+            "The API sends file_from_rss_deleted_for_space; this name never matched an event.",
+            ReplaceWith("FILE_FROM_RSS_DELETED_FOR_SPACE"),
+        )
+        val FILE_FROM_RSS_DELETED_ERROR: HistoryEventType
+            get() = FILE_FROM_RSS_DELETED_FOR_SPACE
 
         private val knownValues =
             listOf(
