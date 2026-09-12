@@ -10,31 +10,32 @@ value class HistoryEventType(
     val raw: String,
 ) {
     val isKnown: Boolean
-        get() = this in knownValues
+        get() = knownValues[raw] == this
 
     override fun toString(): String = raw
 
     companion object {
-        val UPLOAD = HistoryEventType("UPLOAD")
-        val FILE_SHARED = HistoryEventType("FILE_SHARED")
-        val TRANSFER_COMPLETED = HistoryEventType("TRANSFER_COMPLETED")
-        val TRANSFER_ERROR = HistoryEventType("TRANSFER_ERROR")
-        val FILE_FROM_RSS_DELETED_ERROR = HistoryEventType("FILE_FROM_RSS_DELETED_ERROR")
-        val RSS_FILTER_PAUSED = HistoryEventType("RSS_FILTER_PAUSED")
-        val TRANSFER_FROM_RSS_ERROR = HistoryEventType("TRANSFER_FROM_RSS_ERROR")
-        val TRANSFER_CALLBACK_ERROR = HistoryEventType("TRANSFER_CALLBACK_ERROR")
-        val PRIVATE_TORRENT_PIN = HistoryEventType("PRIVATE_TORRENT_PIN")
-        val VOUCHER = HistoryEventType("VOUCHER")
-        val ZIP_CREATED = HistoryEventType("ZIP_CREATED")
-        val OTHER = HistoryEventType("OTHER")
+        // Wire values as the API sends them, lowercase; see putio-sdk-typescript events.ts.
+        val UPLOAD = HistoryEventType("upload")
+        val FILE_SHARED = HistoryEventType("file_shared")
+        val TRANSFER_COMPLETED = HistoryEventType("transfer_completed")
+        val TRANSFER_ERROR = HistoryEventType("transfer_error")
+        val FILE_FROM_RSS_DELETED_FOR_SPACE = HistoryEventType("file_from_rss_deleted_for_space")
+        val RSS_FILTER_PAUSED = HistoryEventType("rss_filter_paused")
+        val TRANSFER_FROM_RSS_ERROR = HistoryEventType("transfer_from_rss_error")
+        val TRANSFER_CALLBACK_ERROR = HistoryEventType("transfer_callback_error")
+        val PRIVATE_TORRENT_PIN = HistoryEventType("private_torrent_pin")
+        val VOUCHER = HistoryEventType("voucher")
+        val ZIP_CREATED = HistoryEventType("zip_created")
+        val OTHER = HistoryEventType("other")
 
         private val knownValues =
-            setOf(
+            listOf(
                 UPLOAD,
                 FILE_SHARED,
                 TRANSFER_COMPLETED,
                 TRANSFER_ERROR,
-                FILE_FROM_RSS_DELETED_ERROR,
+                FILE_FROM_RSS_DELETED_FOR_SPACE,
                 RSS_FILTER_PAUSED,
                 TRANSFER_FROM_RSS_ERROR,
                 TRANSFER_CALLBACK_ERROR,
@@ -42,24 +43,10 @@ value class HistoryEventType(
                 VOUCHER,
                 ZIP_CREATED,
                 OTHER,
-            )
+            ).associateBy { it.raw }
 
-        fun fromRaw(raw: String): HistoryEventType =
-            when (raw) {
-                UPLOAD.raw -> UPLOAD
-                FILE_SHARED.raw -> FILE_SHARED
-                TRANSFER_COMPLETED.raw -> TRANSFER_COMPLETED
-                TRANSFER_ERROR.raw -> TRANSFER_ERROR
-                FILE_FROM_RSS_DELETED_ERROR.raw -> FILE_FROM_RSS_DELETED_ERROR
-                RSS_FILTER_PAUSED.raw -> RSS_FILTER_PAUSED
-                TRANSFER_FROM_RSS_ERROR.raw -> TRANSFER_FROM_RSS_ERROR
-                TRANSFER_CALLBACK_ERROR.raw -> TRANSFER_CALLBACK_ERROR
-                PRIVATE_TORRENT_PIN.raw -> PRIVATE_TORRENT_PIN
-                VOUCHER.raw -> VOUCHER
-                ZIP_CREATED.raw -> ZIP_CREATED
-                OTHER.raw -> OTHER
-                else -> HistoryEventType(raw)
-            }
+        /** Known types match regardless of case and keep their canonical raw value; others keep theirs. */
+        fun fromRaw(raw: String): HistoryEventType = knownValues[raw.lowercase()] ?: HistoryEventType(raw)
     }
 
     object Serializer : RawStringValueSerializer<HistoryEventType>("HistoryEventType") {
