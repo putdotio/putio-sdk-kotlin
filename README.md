@@ -45,7 +45,7 @@ The surface grows with the put.io mobile and TV apps. The primary consumer is [p
 - app-scoped config and tunnel route reads for playback and network preferences
 - file listing/search, cursor continuation, subtitles, file management, next-media lookup, MP4 conversion, and playback resume helpers
 - typed HLS/MP4/original playback resolution using an app-supplied preference and account download token
-- history event listing and deletion flows
+- history event listing and deletion flows; `HistoryEventType` constants carry the API's lowercase wire values (`transfer_completed`, `file_shared`, ...), `fromRaw` matches any casing to the canonical constant and keeps unknown types verbatim, and `FILE_FROM_RSS_DELETED_ERROR` is a deprecated alias of `FILE_FROM_RSS_DELETED_FOR_SPACE`
 - IFTTT playback event sending
 - trash listing, cursor continuation, restore, delete, and empty flows
 - transfer listing, cursor continuation, add/cancel/clean/retry, count, and info flows

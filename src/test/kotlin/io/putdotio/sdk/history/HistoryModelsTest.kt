@@ -2,6 +2,7 @@ package io.putdotio.sdk.history
 
 import kotlinx.serialization.decodeFromString
 import kotlinx.serialization.json.Json
+import java.util.Locale
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
@@ -42,6 +43,31 @@ class HistoryModelsTest {
     }
 
     @Test
+    fun `history events decode the lowercase wire type as the known value`() {
+        val event =
+            json.decodeFromString(
+                HistoryEvent.serializer(),
+                """{"id":1,"user_id":2,"type":"transfer_completed","created_at":"2026-09-09T15:25:32","file_id":3}""",
+            )
+
+        assertEquals(HistoryEventType.TRANSFER_COMPLETED, event.type)
+        assertTrue(event.type.isKnown)
+    }
+
+    @Test
+    fun `history event types fold case without the host locale`() {
+        // Kotlin's lowercase() is locale-invariant; a Turkish default would map I to dotless i otherwise.
+        val previous = Locale.getDefault()
+        Locale.setDefault(Locale.forLanguageTag("tr-TR"))
+        try {
+            assertEquals(HistoryEventType.FILE_SHARED, HistoryEventType.fromRaw("FILE_SHARED"))
+            assertEquals(HistoryEventType.PRIVATE_TORRENT_PIN, HistoryEventType.fromRaw("PRIVATE_TORRENT_PIN"))
+        } finally {
+            Locale.setDefault(previous)
+        }
+    }
+
+    @Test
     fun `history list response preserves explicit pagination state`() {
         val response =
             json.decodeFromString(
@@ -61,8 +87,11 @@ class HistoryModelsTest {
             HistoryListQuery(perPage = 25, before = 42).toQueryMap(),
         )
 
-        val known = HistoryEventType.fromRaw("TRANSFER_COMPLETED")
+        val known = HistoryEventType.fromRaw("transfer_completed")
         assertTrue(known.isKnown)
         assertEquals(HistoryEventType.TRANSFER_COMPLETED, known)
+        assertEquals(HistoryEventType.TRANSFER_COMPLETED, HistoryEventType.fromRaw("TRANSFER_COMPLETED"))
+        assertEquals("transfer_completed", HistoryEventType.fromRaw("TRANSFER_COMPLETED").raw)
+        assertFalse(HistoryEventType("TRANSFER_COMPLETED").isKnown)
     }
 }

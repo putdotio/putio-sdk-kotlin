@@ -29,7 +29,7 @@ class HistoryApiTest {
                             {
                               "id": 1,
                               "user_id": 42,
-                              "type": "TRANSFER_COMPLETED",
+                              "type": "transfer_completed",
                               "created_at": "2026-04-20T10:00:00Z",
                               "file_id": 99,
                               "file_name": "Movie.mkv"
