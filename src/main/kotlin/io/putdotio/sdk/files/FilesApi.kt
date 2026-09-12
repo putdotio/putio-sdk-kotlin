@@ -368,7 +368,11 @@ class FilesApi internal constructor(
         accessToken: String,
     ): String = buildOriginalStreamUrl(fileId = fileId, accessToken = accessToken)
 
-    internal fun buildOriginalStreamUrl(
+    /**
+     * The original file as put.io stores it, for players that decode it themselves (libVLC,
+     * an external player). Video callers that want put.io's transcode use [buildStreamUrl].
+     */
+    fun buildOriginalStreamUrl(
         fileId: Long,
         accessToken: String,
     ): String =
