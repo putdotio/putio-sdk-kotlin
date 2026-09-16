@@ -4,7 +4,7 @@
 
 - Standalone Kotlin SDK repo for the put.io API
 - Public package bootstrap focused on Android-friendly Kotlin consumers
-- Current namespace scope: `account`, `auth`, `deviceCodeAuth`, `appConfig`, `files`, `grants`, `history`, `ifttt`, `routes`, `trash`, and `transfers`
+- Namespaces and operations: [Architecture](./docs/ARCHITECTURE.md#current-namespace-scope)
 
 ## Start Here
 
@@ -16,27 +16,21 @@
 
 ## Commands
 
-- `./gradlew verify`
-- `./gradlew test`
-- `./gradlew liveTest`
-- `./gradlew spotlessApply`
-- `./gradlew publishToMavenLocal -Pversion=X.Y.Z`
-- `make secrets-setup`
-- `make secrets-clean`
+- `./gradlew verify` — canonical local and CI guardrail; task graph in [build.gradle.kts](./build.gradle.kts)
+- `./gradlew test` — unit suite only
+- `./gradlew liveTest` — opt-in live suite; needs credentials from [Testing](./docs/TESTING.md#live-environment)
+- `./gradlew spotlessApply` — fix formatting findings
+- `./gradlew publishToMavenLocal -Pversion=X.Y.Z` — local dry run; see [Release](./docs/RELEASE.md#local-dry-run)
+- `make secrets-setup` / `make secrets-clean` — write or remove the ignored live-test `.env.local` from `PUTIO_SDK_KOTLIN_SOPS_FILE` ([Makefile](./Makefile))
 
 ## Worktrees
 
-`.worktreeinclude` carries `.env` files into Codex and Claude worktrees. Run
-`./gradlew verify`; use `make secrets-setup` with
-`PUTIO_SDK_KOTLIN_SOPS_FILE` if live-test env is missing or stale.
+`.worktreeinclude` carries `.env` and `.env.local` into Codex and Claude worktrees.
+Run `make secrets-setup` if the live-test env is missing or stale.
 
 ## Repo-Specific Guidance
 
-- Mirror the domain-first public API shape of `putio-sdk-typescript`
-- Prefer coroutine-first suspend functions and typed SDK errors
-- Live tests accept maintainer-supplied `PUTIO_SDK_KOTLIN_SOPS_FILE`; `make secrets-setup` validates and writes ignored `.env.local`, and `make secrets-clean` removes it.
-- Parse external data at the boundary and keep models domain-first
-- Keep the namespace surface intentionally small until a real app use case proves expansion
-- Use `./gradlew verify` as the canonical local and CI guardrail
+- Follow the [design rules](./docs/ARCHITECTURE.md#design-rules): mirror the domain-first API shape of `putio-sdk-typescript`, coroutine-first suspend functions, typed SDK errors, parsing at the boundary
+- Keep the namespace surface small until a real app use case proves expansion
 - Update docs when the public surface, verification flow, or publishing story changes
 - Keep `README.md` consumer-facing and use `docs/*` for repo-operator detail

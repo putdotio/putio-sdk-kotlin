@@ -1,17 +1,6 @@
 # SDK Readiness
 
-This document tracks how ready `putio-sdk-kotlin` is for autonomous agent work and public package maintenance.
-
-## Overall Status
-
-- deterministic unit verification exists under `src/test/kotlin`
-- opt-in live verification exists under `src/liveTest/kotlin`
-- `./gradlew verify` now enforces compile, unit-test, jar, and a `90%` line coverage floor
-- the first-party Android app's CI builds an R8-minified minSdk 26 release through the composite SDK on every change
-- typed exceptions now feed a user-facing localization layer for recovery guidance
-- `deviceCodeAuth.link()` orchestrates TV-style linking as a flow with a redacted `Linked` state
-- files, trash, move, and delete envelopes reject non-OK HTTP 2xx bodies at the boundary
-- `./gradlew liveTest` remains the real API verification lane
+How ready `putio-sdk-kotlin` is for autonomous agent work and public package maintenance. Unit tests live under `src/test/kotlin`, the opt-in live suite under `src/liveTest/kotlin`; [Testing](./TESTING.md) has the commands.
 
 ## Current Confidence
 
@@ -25,6 +14,6 @@ This document tracks how ready `putio-sdk-kotlin` is for autonomous agent work a
 
 ## Highest-Value Next Gaps
 
-1. decide whether IFTTT should grow beyond playback events into a generic event surface (the device-code orchestrator for TV auth landed in #45)
+1. decide whether IFTTT should grow beyond playback events into a generic event surface
 2. deepen deterministic coverage for more conditional payload branches and transport failure paths so the `90%` floor stays comfortable as the surface grows
 3. expand live verification as new safe namespaces land, following the shared-account rules

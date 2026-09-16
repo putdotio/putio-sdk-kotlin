@@ -1,9 +1,5 @@
 # SDK Overview
 
-## Goal
-
-Explain the actual `putio-sdk-kotlin` package shape for humans and agents.
-
 ## System View
 
 ```mermaid
@@ -56,6 +52,7 @@ graph LR
 - keep operator-facing exceptions typed, wrap API failures in `domain.operation` context, and derive user-facing recovery guidance separately through `PutioErrorLocalizer`
 - keep namespaces small and explicit until app needs prove expansion
 - prefer transport helpers and typed models over generic JSON bags
+- no Android UI or app lifecycle types in the SDK
 
 ## Current Namespace Scope
 
@@ -101,7 +98,7 @@ graph LR
   - `getStartFrom`
   - `setStartFrom`
   - `resetStartFrom`
-  - direct download, raw stream, and type-aware stream URL builders
+  - `buildDownloadUrl`, `buildMp4DownloadUrl`, `buildStreamUrl`, `buildHlsStreamUrl`, `buildOriginalStreamUrl`, `buildAudioStreamUrl`
 - `grants`
   - `list`
   - `revoke`
@@ -110,6 +107,7 @@ graph LR
   - `list`
   - `delete`
   - `clear`
+  - `HistoryEventType` constants carry the API's lowercase wire values (`transfer_completed`, `file_shared`, ...); `fromRaw` matches any casing to the canonical constant and keeps unknown types verbatim; `FILE_FROM_RSS_DELETED_ERROR` is a deprecated alias of `FILE_FROM_RSS_DELETED_FOR_SPACE`
 - `ifttt`
   - `sendPlaybackEvent`
 - `routes`
@@ -163,10 +161,9 @@ the app passes it as `PlaybackRequest.useStartFrom`, while the per-file offset r
 `start_from` (`PlaybackSource.startFromSeconds`). Optional sidecar subtitle failures do
 not block an otherwise ready source: consumers receive `PlaybackSubtitles.Unavailable`
 with a typed API, transport, or invalid-response reason and may show a non-blocking
-warning. Authentication failures still surface normally.
-Next-file
-lookup stays on `FilesApi.findNextFile` so an autoplay lookup failure cannot block the
-current playback source.
+warning. Authentication failures still surface normally. Next-file lookup stays on
+`FilesApi.findNextFile` so an autoplay lookup failure cannot block the current playback
+source.
 
 When a video still needs conversion, resolution reads the canonical
 `GET /files/{id}/mp4` status endpoint. The backend may use that read to recover an
@@ -194,9 +191,3 @@ Consumers handle `PlaybackConversionState` as follows:
 - `PutioErrorLocalizer` can layer operation-specific recovery guidance on top of the underlying typed API or transport error
 - transport exceptions expose a stable failure kind and retain sanitized timeout, DNS, connection, TLS, protocol, and I/O cause types
 - SDK-created exceptions redact credential-bearing query values from request URLs while retaining the method, path, query names, and non-sensitive query values
-
-## What This Package Is Not
-
-- not a generated OpenAPI dump
-- not a full namespace-by-namespace parity port on day one
-- not tied to Android UI code or app lifecycle types

@@ -8,25 +8,19 @@
 ./gradlew liveTest
 ```
 
-Install a Java `21` runtime with your preferred version manager or system package manager before running these commands. The checked-in `.java-version` is only a compatibility hint for tools that choose to honor it.
+Install a Java `21` runtime before running these commands. The checked-in [.java-version](../.java-version) is only a compatibility hint for tools that choose to honor it.
 
 ## Current Verification Shape
 
-- `./gradlew test` runs the repository test suite
-- `./gradlew verify` is the canonical guardrail: compile, `spotlessCheck`, test, jar, and a `90%` line coverage floor
-- GitHub Actions runs the default verify lane on `ubuntu-24.04-arm`
-- request and response behavior is exercised with `MockWebServer`
-- the unit suite also exercises the localized user-facing error mapping layer
-- `./gradlew liveTest` runs an opt-in live suite against the real put.io API and is excluded from the default `test` and `verify` tasks
+- `./gradlew test` runs the unit suite; request and response behavior is exercised with `MockWebServer`, including the localized user-facing error mapping layer
+- `./gradlew verify` is the canonical guardrail: `check` (test plus `spotlessCheck`), `jar`, and the `90%` line coverage floor defined in [build.gradle.kts](../build.gradle.kts)
+- [ci.yml](../.github/workflows/ci.yml) runs the same `verify` lane on `ubuntu-24.04-arm` with Temurin 21
+- `./gradlew liveTest` runs the opt-in live suite against the real put.io API; it is excluded from `test` and `verify`
 - JaCoCo HTML and XML reports are written under `build/reports/jacoco/test`
 
 ## Live Environment
 
-Default example env file:
-
-- `.env.example`
-
-Supported environment variables:
+Copy [.env.example](../.env.example) when using your own credentials. Supported environment variables:
 
 - `PUTIO_TOKEN_FIRST_PARTY` (`PUTIO_ACCESS_TOKEN` and `PUTIO_TOKEN` are accepted fallbacks)
 - `PUTIO_CLIENT_ID`
@@ -41,8 +35,6 @@ already-exported environment variables keep highest priority. Run
 `make secrets-clean` before removing the worktree.
 
 ## Live Scope
-
-The first live layer follows the TypeScript SDK convention of separating safe runtime verification from the default unit suite.
 
 Current live targets cover:
 
