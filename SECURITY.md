@@ -23,7 +23,6 @@ Useful reports usually include issues involving:
 
 - test only against accounts, environments, and data you control
 - keep testing non-destructive, low-volume, and service-safe
-- use private email for suspected vulnerabilities
 
 ## Credential-bearing URLs
 
@@ -34,8 +33,8 @@ Useful reports usually include issues involving:
 
 ## Supported Versions
 
-Only the latest release on Maven Central (`io.put:putio-sdk-kotlin`) and the
-current `main` branch receive fixes.
+Only the current `main` branch and the latest `io.put:putio-sdk-kotlin`
+release receive fixes.
 
 ## Disclosure
 
