@@ -62,9 +62,7 @@ suspend fun loadAccount() {
 
 ## Status
 
-Pre-1.0. The public surface is deliberately smaller than [`putio-sdk-typescript`](https://github.com/putdotio/putio-sdk-typescript): `account`, `auth`, `deviceCodeAuth`, `appConfig`, `files`, `grants`, `history`, `ifttt`, `routes`, `trash`, and `transfers` namespaces; operations per namespace are listed in [Architecture](./docs/ARCHITECTURE.md#current-namespace-scope)
-
-Design: coroutine-first APIs, typed errors, explicit boundary parsing, forward-compatible value types at the API edge, and a user-facing error localization layer for recovery guidance.
+Pre-1.0. The public surface is deliberately smaller than [`putio-sdk-typescript`](https://github.com/putdotio/putio-sdk-typescript); [Architecture](./docs/ARCHITECTURE.md#current-namespace-scope) lists the namespaces and operations.
 
 The surface grows with the put.io mobile and TV apps. The primary consumer is [putio-android](https://github.com/putdotio/putio-android), which uses this SDK as its API boundary through a Gradle composite build.
 
@@ -145,7 +143,7 @@ val loginUrl = sdk.auth.buildLoginUrl(
 ./gradlew liveTest
 ```
 
-Both need a Java `21` runtime. `verify` runs compile, `spotlessCheck` (stock ktlint rules), the `MockWebServer` unit suite, `jar`, and a `90%` line coverage floor; `./gradlew spotlessApply` fixes formatting findings. `liveTest` is opt-in against the real put.io API and needs credentials; see [Testing](./docs/TESTING.md).
+Both need a Java `21` runtime. `verify` is the deterministic gate; `liveTest` is opt-in against the real put.io API and needs credentials. [Testing](./docs/TESTING.md) covers both.
 
 ## Docs
 
