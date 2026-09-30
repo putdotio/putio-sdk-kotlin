@@ -120,6 +120,10 @@ sealed interface PlaybackConversionState {
 
     data object Failed : PlaybackConversionState
 
+    /**
+     * The file needs conversion but none has been requested. Not terminal:
+     * [FilesApi.startMp4Conversion] moves it to [Queued] or [Converting].
+     */
     data object NotAvailable : PlaybackConversionState
 
     data class Unknown(
