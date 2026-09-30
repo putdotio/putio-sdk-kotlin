@@ -3,6 +3,7 @@ package io.putdotio.sdk.files
 import io.putdotio.sdk.PutioClient
 import io.putdotio.sdk.PutioConfig
 import io.putdotio.sdk.errors.PutioApiException
+import io.putdotio.sdk.errors.PutioKnownErrorContract
 import io.putdotio.sdk.errors.PutioOperationErrorReason
 import io.putdotio.sdk.errors.PutioOperationException
 import io.putdotio.sdk.errors.PutioSerializationException
@@ -867,6 +868,85 @@ class FilesApiTest {
             val underlying = assertIs<PutioApiException>(error.underlyingError)
             assertEquals(404, underlying.statusCode)
             assertEquals("NOT_FOUND", underlying.errorType)
+        }
+
+    @Test
+    fun `getDownloadUrl returns the api-issued url without the account token`() =
+        withServer { server ->
+            val issuedUrl = "https://s100.put.io/download/10?token=ip-bound"
+            server.enqueue(
+                MockResponse
+                    .Builder()
+                    .body("""{"status":"OK","url":"$issuedUrl"}""")
+                    .build(),
+            )
+
+            val url = runBlocking { client(server).use { it.files.getDownloadUrl(fileId = 10) } }
+
+            assertEquals(issuedUrl, url.value)
+            assertEquals("<redacted credential URL>", url.toString())
+            val request = server.takeRequest()
+            assertEquals("GET", request.method)
+            assertEquals("/v2/files/10/url", request.target)
+        }
+
+    @Test
+    fun `getDownloadUrl maps known api failures to its contracts`() =
+        withServer { server ->
+            val cases =
+                listOf(
+                    Triple(401, "invalid_scope", PutioKnownErrorContract(errorType = "invalid_scope", statusCode = 401)),
+                    Triple(402, "PAYMENT_REQUIRED", PutioKnownErrorContract(statusCode = 402)),
+                    Triple(404, "NOT_FOUND", PutioKnownErrorContract(statusCode = 404)),
+                )
+
+            runBlocking {
+                client(server).use { sdk ->
+                    cases.forEach { (statusCode, errorType, contract) ->
+                        server.enqueue(
+                            MockResponse
+                                .Builder()
+                                .code(statusCode)
+                                .body(
+                                    """{"status":"ERROR","status_code":$statusCode,"error_type":"$errorType","message":"no"}""",
+                                ).build(),
+                        )
+                        val error =
+                            assertFailsWith<PutioOperationException>(errorType) {
+                                sdk.files.getDownloadUrl(fileId = 10)
+                            }
+                        assertEquals("files", error.domain)
+                        assertEquals("getDownloadUrl", error.operation)
+                        assertEquals(contract, error.contract)
+                        assertEquals(statusCode, assertIs<PutioApiException>(error.underlyingError).statusCode)
+                    }
+                }
+            }
+        }
+
+    @Test
+    fun `getDownloadUrl rejects invalid successful response envelopes with typed operation errors`() =
+        withServer { server ->
+            val invalidResponses =
+                listOf(
+                    """{"status":"ERROR","url":"https://s100.put.io/download/10"}""",
+                    """{"status":"OK","url":"not a url"}""",
+                    """{"status":"OK"}""",
+                )
+
+            runBlocking {
+                client(server).use { sdk ->
+                    invalidResponses.forEach { body ->
+                        server.enqueue(MockResponse.Builder().body(body).build())
+                        val error =
+                            assertFailsWith<PutioOperationException>(body) {
+                                sdk.files.getDownloadUrl(fileId = 10)
+                            }
+                        assertEquals("getDownloadUrl", error.operation)
+                        assertIs<PutioSerializationException>(error.underlyingError)
+                    }
+                }
+            }
         }
 
     @Test

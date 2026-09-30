@@ -41,7 +41,7 @@ Current live targets cover:
 - token validation, OOB auth-code fetch, and the device-code orchestrator reaching `AwaitingLink` then `Expired` on a one-poll budget
 - account info and reversible account settings mutation
 - disposable file create, search, trash restore, and cleanup flows
-- playback source resolution, subtitles decode, and reversible start-from roundtrips for owned video fixtures
+- playback source resolution, API-issued download URLs, subtitles decode, and reversible start-from roundtrips for owned video fixtures
 - read-only user config, OAuth grants, and tunnel routes decode
 - history listing decode against the real API
 - transfer list/count/info decode and typed pagination errors

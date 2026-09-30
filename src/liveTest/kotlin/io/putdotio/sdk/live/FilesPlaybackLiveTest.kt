@@ -68,6 +68,18 @@ class FilesPlaybackLiveTest {
     }
 
     @Test
+    fun `download url is issued for the playback fixture`() {
+        runBlocking {
+            LiveSupport.newAuthedClient().use { sdk ->
+                val url = sdk.files.getDownloadUrl(LiveSupport.requirePlaybackFixtureId())
+
+                assertTrue(url.encodedPath.isNotBlank())
+                assertEquals("<redacted credential URL>", url.toString())
+            }
+        }
+    }
+
+    @Test
     fun `files subtitles decode for an owned video candidate`() {
         runBlocking {
             LiveSupport.newAuthedClient().use { sdk ->

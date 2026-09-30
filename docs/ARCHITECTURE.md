@@ -98,6 +98,7 @@ graph LR
   - `getStartFrom`
   - `setStartFrom`
   - `resetStartFrom`
+  - `getDownloadUrl` (API-issued URL with its own token, bound to the requesting IP; for external players that must not receive the account token)
   - `buildDownloadUrl`, `buildMp4DownloadUrl`, `buildStreamUrl`, `buildHlsStreamUrl`, `buildOriginalStreamUrl`, `buildAudioStreamUrl`
 - `grants`
   - `list`
