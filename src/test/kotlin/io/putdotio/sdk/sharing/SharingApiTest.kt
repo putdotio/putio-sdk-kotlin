@@ -65,6 +65,8 @@ class SharingApiTest {
         assertFailsWith<IllegalArgumentException> { ShareFilesInput(target = ShareTarget.Everyone, cursor = " ") }
         assertFailsWith<IllegalArgumentException> { ShareTarget.Friends(emptyList()) }
         assertFailsWith<IllegalArgumentException> { ShareTarget.Friends(listOf("alice", "")) }
+        assertFailsWith<IllegalArgumentException> { ShareTarget.Friends(listOf("alice", "everyone")) }
+        assertFailsWith<IllegalArgumentException> { ShareTarget.Friends(listOf("alice,everyone")) }
     }
 
     @Test
@@ -272,7 +274,9 @@ class SharingApiTest {
                         runBlocking { client(server).use { call(it) } }
                     }
 
-                assertIs<PutioSerializationException>(error.underlyingError)
+                val serialization = assertIs<PutioSerializationException>(error.underlyingError)
+                assertFalse(serialization.responseBody.contains("secret-"))
+                assertFalse(error.stackTraceToString().contains("secret-"))
             }
         }
     }

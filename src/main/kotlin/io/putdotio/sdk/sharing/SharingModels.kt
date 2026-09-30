@@ -26,6 +26,11 @@ sealed interface ShareTarget {
         init {
             require(friendNames.isNotEmpty()) { "Friends share target requires at least one friend name" }
             require(friendNames.none { it.isBlank() }) { "Friend names must not be blank" }
+            // The API reads the comma-joined `friends` field, where `everyone` means a public share.
+            require(friendNames.none { ',' in it }) { "Friend names must not contain commas" }
+            require(friendNames.none { it.trim().equals("everyone", ignoreCase = true) }) {
+                "Use ShareTarget.Everyone to share with everyone"
+            }
         }
     }
 }
