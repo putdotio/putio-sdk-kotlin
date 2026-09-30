@@ -184,11 +184,16 @@ Consumers handle `PlaybackConversionState` as follows:
   bounded delay and lifecycle cancellation.
 - `Completed` triggers one immediate resolution refresh so strict file details can
   produce `Ready`; if it remains completed, stop and offer retry or Back.
-- `Failed` stops polling and offers an explicit retry action. Only that user action
-  may call `startMp4Conversion`.
-- `NotAvailable` is terminal for the parity source; offer Back or download instead.
+- `Failed` stops polling and offers an explicit retry action that calls
+  `startMp4Conversion`.
+- `NotAvailable` is not terminal: the file needs conversion but none has been
+  requested. Stop polling and offer an explicit convert action that calls
+  `startMp4Conversion`, which moves it to `Queued` or `Converting`; Back and download
+  stay available.
 - `Unknown` preserves the backend value, stops automatic polling, and offers retry
   or Back.
+
+Only those explicit user actions may call `startMp4Conversion`.
 
 ## Error Context
 
