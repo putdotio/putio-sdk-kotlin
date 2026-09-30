@@ -193,13 +193,14 @@ Consumers handle `PlaybackConversionState` as follows:
 - `Failed` stops polling and offers an explicit retry action that calls
   `startMp4Conversion`.
 - `NotAvailable` is not terminal: the file needs conversion but none has been
-  requested. Stop polling and offer an explicit convert action that calls
-  `startMp4Conversion`, which moves it to `Queued` or `Converting`; Back and download
-  stay available.
+  requested. When the viewer opened the file to play it, call `startMp4Conversion`
+  once, as put.io's web, iOS and TV clients do; it moves the file to `Queued` or
+  `Converting`. Back and download stay available.
 - `Unknown` preserves the backend value, stops automatic polling, and offers retry
   or Back.
 
-Only those explicit user actions may call `startMp4Conversion`.
+The resolver never calls `startMp4Conversion`. Consumers call it once per viewer open
+of a `NotAvailable` file and on an explicit retry after `Failed`; never from polling.
 
 ## Error Context
 
