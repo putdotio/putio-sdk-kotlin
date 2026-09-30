@@ -118,7 +118,7 @@ graph LR
   - `shareFiles` (to everyone or named friends)
   - `listSharedFiles`
   - `getSharedWith`
-  - `unshare` (no share ids removes every share)
+  - `unshare` (named share ids), `unshareAll`
   - `publicShares.create`, `publicShares.list`, `publicShares.delete`; `PublicShare.token` and `pushToken` are bearer secrets with redacted `toString`
 - `trash`
   - `list`

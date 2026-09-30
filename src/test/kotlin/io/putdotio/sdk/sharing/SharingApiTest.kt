@@ -176,16 +176,26 @@ class SharingApiTest {
         }
 
     @Test
-    fun `unshare removes every share by default`() =
+    fun `unshareAll removes every share`() =
         withServer { server ->
             server.enqueue(ok())
 
-            runBlocking { client(server).use { it.sharing.unshare(fileId = 5) } }
+            runBlocking { client(server).use { it.sharing.unshareAll(fileId = 5) } }
 
             val request = server.takeRequest()
             assertEquals("POST", request.method)
             assertEquals("/v2/files/5/unshare", request.target)
             assertEquals("shares=everyone", request.body!!.utf8())
+        }
+
+    @Test
+    fun `unshare rejects an empty share id list without a request`() =
+        withServer { server ->
+            assertFailsWith<IllegalArgumentException> {
+                runBlocking { client(server).use { it.sharing.unshare(fileId = 5, shareIds = emptyList()) } }
+            }
+
+            assertEquals(0, server.requestCount)
         }
 
     @Test
@@ -283,9 +293,9 @@ class SharingApiTest {
                 KnownErrorCase("listSharedFiles", 401, "invalid_scope") { it.sharing.listSharedFiles() },
                 KnownErrorCase("getSharedWith", 401, "invalid_scope") { it.sharing.getSharedWith(5) },
                 KnownErrorCase("getSharedWith", 404, null) { it.sharing.getSharedWith(5) },
-                KnownErrorCase("unshare", 401, "invalid_scope") { it.sharing.unshare(5) },
-                KnownErrorCase("unshare", 400, null) { it.sharing.unshare(5) },
-                KnownErrorCase("unshare", 404, null) { it.sharing.unshare(5) },
+                KnownErrorCase("unshare", 401, "invalid_scope") { it.sharing.unshareAll(5) },
+                KnownErrorCase("unshare", 400, null) { it.sharing.unshare(5, listOf(11)) },
+                KnownErrorCase("unshare", 404, null) { it.sharing.unshare(5, listOf(11)) },
                 KnownErrorCase("listPublicShares", 401, "invalid_scope") { it.sharing.publicShares.list() },
                 KnownErrorCase("deletePublicShare", 401, "invalid_scope") { it.sharing.publicShares.delete(21) },
                 KnownErrorCase("deletePublicShare", 404, null) { it.sharing.publicShares.delete(21) },

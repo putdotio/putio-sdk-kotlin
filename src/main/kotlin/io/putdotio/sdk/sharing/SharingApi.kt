@@ -38,19 +38,27 @@ class SharingApi internal constructor(
                 ).toSharedWith()
         }
 
-    /**
-     * Removes the given shares of [fileId]; an empty [shareIds] removes every share,
-     * including an everyone share. Share ids come from [getSharedWith].
-     */
+    /** Removes the given shares of [fileId]; share ids come from [getSharedWith]. */
     suspend fun unshare(
         fileId: Long,
-        shareIds: List<Long> = emptyList(),
+        shareIds: List<Long>,
+    ): OkResponse {
+        require(shareIds.isNotEmpty()) { "unshare requires at least one share id; use unshareAll to remove every share" }
+        return postUnshare(fileId, shareIds.joinToString(","))
+    }
+
+    /** Removes every share of [fileId], including an everyone share. */
+    suspend fun unshareAll(fileId: Long): OkResponse = postUnshare(fileId, "everyone")
+
+    private suspend fun postUnshare(
+        fileId: Long,
+        shares: String,
     ): OkResponse =
         putioOperation(UNSHARE_ERROR_SPEC) {
             transport.post(
                 path = "/files/$fileId/unshare",
                 serializer = OkResponse.serializer(),
-                form = mapOf("shares" to if (shareIds.isEmpty()) "everyone" else shareIds.joinToString(",")),
+                form = mapOf("shares" to shares),
             )
         }
 }
