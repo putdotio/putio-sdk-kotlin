@@ -10,6 +10,7 @@ import io.putdotio.sdk.grants.GrantsApi
 import io.putdotio.sdk.history.HistoryApi
 import io.putdotio.sdk.ifttt.IftttApi
 import io.putdotio.sdk.routes.RoutesApi
+import io.putdotio.sdk.sharing.SharingApi
 import io.putdotio.sdk.transfers.TransfersApi
 import io.putdotio.sdk.trash.TrashApi
 import kotlinx.serialization.json.Json
@@ -34,6 +35,7 @@ class PutioClient(
     val history = HistoryApi(transport)
     val ifttt = IftttApi(transport)
     val routes = RoutesApi(transport)
+    val sharing = SharingApi(transport)
     val trash = TrashApi(transport)
     val transfers = TransfersApi(transport)
 

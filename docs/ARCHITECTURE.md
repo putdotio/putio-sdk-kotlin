@@ -14,6 +14,7 @@ graph LR
   Client --> History["history namespace"]
   Client --> Ifttt["ifttt namespace"]
   Client --> Routes["routes namespace"]
+  Client --> Sharing["sharing namespace"]
   Client --> Trash["trash namespace"]
   Client --> Transfers["transfers namespace"]
   Account --> Transport["shared transport"]
@@ -26,6 +27,7 @@ graph LR
   History --> Transport
   Ifttt --> Transport
   Routes --> Transport
+  Sharing --> Transport
   Trash --> Transport
   Transfers --> Transport
   Transport --> Errors["typed SDK errors"]
@@ -112,6 +114,12 @@ graph LR
   - `sendPlaybackEvent`
 - `routes`
   - `list`
+- `sharing`
+  - `shareFiles` (to everyone or named friends)
+  - `listSharedFiles`
+  - `getSharedWith`
+  - `unshare` (no share ids removes every share)
+  - `publicShares.create`, `publicShares.list`, `publicShares.delete`; `PublicShare.token` and `pushToken` are bearer secrets with redacted `toString`
 - `trash`
   - `list`
   - `continueList`
