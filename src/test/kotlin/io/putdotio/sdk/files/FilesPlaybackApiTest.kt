@@ -51,6 +51,45 @@ class FilesPlaybackApiTest {
         }
 
     @Test
+    fun `resolvePlayback forwards maxSubtitleCount to the HLS URL`() =
+        withServer { server ->
+            server.enqueue(playbackFileResponse(needConvert = false))
+
+            val resolution =
+                server.resolvePlayback(
+                    PlaybackRequest(
+                        fileId = 42,
+                        mediaCredential = PlaybackMediaCredential.downloadToken("download-secret"),
+                        preference = PlaybackPreference.HLS,
+                        useStartFrom = false,
+                        maxSubtitleCount = HLS_ALL_SUBTITLES,
+                    ),
+                )
+            val source = assertIs<PlaybackResolution.Ready>(resolution).source
+
+            assertEquals(PlaybackSourceKind.HLS, source.kind)
+            assertEquals(
+                server
+                    .url("/v2/files/42/hls/media.m3u8?oauth_token=download-secret&subtitle_key=all&max_subtitle_count=-1")
+                    .toString(),
+                source.url.value,
+            )
+        }
+
+    @Test
+    fun `playback request rejects a maxSubtitleCount below all`() {
+        assertFailsWith<IllegalArgumentException> {
+            PlaybackRequest(
+                fileId = 42,
+                mediaCredential = PlaybackMediaCredential.downloadToken("download-secret"),
+                preference = PlaybackPreference.HLS,
+                useStartFrom = false,
+                maxSubtitleCount = -2,
+            )
+        }
+    }
+
+    @Test
     fun `resolvePlayback returns MP4 and wraps sidecar subtitle URLs`() =
         withServer { server ->
             server.enqueue(playbackFileResponse(isMp4Available = true, needConvert = false))

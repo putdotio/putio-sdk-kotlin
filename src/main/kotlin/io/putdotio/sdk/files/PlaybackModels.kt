@@ -43,7 +43,22 @@ data class PlaybackRequest(
     val capabilities: PlaybackCapabilities = PlaybackCapabilities(),
     val includeSidecarSubtitles: Boolean = true,
     val subtitleLanguages: List<String> = emptyList(),
-)
+    /** HLS only; see [FilesApi.buildHlsStreamUrl]. */
+    val maxSubtitleCount: Int? = null,
+) {
+    init {
+        requireValidMaxSubtitleCount(maxSubtitleCount)
+    }
+}
+
+/** `max_subtitle_count` value that asks the HLS master for every subtitle rendition. */
+const val HLS_ALL_SUBTITLES: Int = -1
+
+internal fun requireValidMaxSubtitleCount(maxSubtitleCount: Int?) {
+    require(maxSubtitleCount == null || maxSubtitleCount >= HLS_ALL_SUBTITLES) {
+        "maxSubtitleCount must be HLS_ALL_SUBTITLES (-1), 0, or a positive count"
+    }
+}
 
 sealed interface PlaybackResolution {
     data class Ready(

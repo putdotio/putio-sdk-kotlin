@@ -950,6 +950,33 @@ class FilesApiTest {
         }
 
     @Test
+    fun `buildHlsStreamUrl sends max_subtitle_count only when given`() {
+        val sdk = PutioClient()
+
+        assertEquals(
+            "https://api.put.io/v2/files/10/hls/media.m3u8?oauth_token=abc&subtitle_key=all&max_subtitle_count=-1",
+            sdk.files.buildHlsStreamUrl(fileId = 10, accessToken = "abc", maxSubtitleCount = HLS_ALL_SUBTITLES),
+        )
+        assertEquals(
+            "https://api.put.io/v2/files/10/hls/media.m3u8?oauth_token=abc&subtitle_key=all&max_subtitle_count=0",
+            sdk.files.buildHlsStreamUrl(fileId = 10, accessToken = "abc", maxSubtitleCount = 0),
+        )
+        assertEquals(
+            "https://api.put.io/v2/files/10/hls/media.m3u8?oauth_token=abc&subtitle_key=all" +
+                "&subtitle_languages=en%2Ctr&max_subtitle_count=2",
+            sdk.files.buildHlsStreamUrl(
+                fileId = 10,
+                accessToken = "abc",
+                subtitleLanguages = listOf("en", "tr"),
+                maxSubtitleCount = 2,
+            ),
+        )
+        assertFailsWith<IllegalArgumentException> {
+            sdk.files.buildHlsStreamUrl(fileId = 10, accessToken = "abc", maxSubtitleCount = -2)
+        }
+    }
+
+    @Test
     fun `buildDownloadUrl appends oauth token query`() {
         val sdk = PutioClient()
         val videoFile =
