@@ -3,6 +3,7 @@ package io.putdotio.sdk.files
 import io.putdotio.sdk.core.RawStringValueSerializer
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
+import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
 
 @Serializable
 data class FileBreadcrumb(
@@ -240,6 +241,17 @@ internal data class FileStartFromResponse(
     @SerialName("start_from") val startFrom: Double,
     val status: String,
 )
+
+@Serializable
+internal data class FileDownloadUrlEnvelope(
+    val url: String,
+    val status: String,
+) {
+    init {
+        require(status == "OK") { "Download URL response status must be OK" }
+        require(url.toHttpUrlOrNull() != null) { "Download URL must be an absolute http(s) URL" }
+    }
+}
 
 /**
  * Acknowledges a delete request without guaranteeing that every selected item was removed.

@@ -336,6 +336,22 @@ class FilesApi internal constructor(
             )
         }
 
+    /**
+     * A direct download URL carrying its own token, which the API binds to the IP address
+     * of this request. Hand it to an external player instead of a URL built with the
+     * account token.
+     */
+    suspend fun getDownloadUrl(fileId: Long): PutioCredentialUrl =
+        putioOperation(GET_DOWNLOAD_URL_ERROR_SPEC) {
+            PutioCredentialUrl(
+                transport
+                    .get(
+                        path = "/files/$fileId/url",
+                        serializer = FileDownloadUrlEnvelope.serializer(),
+                    ).url,
+            )
+        }
+
     fun buildDownloadUrl(
         fileId: Long,
         accessToken: String,
@@ -657,5 +673,17 @@ private val LIST_SUBTITLES_ERROR_SPEC =
             listOf(
                 PutioKnownErrorContract(statusCode = 404),
                 PutioKnownErrorContract(statusCode = 402),
+            ),
+    )
+
+private val GET_DOWNLOAD_URL_ERROR_SPEC =
+    PutioOperationErrorSpec(
+        domain = "files",
+        operation = "getDownloadUrl",
+        knownErrors =
+            listOf(
+                PutioKnownErrorContract(errorType = "invalid_scope", statusCode = 401),
+                PutioKnownErrorContract(statusCode = 402),
+                PutioKnownErrorContract(statusCode = 404),
             ),
     )
