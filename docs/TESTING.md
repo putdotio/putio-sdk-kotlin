@@ -43,6 +43,7 @@ Current live targets cover:
 - disposable file create, search, trash restore, and cleanup flows
 - playback source resolution, API-issued download URLs, subtitles decode, and reversible start-from roundtrips for owned video fixtures
 - read-only user config, OAuth grants, and tunnel routes decode
+- read-only shared-files and public-share list decode
 - history listing decode against the real API
 - transfer list/count/info decode and typed pagination errors
 - Files cursor continuation plus typed invalid-cursor errors for Files, Search, Trash, and Transfers

@@ -76,6 +76,18 @@ internal class PutioTransport(
             auth = auth,
         )
 
+    suspend fun <T> delete(
+        path: String,
+        serializer: KSerializer<T>,
+        auth: PutioAuth = PutioAuth.ConfigToken,
+    ): T =
+        execute(
+            method = "DELETE",
+            path = path,
+            serializer = serializer,
+            auth = auth,
+        )
+
     suspend fun <T, TBody> postJson(
         path: String,
         serializer: KSerializer<T>,
@@ -253,6 +265,7 @@ internal class PutioTransport(
             "GET" -> builder.get().build()
             "POST" -> builder.post(jsonBody?.toRequestBody(JSON_MEDIA_TYPE) ?: buildFormBody(form)).build()
             "PUT" -> builder.put(jsonBody?.toRequestBody(JSON_MEDIA_TYPE) ?: buildFormBody(form)).build()
+            "DELETE" -> builder.delete().build()
             else -> error("Unsupported method $method")
         }
     }
