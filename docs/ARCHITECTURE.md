@@ -174,6 +174,12 @@ warning. Authentication failures still surface normally. Next-file lookup stays 
 `FilesApi.findNextFile` so an autoplay lookup failure cannot block the current playback
 source.
 
+HLS masters follow the account's `hide_subtitles` setting: when it is on, the API leaves
+every subtitle rendition out unless the URL sets `max_subtitle_count`.
+`PlaybackRequest.maxSubtitleCount` and `buildHlsStreamUrl(maxSubtitleCount = ...)` send it;
+`HLS_ALL_SUBTITLES` (`-1`) asks for every rendition, so a player that starts subtitles off
+can still offer them.
+
 When a video still needs conversion, resolution reads the canonical
 `GET /files/{id}/mp4` status endpoint. The backend may use that read to recover an
 existing stalled conversion; the resolver never starts conversion with `POST`.

@@ -417,12 +417,19 @@ class FilesApi internal constructor(
             else -> null
         }
 
+    /**
+     * [maxSubtitleCount] caps the subtitle renditions in the HLS master: [HLS_ALL_SUBTITLES]
+     * asks for every one, `0` for none. `null` leaves the account default, which is none
+     * when the account hides subtitles.
+     */
     fun buildHlsStreamUrl(
         fileId: Long,
         accessToken: String,
         subtitleLanguages: List<String> = emptyList(),
-    ): String =
-        transport.buildUrl(
+        maxSubtitleCount: Int? = null,
+    ): String {
+        requireValidMaxSubtitleCount(maxSubtitleCount)
+        return transport.buildUrl(
             path = "/files/$fileId/hls/media.m3u8",
             query =
                 buildMap {
@@ -431,8 +438,12 @@ class FilesApi internal constructor(
                     if (subtitleLanguages.isNotEmpty()) {
                         put("subtitle_languages", subtitleLanguages.joinToString(","))
                     }
+                    if (maxSubtitleCount != null) {
+                        put("max_subtitle_count", maxSubtitleCount.toString())
+                    }
                 },
         )
+    }
 }
 
 private fun PlaybackFile.selectPlaybackSource(request: PlaybackRequest): PlaybackSourceKind? =
@@ -517,6 +528,7 @@ private fun FilesApi.buildPlaybackUrl(
                     fileId = fileId,
                     accessToken = request.mediaCredential.value,
                     subtitleLanguages = request.subtitleLanguages,
+                    maxSubtitleCount = request.maxSubtitleCount,
                 )
             }
 
