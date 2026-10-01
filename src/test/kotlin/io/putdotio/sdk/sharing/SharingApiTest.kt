@@ -178,6 +178,118 @@ class SharingApiTest {
         }
 
     @Test
+    fun `cloneSharedFiles posts the ids and destination and returns the copy id`() =
+        withServer { server ->
+            server.enqueue(json("""{"status":"OK","id":42}"""))
+
+            val id =
+                runBlocking {
+                    client(server).use { it.sharing.cloneSharedFiles(CloneSharedFilesInput(ids = listOf(1, 2), parentId = 7)) }
+                }
+
+            assertEquals(42L, id)
+            val request = server.takeRequest()
+            assertEquals("POST", request.method)
+            assertEquals("/v2/sharing/clone", request.target)
+            assertEquals("file_ids=1%2C2&parent_id=7", request.body!!.utf8())
+        }
+
+    @Test
+    fun `cloneSharedFiles posts a cursor selection into root by default`() =
+        withServer { server ->
+            server.enqueue(json("""{"id":43}"""))
+
+            runBlocking {
+                client(server).use {
+                    it.sharing.cloneSharedFiles(CloneSharedFilesInput(cursor = "selection", excludeIds = listOf(3, 4)))
+                }
+            }
+
+            assertEquals("cursor=selection&exclude_ids=3%2C4&parent_id=0", server.takeRequest().body!!.utf8())
+        }
+
+    @Test
+    fun `clone inputs reject empty selections, nonpositive ids and a negative parent`() {
+        assertFailsWith<IllegalArgumentException> { CloneSharedFilesInput() }
+        assertFailsWith<IllegalArgumentException> { CloneSharedFilesInput(cursor = " ") }
+        assertFailsWith<IllegalArgumentException> { CloneSharedFilesInput(ids = listOf(0)) }
+        assertFailsWith<IllegalArgumentException> { CloneSharedFilesInput(cursor = "selection", excludeIds = listOf(-1)) }
+        assertFailsWith<IllegalArgumentException> { CloneSharedFilesInput(ids = listOf(1), parentId = -1) }
+    }
+
+    @Test
+    fun `cloneSharedFiles rejects a response without a positive id`() {
+        for (body in listOf("""{"status":"OK"}""", """{"status":"OK","id":0}""")) {
+            withServer { server ->
+                server.enqueue(json(body))
+
+                val error =
+                    assertFailsWith<PutioOperationException> {
+                        runBlocking { client(server).use { it.sharing.cloneSharedFiles(CloneSharedFilesInput(ids = listOf(1))) } }
+                    }
+
+                assertEquals("cloneSharedFiles", error.operation)
+                assertIs<PutioSerializationException>(error.underlyingError)
+            }
+        }
+    }
+
+    @Test
+    fun `getCloneInfo decodes every status, the error message and unknown statuses`() =
+        withServer { server ->
+            server.enqueue(json("""{"status":"OK","shared_file_clone_status":"NEW"}"""))
+            server.enqueue(json("""{"status":"OK","shared_file_clone_status":"PROCESSING"}"""))
+            server.enqueue(json("""{"status":"OK","shared_file_clone_status":"DONE"}"""))
+            server.enqueue(
+                json("""{"status":"OK","shared_file_clone_status":"ERROR","error_msg":"File(s) size exceed disk limit."}"""),
+            )
+            server.enqueue(json("""{"shared_file_clone_status":"PAUSED"}"""))
+
+            val infos = runBlocking { client(server).use { sdk -> List(5) { sdk.sharing.getCloneInfo(9) } } }
+
+            assertEquals(
+                listOf(
+                    SharedFileCloneInfo(SharedFileCloneStatus.NEW),
+                    SharedFileCloneInfo(SharedFileCloneStatus.PROCESSING),
+                    SharedFileCloneInfo(SharedFileCloneStatus.DONE),
+                    SharedFileCloneInfo(SharedFileCloneStatus.ERROR, "File(s) size exceed disk limit."),
+                    SharedFileCloneInfo(SharedFileCloneStatus("PAUSED")),
+                ),
+                infos,
+            )
+            assertEquals(listOf(false, false, true, true, false), infos.map { it.status.isFinished })
+            assertEquals(listOf(true, true, true, true, false), infos.map { it.status.isKnown })
+            assertEquals("PAUSED", infos.last().status.toString())
+            val request = server.takeRequest()
+            assertEquals("GET", request.method)
+            assertEquals("/v2/sharing/clone/9", request.target)
+        }
+
+    @Test
+    fun `getCloneInfo redacts sensitive urls in the error message`() =
+        withServer { server ->
+            server.enqueue(
+                json(
+                    """{"shared_file_clone_status":"ERROR","error_msg":"Failed https://example.test/cb?oauth_token=leak"}""",
+                ),
+            )
+
+            val info = runBlocking { client(server).use { it.sharing.getCloneInfo(9) } }
+
+            assertEquals("Failed https://example.test/cb?oauth_token=REDACTED", info.errorMessage)
+        }
+
+    @Test
+    fun `getCloneInfo rejects a nonpositive id without a request`() =
+        withServer { server ->
+            assertFailsWith<IllegalArgumentException> {
+                runBlocking { client(server).use { it.sharing.getCloneInfo(0) } }
+            }
+
+            assertEquals(0, server.requestCount)
+        }
+
+    @Test
     fun `unshareAll removes every share`() =
         withServer { server ->
             server.enqueue(ok())
@@ -263,6 +375,8 @@ class SharingApiTest {
                 """{"status":"ERROR","share_type":"everyone"}""" to { it.sharing.getSharedWith(5) },
                 """{"status":"ERROR","public_share":${publicShareJson(id = 21)}}""" to { it.sharing.publicShares.create(5) },
                 """{"status":"ERROR","public_shares":[]}""" to { it.sharing.publicShares.list() },
+                """{"status":"ERROR","id":42}""" to { it.sharing.cloneSharedFiles(CloneSharedFilesInput(ids = listOf(1))) },
+                """{"status":"ERROR","shared_file_clone_status":"DONE"}""" to { it.sharing.getCloneInfo(9) },
             )
 
         for ((body, call) in cases) {
@@ -283,6 +397,7 @@ class SharingApiTest {
 
     @Test
     fun `operations map every known error with sharing context`() {
+        val cloneInput = CloneSharedFilesInput(ids = listOf(1), parentId = 7)
         val cases =
             listOf(
                 KnownErrorCase("shareFiles", 400, "ALREADY_SHARED") {
@@ -308,6 +423,11 @@ class SharingApiTest {
                 KnownErrorCase("createPublicShare", 400, "PUBLIC_SHARE_FOLDER_ROOT_NOT_ALLOWED") {
                     it.sharing.publicShares.create(0)
                 },
+                KnownErrorCase("cloneSharedFiles", 401, "invalid_scope") { it.sharing.cloneSharedFiles(cloneInput) },
+                KnownErrorCase("cloneSharedFiles", 400, null) { it.sharing.cloneSharedFiles(cloneInput) },
+                KnownErrorCase("cloneSharedFiles", 404, null) { it.sharing.cloneSharedFiles(cloneInput) },
+                KnownErrorCase("getCloneInfo", 401, "invalid_scope") { it.sharing.getCloneInfo(9) },
+                KnownErrorCase("getCloneInfo", 404, "SHARED_FILE_CLONE_NOT_FOUND") { it.sharing.getCloneInfo(9) },
             ) +
                 listOf(
                     "PUBLIC_SHARE_NOT_ALLOWED_PLAN",
@@ -319,6 +439,13 @@ class SharingApiTest {
                     "PUBLIC_SHARE_WEEKLY_TOTAL_LINK_COUNT_EXCEEDED",
                 ).map { errorType ->
                     KnownErrorCase("createPublicShare", 403, errorType) { it.sharing.publicShares.create(5) }
+                } +
+                listOf(
+                    "SharedFileCloneConcurrentLimit",
+                    "SharedFileCloneTooManyFiles",
+                    "SharedFileCloneTooManyChildren",
+                ).map { errorType ->
+                    KnownErrorCase("cloneSharedFiles", 400, errorType) { it.sharing.cloneSharedFiles(cloneInput) }
                 }
 
         for (case in cases) {
