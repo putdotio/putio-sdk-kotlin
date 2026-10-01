@@ -251,8 +251,68 @@ class PutioTransportTest {
             assertEquals(502, error.statusCode)
             assertEquals(null, error.errorType)
             assertEquals("put.io returned HTTP 502", error.message)
+            assertNull(error.errorMessage)
             assertEquals("<redacted response body>", error.responseBody)
         }
+
+    @Test
+    fun `api errors expose put io's error_message`() =
+        listOf(
+            // Captured from api.put.io: GET /v2/files/list?sort_by=BOGUS and ?parent_id=999999999999.
+            Triple(400, INVALID_SORT_ENVELOPE, "invalid sort_by param"),
+            Triple(404, NOT_FOUND_ENVELOPE, NOT_FOUND_MESSAGE),
+        ).forEach { (status, body, expected) ->
+            val error = failWith(status, body)
+
+            assertEquals(status, error.statusCode)
+            assertEquals(expected, error.errorMessage)
+            assertEquals(expected, error.envelope.errorMessage)
+            assertEquals(expected, error.message)
+            assertNull(error.envelope.message)
+        }
+
+    @Test
+    fun `api errors keep reading a message-only envelope`() {
+        val error = failWith(400, """{"status":"ERROR","status_code":400,"message":"invalid cursor"}""")
+
+        assertEquals("invalid cursor", error.errorMessage)
+        assertEquals("invalid cursor", error.message)
+    }
+
+    @Test
+    fun `api error messages are redacted`() {
+        val error =
+            failWith(
+                400,
+                """{"error_message":"Bad next https://example.test/cb?oauth_token=leak","error_type":"BadRequest",""" +
+                    """"status":"ERROR","status_code":400}""",
+            )
+
+        assertEquals("Bad next https://example.test/cb?oauth_token=REDACTED", error.errorMessage)
+        assertEquals(error.errorMessage, error.message)
+    }
+
+    private fun failWith(
+        status: Int,
+        body: String,
+    ): PutioApiException {
+        var error: PutioApiException? = null
+        withServer { server ->
+            server.enqueue(
+                MockResponse
+                    .Builder()
+                    .code(status)
+                    .body(body)
+                    .build(),
+            )
+            val transport = newTransport(server, accessToken = "secret-token")
+            error =
+                assertFailsWith<PutioApiException> {
+                    runBlocking { transport.get(path = "/files/list", serializer = OkResponse.serializer()) }
+                }
+        }
+        return requireNotNull(error)
+    }
 
     @Test
     fun `build url joins paths and appends query parameters`() {
@@ -369,3 +429,15 @@ private data class FileLikeResponse(
     val files: List<String>,
     val status: String,
 )
+
+private const val INVALID_SORT_ENVELOPE =
+    """{"error_id":null,"error_message":"invalid sort_by param","error_type":"BadRequest",""" +
+        """"error_uri":"http://api.put.io/v2/docs","extra":{},"status":"ERROR","status_code":400}"""
+
+private const val NOT_FOUND_MESSAGE =
+    "The requested URL was not found on the server. " +
+        "If you entered the URL manually please check your spelling and try again."
+
+private const val NOT_FOUND_ENVELOPE =
+    """{"error_id":null,"error_message":"$NOT_FOUND_MESSAGE","error_type":"NotFound",""" +
+        """"error_uri":"http://api.put.io/v2/docs","extra":{},"status":"ERROR","status_code":404}"""

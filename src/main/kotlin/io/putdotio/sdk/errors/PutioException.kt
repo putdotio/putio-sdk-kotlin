@@ -45,6 +45,7 @@ data class PutioApiErrorEnvelope(
     @SerialName("status_code") val statusCode: Int? = null,
     @SerialName("error_type") val errorType: String? = null,
     val details: JsonElement? = null,
+    @SerialName("error_message") val errorMessage: String? = null,
 )
 
 sealed class PutioException(
@@ -109,6 +110,10 @@ class PutioApiException(
 
     val errorType: String?
         get() = envelope.errorType ?: resolvedErrorType
+
+    /** put.io's own explanation of the failure (`error_message`), redacted; null when the response has none. */
+    val errorMessage: String?
+        get() = envelope.errorMessage ?: envelope.message
 }
 
 sealed interface PutioOperationErrorReason {
@@ -255,6 +260,7 @@ private fun PutioApiErrorEnvelope.redacted(): PutioApiErrorEnvelope =
         status = status?.let(::redactSensitiveUrlsInText),
         errorType = errorType?.let(::redactSensitiveUrlsInText),
         details = details?.redacted(),
+        errorMessage = errorMessage?.let(::redactSensitiveUrlsInText),
     )
 
 private fun JsonElement.redacted(): JsonElement =
