@@ -7,11 +7,11 @@ import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 import java.math.BigDecimal
 
 plugins {
-    kotlin("jvm") version "2.4.10"
-    kotlin("plugin.serialization") version "2.4.10"
+    kotlin("jvm") version "2.4.20"
+    kotlin("plugin.serialization") version "2.4.20"
     `java-library`
     jacoco
-    id("com.diffplug.spotless") version "8.10.1"
+    id("com.diffplug.spotless") version "8.10.3"
     id("com.vanniktech.maven.publish") version "0.37.0"
 }
 
