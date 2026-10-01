@@ -266,6 +266,20 @@ class SharingApiTest {
         }
 
     @Test
+    fun `getCloneInfo redacts sensitive urls in the error message`() =
+        withServer { server ->
+            server.enqueue(
+                json(
+                    """{"shared_file_clone_status":"ERROR","error_msg":"Failed https://example.test/cb?oauth_token=leak"}""",
+                ),
+            )
+
+            val info = runBlocking { client(server).use { it.sharing.getCloneInfo(9) } }
+
+            assertEquals("Failed https://example.test/cb?oauth_token=REDACTED", info.errorMessage)
+        }
+
+    @Test
     fun `getCloneInfo rejects a nonpositive id without a request`() =
         withServer { server ->
             assertFailsWith<IllegalArgumentException> {

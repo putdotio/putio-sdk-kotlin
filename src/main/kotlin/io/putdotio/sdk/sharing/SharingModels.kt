@@ -1,6 +1,7 @@
 package io.putdotio.sdk.sharing
 
 import io.putdotio.sdk.core.RawStringValueSerializer
+import io.putdotio.sdk.errors.redactSensitiveUrlsInText
 import io.putdotio.sdk.files.PutioFile
 import io.putdotio.sdk.files.PutioFileType
 import kotlinx.serialization.KSerializer
@@ -132,7 +133,10 @@ value class SharedFileCloneStatus(
     }
 }
 
-/** A background copy started by [SharingApi.cloneSharedFiles]; [errorMessage] is put.io's English reason for [SharedFileCloneStatus.ERROR]. */
+/**
+ * A background copy started by [SharingApi.cloneSharedFiles]; [errorMessage] is put.io's English reason for
+ * [SharedFileCloneStatus.ERROR], redacted like [io.putdotio.sdk.errors.PutioApiException.errorMessage].
+ */
 data class SharedFileCloneInfo(
     val status: SharedFileCloneStatus,
     val errorMessage: String? = null,
@@ -148,7 +152,7 @@ internal data class SharedFileCloneInfoEnvelope(
         require(status == null || status == "OK") { "Clone info response status must be OK" }
     }
 
-    fun toInfo(): SharedFileCloneInfo = SharedFileCloneInfo(cloneStatus, errorMessage)
+    fun toInfo(): SharedFileCloneInfo = SharedFileCloneInfo(cloneStatus, errorMessage?.let(::redactSensitiveUrlsInText))
 }
 
 /** The `shared_with` summary on a shared-files entry. */

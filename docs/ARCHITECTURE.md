@@ -121,7 +121,7 @@ graph LR
   - `listSharedFiles`
   - `getSharedWith`
   - `unshare` (named share ids), `unshareAll`
-  - `cloneSharedFiles` (copy items shared with the viewer into one of their folders; runs in the background), `getCloneInfo` (its `NEW`, `PROCESSING`, `DONE` or `ERROR` status and put.io's error message)
+  - `cloneSharedFiles` (copy items shared with the viewer into one of their folders; runs in the background), `getCloneInfo` (its `NEW`, `PROCESSING`, `DONE` or `ERROR` status and put.io's error message, redacted)
   - `publicShares.create`, `publicShares.list`, `publicShares.delete`; `PublicShare.token` and `pushToken` are bearer secrets with redacted `toString`
 - `trash`
   - `list`
