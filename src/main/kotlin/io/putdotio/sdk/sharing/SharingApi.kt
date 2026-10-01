@@ -38,6 +38,32 @@ class SharingApi internal constructor(
                 ).toSharedWith()
         }
 
+    /**
+     * Starts copying items shared with the viewer into their own folder and returns the copy's id
+     * for [getCloneInfo]. put.io checks the selection and quotas when the copy runs, so a started
+     * copy can still end in [SharedFileCloneStatus.ERROR].
+     */
+    suspend fun cloneSharedFiles(input: CloneSharedFilesInput): Long =
+        putioOperation(CLONE_SHARED_FILES_ERROR_SPEC) {
+            transport
+                .post(
+                    path = "/sharing/clone",
+                    serializer = CloneSharedFilesEnvelope.serializer(),
+                    form = input.toFormMap(),
+                ).id
+        }
+
+    suspend fun getCloneInfo(id: Long): SharedFileCloneInfo {
+        require(id > 0) { "Clone id must be positive" }
+        return putioOperation(GET_CLONE_INFO_ERROR_SPEC) {
+            transport
+                .get(
+                    path = "/sharing/clone/$id",
+                    serializer = SharedFileCloneInfoEnvelope.serializer(),
+                ).toInfo()
+        }
+    }
+
     /** Removes the given shares of [fileId]; share ids come from [getSharedWith]. */
     suspend fun unshare(
         fileId: Long,
@@ -104,6 +130,32 @@ private val SHARE_FILES_ERROR_SPEC =
                 PutioKnownErrorContract(errorType = "ALREADY_SHARED", statusCode = 400),
                 INVALID_SCOPE,
                 PutioKnownErrorContract(statusCode = 400),
+            ),
+    )
+
+private val CLONE_SHARED_FILES_ERROR_SPEC =
+    PutioOperationErrorSpec(
+        domain = "sharing",
+        operation = "cloneSharedFiles",
+        knownErrors =
+            listOf(
+                PutioKnownErrorContract(errorType = "SharedFileCloneConcurrentLimit", statusCode = 400),
+                PutioKnownErrorContract(errorType = "SharedFileCloneTooManyFiles", statusCode = 400),
+                PutioKnownErrorContract(errorType = "SharedFileCloneTooManyChildren", statusCode = 400),
+                INVALID_SCOPE,
+                PutioKnownErrorContract(statusCode = 400),
+                PutioKnownErrorContract(statusCode = 404),
+            ),
+    )
+
+private val GET_CLONE_INFO_ERROR_SPEC =
+    PutioOperationErrorSpec(
+        domain = "sharing",
+        operation = "getCloneInfo",
+        knownErrors =
+            listOf(
+                PutioKnownErrorContract(errorType = "SHARED_FILE_CLONE_NOT_FOUND", statusCode = 404),
+                INVALID_SCOPE,
             ),
     )
 

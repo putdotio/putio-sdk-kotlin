@@ -7,4 +7,5 @@ data class PutioConfig(
     var baseUrl: String = DEFAULT_API_BASE_URL,
     var webAppUrl: String = DEFAULT_WEB_APP_URL,
     var userAgent: String = DEFAULT_USER_AGENT,
+    var uploadBaseUrl: String = DEFAULT_UPLOAD_BASE_URL,
 )

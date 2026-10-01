@@ -87,7 +87,8 @@ graph LR
   - `search`
   - `continueSearch`
   - `createFolder`
-  - `copy`
+  - `upload` (multipart to `PutioConfig.uploadBaseUrl`, default `https://upload.put.io/v2/`; returns the saved file or, for a `.torrent`/`.magnet` name, the started transfer; `requireTorrent` sends `torrent=true` so put.io rejects non-torrent content with `NotTorrent` instead of storing it)
+  - `copy` (`/files/copy-to-disk`, root only; put.io keeps it for an older client, so prefer `sharing.cloneSharedFiles`)
   - `delete`
   - `move`
   - `rename`
@@ -120,6 +121,7 @@ graph LR
   - `listSharedFiles`
   - `getSharedWith`
   - `unshare` (named share ids), `unshareAll`
+  - `cloneSharedFiles` (copy items shared with the viewer into one of their folders; runs in the background), `getCloneInfo` (its `NEW`, `PROCESSING`, `DONE` or `ERROR` status and put.io's error message, redacted)
   - `publicShares.create`, `publicShares.list`, `publicShares.delete`; `PublicShare.token` and `pushToken` are bearer secrets with redacted `toString`
 - `trash`
   - `list`

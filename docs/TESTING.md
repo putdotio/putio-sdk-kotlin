@@ -41,9 +41,10 @@ Current live targets cover:
 - token validation, OOB auth-code fetch, and the device-code orchestrator reaching `AwaitingLink` then `Expired` on a one-poll budget
 - account info and reversible account settings mutation
 - disposable file create, search, trash restore, and cleanup flows
+- multipart upload into a disposable folder, plus the `requireTorrent` rejection of non-torrent content
 - playback source resolution, API-issued download URLs, subtitles decode, and reversible start-from roundtrips for owned video fixtures
 - read-only user config, OAuth grants, and tunnel routes decode
-- read-only shared-files and public-share list decode
+- read-only shared-files and public-share list decode, plus a shared-file copy of an owned folder that put.io rejects (into that disposable folder, removed afterwards) and an unknown copy id
 - history listing decode against the real API
 - transfer list/count/info decode and typed pagination errors
 - Files cursor continuation plus typed invalid-cursor errors for Files, Search, Trash, and Transfers

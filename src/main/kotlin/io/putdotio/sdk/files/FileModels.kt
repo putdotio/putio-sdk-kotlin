@@ -4,6 +4,7 @@ import io.putdotio.sdk.core.RawStringValueSerializer
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
+import okhttp3.MediaType.Companion.toMediaTypeOrNull
 
 @Serializable
 data class FileBreadcrumb(
@@ -383,3 +384,61 @@ internal data class FileMp4ConversionEnvelope(
     val mp4: FileMp4Conversion,
     val status: String,
 )
+
+/**
+ * A file sent to put.io's upload host. A `.torrent` or `.magnet` [fileName] starts a transfer
+ * instead of saving a file; [requireTorrent] makes put.io reject anything else with
+ * `NotTorrent` rather than store it. Without a [parentId], or with root (`0`), put.io saves a
+ * started transfer to the account's default download folder.
+ */
+class FileUploadInput(
+    val content: ByteArray,
+    val fileName: String,
+    val parentId: Long? = null,
+    val requireTorrent: Boolean = false,
+    val mediaType: String = "application/octet-stream",
+) {
+    init {
+        require(fileName.isNotBlank()) { "Upload file name must not be blank" }
+        require(parentId == null || parentId >= 0) { "Upload parent id must not be negative" }
+        require(!requireTorrent || content.isNotEmpty()) { "Torrent upload content must not be empty" }
+        // OkHttp accepts CR/LF in quoted parameters and MultipartBody writes them into the part header.
+        require(mediaType.none(Char::isISOControl) && mediaType.toMediaTypeOrNull() != null) {
+            "Upload media type must be a valid media type"
+        }
+    }
+
+    internal fun toFormMap(): Map<String, String> =
+        buildMap {
+            put("filename", fileName)
+            parentId?.let { put("parent_id", it.toString()) }
+            if (requireTorrent) put("torrent", "true")
+        }
+
+    override fun toString(): String =
+        "FileUploadInput(fileName=$fileName, size=${content.size}, parentId=$parentId, requireTorrent=$requireTorrent)"
+}
+
+sealed interface FileUploadResult {
+    data class File(
+        val file: PutioFile,
+    ) : FileUploadResult
+
+    data class Transfer(
+        val transfer: io.putdotio.sdk.transfers.Transfer,
+    ) : FileUploadResult
+}
+
+@Serializable
+internal data class FileUploadEnvelope(
+    val file: PutioFile? = null,
+    val transfer: io.putdotio.sdk.transfers.Transfer? = null,
+    val status: String,
+) {
+    init {
+        require(status == "OK") { "Upload response status must be OK" }
+        require((file == null) != (transfer == null)) { "Upload response must contain exactly one of file or transfer" }
+    }
+
+    fun toResult(): FileUploadResult = file?.let(FileUploadResult::File) ?: FileUploadResult.Transfer(requireNotNull(transfer))
+}

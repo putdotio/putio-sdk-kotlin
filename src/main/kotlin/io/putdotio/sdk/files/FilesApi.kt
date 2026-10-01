@@ -1,6 +1,7 @@
 package io.putdotio.sdk.files
 
 import io.putdotio.sdk.OkResponse
+import io.putdotio.sdk.core.PutioMultipartFile
 import io.putdotio.sdk.core.PutioTransport
 import io.putdotio.sdk.errors.PutioApiException
 import io.putdotio.sdk.errors.PutioKnownErrorContract
@@ -174,6 +175,25 @@ class FilesApi internal constructor(
                             "parent_id" to parentId.toString(),
                         ),
                 ).file
+        }
+
+    /** Sends [input] to put.io's upload host (`PutioConfig.uploadBaseUrl`) as multipart form data. */
+    suspend fun upload(input: FileUploadInput): FileUploadResult =
+        putioOperation(UPLOAD_FILE_ERROR_SPEC) {
+            transport
+                .postMultipart(
+                    baseUrl = transport.config.uploadBaseUrl,
+                    path = "/files/upload",
+                    serializer = FileUploadEnvelope.serializer(),
+                    form = input.toFormMap(),
+                    file =
+                        PutioMultipartFile(
+                            fieldName = "file",
+                            fileName = input.fileName,
+                            mediaType = input.mediaType,
+                            content = input.content,
+                        ),
+                ).toResult()
         }
 
     suspend fun copy(fileIds: List<Long>): OkResponse =
@@ -552,6 +572,22 @@ private val CONTINUE_FILES_ERROR_SPEC =
             listOf(
                 PutioKnownErrorContract(errorType = "invalid_scope", statusCode = 401),
                 PutioKnownErrorContract(statusCode = 400),
+            ),
+    )
+
+private val UPLOAD_FILE_ERROR_SPEC =
+    PutioOperationErrorSpec(
+        domain = "files",
+        operation = "upload",
+        knownErrors =
+            listOf(
+                PutioKnownErrorContract(errorType = "NotTorrent", statusCode = 400),
+                PutioKnownErrorContract(statusCode = 400),
+                PutioKnownErrorContract(errorType = "Unauthorized", statusCode = 401),
+                PutioKnownErrorContract(statusCode = 401),
+                PutioKnownErrorContract(statusCode = 402),
+                PutioKnownErrorContract(statusCode = 403),
+                PutioKnownErrorContract(statusCode = 429),
             ),
     )
 
