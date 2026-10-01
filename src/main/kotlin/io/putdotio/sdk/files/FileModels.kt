@@ -402,7 +402,10 @@ class FileUploadInput(
         require(fileName.isNotBlank()) { "Upload file name must not be blank" }
         require(parentId == null || parentId >= 0) { "Upload parent id must not be negative" }
         require(!requireTorrent || content.isNotEmpty()) { "Torrent upload content must not be empty" }
-        require(mediaType.toMediaTypeOrNull() != null) { "Upload media type must be a valid media type" }
+        // OkHttp accepts CR/LF in quoted parameters and MultipartBody writes them into the part header.
+        require(mediaType.none(Char::isISOControl) && mediaType.toMediaTypeOrNull() != null) {
+            "Upload media type must be a valid media type"
+        }
     }
 
     internal fun toFormMap(): Map<String, String> =

@@ -129,6 +129,9 @@ class FilesUploadApiTest {
             FileUploadInput(byteArrayOf(), fileName = "a.torrent", requireTorrent = true)
         }
         assertFailsWith<IllegalArgumentException> { FileUploadInput(byteArrayOf(1), fileName = "a", mediaType = "not a type") }
+        assertFailsWith<IllegalArgumentException> {
+            FileUploadInput(byteArrayOf(1), fileName = "a", mediaType = "application/octet-stream; x=\"\r\n\r\nprefix\"")
+        }
         FileUploadInput(byteArrayOf(), fileName = "empty.txt")
         val input = FileUploadInput("secret-bytes".toByteArray(), fileName = "a.torrent")
         assertFalse(input.toString().contains("secret"))
