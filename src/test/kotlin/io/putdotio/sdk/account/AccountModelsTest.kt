@@ -149,6 +149,7 @@ class AccountModelsTest {
                   "files_will_be_deleted_at": "2026-05-01T10:00:00Z",
                   "password_last_changed_at": "2026-04-20T10:00:00Z",
                   "user_hash": "user-hash",
+                  "is_sub_account": true,
                   "disk": {
                     "avail": 90,
                     "size": 100,
@@ -181,6 +182,10 @@ class AccountModelsTest {
         assertEquals(false, info.toString().contains("download-token"))
         assertEquals(true, info.features["beta"])
         assertEquals("user-hash", info.userHash)
+        assertEquals("active", info.accountStatus)
+        assertEquals(true, info.accountActive)
+        assertEquals("2026-05-01T10:00:00Z", info.filesWillBeDeletedAt)
+        assertEquals(true, info.isSubAccount)
         assertEquals(true, info.settings.useStartFrom)
     }
 
@@ -230,5 +235,6 @@ class AccountModelsTest {
         assertEquals(emptyMap(), info.features)
         assertEquals(null, info.filesWillBeDeletedAt)
         assertEquals(null, info.userHash)
+        assertEquals(false, info.isSubAccount)
     }
 }

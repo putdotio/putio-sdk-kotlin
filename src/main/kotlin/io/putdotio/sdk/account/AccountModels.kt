@@ -69,6 +69,8 @@ data class AccountInfo(
     @SerialName("files_will_be_deleted_at") val filesWillBeDeletedAt: String? = null,
     @SerialName("password_last_changed_at") val passwordLastChangedAt: String? = null,
     @SerialName("user_hash") val userHash: String? = null,
+    /** True for a family plan member; the plan owner pays, so an inactive member cannot renew alone. */
+    @SerialName("is_sub_account") val isSubAccount: Boolean = false,
 )
 
 @JvmInline
