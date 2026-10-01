@@ -32,8 +32,8 @@ so `main` cannot publish by accident even with credentials present.
 The tagged commit's build scripts run with the publishing credentials, so the
 trust boundary sits outside the workflow, where a tag cannot rewrite it:
 
-- The "Release tags" ruleset lets only repository admins create, move, or delete
-  `v*` tags.
+- The "Protect v* release tags" ruleset lets only organization admins and the
+  `putio-releaser` GitHub App create, move, or delete `v*` tags.
 - The `release` environment requires a maintainer to approve each run before the
   publish job can read its secrets, and its deployment rule allows only `v*` tags
   (a branch rule would block every tag-triggered run).

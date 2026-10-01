@@ -210,6 +210,7 @@ of a `NotAvailable` file and on an explicit retry after `Failed`; never from pol
 - `files.delete` requires `status: "OK"`, a nonnegative `skipped`, and a non-blank `cursor` when present; `files.move` requires `status: "OK"` and an `errors` list
 - `OkResponse` requires `status: "OK"`; a non-OK acknowledgement on HTTP 2xx is a serialization failure with operation context
 - Trash list decoding requires explicit files and nonnegative initial totals; continuation may omit totals, so consumers retain the initial aggregates instead of replacing them with continuation defaults
+- `PutioApiException.errorMessage` is put.io's own explanation (`error_message`, else `message`) with credential-bearing URLs redacted; the exception message prefers it over the generic HTTP status text
 - domain namespaces wrap SDK failures with `domain.operation` context before surfacing them to consumers
 - `PutioErrorLocalizer` can layer operation-specific recovery guidance on top of the underlying typed API or transport error
 - transport exceptions expose a stable failure kind and retain sanitized timeout, DNS, connection, TLS, protocol, and I/O cause types
