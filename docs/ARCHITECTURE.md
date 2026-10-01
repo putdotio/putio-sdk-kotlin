@@ -87,6 +87,7 @@ graph LR
   - `search`
   - `continueSearch`
   - `createFolder`
+  - `upload` (multipart to `PutioConfig.uploadBaseUrl`, default `https://upload.put.io/v2/`; returns the saved file or, for a `.torrent`/`.magnet` name, the started transfer; `requireTorrent` sends `torrent=true` so put.io rejects non-torrent content with `NotTorrent` instead of storing it)
   - `copy`
   - `delete`
   - `move`

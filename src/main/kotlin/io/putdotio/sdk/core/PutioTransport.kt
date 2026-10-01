@@ -13,8 +13,10 @@ import kotlinx.serialization.json.Json
 import okhttp3.FormBody
 import okhttp3.HttpUrl.Companion.toHttpUrl
 import okhttp3.MediaType.Companion.toMediaType
+import okhttp3.MultipartBody
 import okhttp3.OkHttpClient
 import okhttp3.Request
+import okhttp3.RequestBody
 import okhttp3.RequestBody.Companion.toRequestBody
 import okhttp3.Response
 import java.io.IOException
@@ -32,6 +34,13 @@ internal sealed interface PutioAuth {
 
     data object None : PutioAuth
 }
+
+internal class PutioMultipartFile(
+    val fieldName: String,
+    val fileName: String,
+    val mediaType: String,
+    val content: ByteArray,
+)
 
 internal class PutioTransport(
     internal val config: PutioConfig,
@@ -137,6 +146,33 @@ internal class PutioTransport(
             auth = auth,
         )
 
+    suspend fun <T> postMultipart(
+        baseUrl: String,
+        path: String,
+        serializer: KSerializer<T>,
+        form: Map<String, String>,
+        file: PutioMultipartFile,
+        auth: PutioAuth = PutioAuth.ConfigToken,
+    ): T {
+        val body =
+            MultipartBody
+                .Builder()
+                .setType(MultipartBody.FORM)
+                .apply { form.forEach { (key, value) -> addFormDataPart(key, value) } }
+                .addFormDataPart(
+                    file.fieldName,
+                    file.fileName,
+                    file.content.toRequestBody(file.mediaType.toMediaType()),
+                ).build()
+        return executeUrl(
+            method = "POST",
+            url = buildUrl(path = path, baseUrl = baseUrl),
+            serializer = serializer,
+            auth = auth,
+            body = body,
+        )
+    }
+
     fun buildUrl(
         path: String,
         query: Map<String, String> = emptyMap(),
@@ -222,9 +258,11 @@ internal class PutioTransport(
         form: Map<String, String> = emptyMap(),
         jsonBody: String? = null,
         auth: PutioAuth = PutioAuth.ConfigToken,
+        body: RequestBody? = null,
     ): T {
         val requestData = PutioRequestData(method = method, url = url)
-        val request = buildRequest(method = method, url = url, form = form, jsonBody = jsonBody, auth = auth)
+        val request =
+            buildRequest(method = method, url = url, form = form, jsonBody = jsonBody, auth = auth, body = body)
         val response =
             try {
                 httpClient.newCall(request).awaitResponseBody()
@@ -251,6 +289,7 @@ internal class PutioTransport(
         form: Map<String, String>,
         jsonBody: String?,
         auth: PutioAuth,
+        body: RequestBody?,
     ): Request {
         val builder =
             Request
@@ -263,7 +302,7 @@ internal class PutioTransport(
 
         return when (method) {
             "GET" -> builder.get().build()
-            "POST" -> builder.post(jsonBody?.toRequestBody(JSON_MEDIA_TYPE) ?: buildFormBody(form)).build()
+            "POST" -> builder.post(body ?: jsonBody?.toRequestBody(JSON_MEDIA_TYPE) ?: buildFormBody(form)).build()
             "PUT" -> builder.put(jsonBody?.toRequestBody(JSON_MEDIA_TYPE) ?: buildFormBody(form)).build()
             "DELETE" -> builder.delete().build()
             else -> error("Unsupported method $method")
