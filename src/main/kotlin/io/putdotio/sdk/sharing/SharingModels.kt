@@ -1,5 +1,6 @@
 package io.putdotio.sdk.sharing
 
+import io.putdotio.sdk.core.RawStringValueSerializer
 import io.putdotio.sdk.files.PutioFile
 import io.putdotio.sdk.files.PutioFileType
 import kotlinx.serialization.KSerializer
@@ -61,6 +62,94 @@ internal fun ShareFilesInput.toFormMap(): Map<String, String> =
             },
         )
     }
+
+/**
+ * Items shared with the viewer to copy into their own [parentId] folder (root is `0`). Copying
+ * runs in the background; poll [SharingApi.getCloneInfo] with the id [SharingApi.cloneSharedFiles]
+ * returns.
+ */
+data class CloneSharedFilesInput(
+    val ids: List<Long> = emptyList(),
+    val cursor: String? = null,
+    val excludeIds: List<Long> = emptyList(),
+    val parentId: Long = 0,
+) {
+    init {
+        require(ids.isNotEmpty() || !cursor.isNullOrBlank()) { "CloneSharedFilesInput requires either ids or cursor" }
+        require(ids.all { it > 0 } && excludeIds.all { it > 0 }) { "Clone file ids must be positive" }
+        require(parentId >= 0) { "Clone parent id must not be negative" }
+    }
+}
+
+internal fun CloneSharedFilesInput.toFormMap(): Map<String, String> =
+    buildMap {
+        cursor?.takeIf { it.isNotBlank() }?.let { put("cursor", it) }
+        if (excludeIds.isNotEmpty()) put("exclude_ids", excludeIds.joinToString(","))
+        if (ids.isNotEmpty()) put("file_ids", ids.joinToString(","))
+        put("parent_id", parentId.toString())
+    }
+
+@Serializable
+internal data class CloneSharedFilesEnvelope(
+    val id: Long,
+    val status: String? = null,
+) {
+    init {
+        require(id > 0) { "Clone id must be positive" }
+        require(status == null || status == "OK") { "Clone response status must be OK" }
+    }
+}
+
+@Serializable(with = SharedFileCloneStatus.Serializer::class)
+@JvmInline
+value class SharedFileCloneStatus(
+    val raw: String,
+) {
+    val isKnown: Boolean
+        get() = this in knownValues
+
+    /** put.io stops working on the copy in these states; any other status may still change. */
+    val isFinished: Boolean
+        get() = this == DONE || this == ERROR
+
+    override fun toString(): String = raw
+
+    companion object {
+        val NEW = SharedFileCloneStatus("NEW")
+        val PROCESSING = SharedFileCloneStatus("PROCESSING")
+        val DONE = SharedFileCloneStatus("DONE")
+        val ERROR = SharedFileCloneStatus("ERROR")
+
+        private val knownValues = setOf(NEW, PROCESSING, DONE, ERROR)
+
+        fun fromRaw(raw: String): SharedFileCloneStatus = knownValues.firstOrNull { it.raw == raw } ?: SharedFileCloneStatus(raw)
+    }
+
+    object Serializer : RawStringValueSerializer<SharedFileCloneStatus>("SharedFileCloneStatus") {
+        override fun fromRaw(raw: String): SharedFileCloneStatus = Companion.fromRaw(raw)
+
+        override fun toRaw(value: SharedFileCloneStatus): String = value.raw
+    }
+}
+
+/** A background copy started by [SharingApi.cloneSharedFiles]; [errorMessage] is put.io's English reason for [SharedFileCloneStatus.ERROR]. */
+data class SharedFileCloneInfo(
+    val status: SharedFileCloneStatus,
+    val errorMessage: String? = null,
+)
+
+@Serializable
+internal data class SharedFileCloneInfoEnvelope(
+    @SerialName("shared_file_clone_status") val cloneStatus: SharedFileCloneStatus,
+    @SerialName("error_msg") val errorMessage: String? = null,
+    val status: String? = null,
+) {
+    init {
+        require(status == null || status == "OK") { "Clone info response status must be OK" }
+    }
+
+    fun toInfo(): SharedFileCloneInfo = SharedFileCloneInfo(cloneStatus, errorMessage)
+}
 
 /** The `shared_with` summary on a shared-files entry. */
 sealed interface SharedFileAudience {
