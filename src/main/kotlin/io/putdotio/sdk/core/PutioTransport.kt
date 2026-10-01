@@ -350,14 +350,14 @@ internal class PutioTransport(
 
         val statusCode = envelope?.statusCode ?: responseStatusCode
         val errorType = envelope?.errorType
-        val message = envelope?.message ?: "put.io returned HTTP $statusCode"
+        val message = envelope?.errorMessage ?: envelope?.message ?: "put.io returned HTTP $statusCode"
 
         return PutioApiException(
             request = request,
             resolvedStatusCode = statusCode,
             httpStatusCode = responseStatusCode,
             resolvedErrorType = errorType,
-            envelope = envelope ?: PutioApiErrorEnvelope(message = message, statusCode = statusCode, errorType = errorType),
+            envelope = envelope ?: PutioApiErrorEnvelope(statusCode = statusCode, errorType = errorType),
             responseBody = body,
             message = message,
         )
