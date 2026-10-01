@@ -122,9 +122,14 @@ class FilesUploadApiTest {
         }
 
     @Test
-    fun `upload input validates names and parents and redacts content`() {
+    fun `upload input validates names, parents, torrent content and media type, and redacts content`() {
         assertFailsWith<IllegalArgumentException> { FileUploadInput(byteArrayOf(), fileName = " ") }
         assertFailsWith<IllegalArgumentException> { FileUploadInput(byteArrayOf(), fileName = "a", parentId = -1) }
+        assertFailsWith<IllegalArgumentException> {
+            FileUploadInput(byteArrayOf(), fileName = "a.torrent", requireTorrent = true)
+        }
+        assertFailsWith<IllegalArgumentException> { FileUploadInput(byteArrayOf(1), fileName = "a", mediaType = "not a type") }
+        FileUploadInput(byteArrayOf(), fileName = "empty.txt")
         val input = FileUploadInput("secret-bytes".toByteArray(), fileName = "a.torrent")
         assertFalse(input.toString().contains("secret"))
         assertEquals("https://upload.put.io/v2/", PutioConfig().uploadBaseUrl)
