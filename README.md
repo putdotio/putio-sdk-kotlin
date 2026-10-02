@@ -66,6 +66,8 @@ Pre-1.0. The public surface is deliberately smaller than [`putio-sdk-typescript`
 
 The surface grows with the put.io mobile and TV apps. The primary consumer is [putio-android](https://github.com/putdotio/putio-android), which uses this SDK as its API boundary through a Gradle composite build.
 
+Only `main` and the latest `io.put:putio-sdk-kotlin` release receive fixes.
+
 ## Android Consumers
 
 The SDK emits Java 8 bytecode and leaves the Android minimum SDK to the
@@ -151,6 +153,7 @@ Both need a Java `21` runtime. `verify` is the deterministic gate; `liveTest` is
 - [Testing](./docs/TESTING.md)
 - [Readiness](./docs/READINESS.md)
 - [Release](./docs/RELEASE.md)
+- [Security policy](https://github.com/putdotio/.github/blob/main/SECURITY.md)
 - [Agent guide](./AGENTS.md)
 
 ## License
