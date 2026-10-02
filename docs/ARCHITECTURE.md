@@ -215,3 +215,9 @@ of a `NotAvailable` file and on an explicit retry after `Failed`; never from pol
 - `PutioErrorLocalizer` can layer operation-specific recovery guidance on top of the underlying typed API or transport error
 - transport exceptions expose a stable failure kind and retain sanitized timeout, DNS, connection, TLS, protocol, and I/O cause types
 - SDK-created exceptions redact credential-bearing query values from request URLs while retaining the method, path, query names, and non-sensitive query values
+
+## Credential-Bearing URLs
+
+- API requests send the token in the `Authorization` header where the endpoint supports it
+- media URL builders put the token in `oauth_token` because those endpoints accept URL authentication; treat returned URLs as credentials and do not log, persist, or share them
+- exception redaction replaces sensitive query values with `REDACTED` and covers token, secret, password, credential, signature, API-key, authorization-code, session, and nonce parameter names, including common compound forms
