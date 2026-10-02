@@ -27,7 +27,7 @@ Useful reports usually include issues involving:
 ## Credential-bearing URLs
 
 - API requests use the `Authorization` header where the endpoint supports it
-- media URL builders put the account download token in `oauth_token` because those endpoints accept URL authentication; the download token works only on media endpoints, but treat returned URLs as credentials and do not log them
+- media URL builders put the account download token in `oauth_token` because those endpoints accept URL authentication; the download token works only on media endpoints, but it still grants access to the account's files, so treat returned URLs as credentials and do not log, persist, or share them
 - SDK-created exceptions replace sensitive query values with `REDACTED`; request methods, paths, query names, and non-sensitive query values remain available for diagnosis
 - redaction covers token, secret, password, credential, signature, API-key, authorization-code, session, and nonce parameter names, including common compound forms
 
