@@ -1,6 +1,7 @@
 package io.putdotio.sdk.files
 
 import io.putdotio.sdk.OkResponse
+import io.putdotio.sdk.account.AccountDownloadToken
 import io.putdotio.sdk.core.PutioMultipartFile
 import io.putdotio.sdk.core.PutioTransport
 import io.putdotio.sdk.errors.PutioApiException
@@ -372,37 +373,22 @@ class FilesApi internal constructor(
             )
         }
 
+    // Media URLs leave the app (players, cast receivers, caches), so they carry the
+    // narrower account download token, which the API accepts only on media endpoints.
     fun buildDownloadUrl(
         fileId: Long,
-        accessToken: String,
-    ): String =
-        transport.buildUrl(
-            path = "/files/$fileId/download",
-            query = mapOf("oauth_token" to accessToken),
-        )
+        downloadToken: AccountDownloadToken,
+    ): String = mediaUrl("/files/$fileId/download", downloadToken.value)
 
     fun buildMp4DownloadUrl(
         fileId: Long,
-        accessToken: String,
-    ): String =
-        transport.buildUrl(
-            path = "/files/$fileId/mp4/download",
-            query = mapOf("oauth_token" to accessToken),
-        )
-
-    internal fun buildMp4StreamUrl(
-        fileId: Long,
-        accessToken: String,
-    ): String =
-        transport.buildUrl(
-            path = "/files/$fileId/mp4/stream",
-            query = mapOf("oauth_token" to accessToken),
-        )
+        downloadToken: AccountDownloadToken,
+    ): String = mediaUrl("/files/$fileId/mp4/download", downloadToken.value)
 
     fun buildAudioStreamUrl(
         fileId: Long,
-        accessToken: String,
-    ): String = buildOriginalStreamUrl(fileId = fileId, accessToken = accessToken)
+        downloadToken: AccountDownloadToken,
+    ): String = buildOriginalStreamUrl(fileId = fileId, downloadToken = downloadToken)
 
     /**
      * The original file as put.io stores it, for players that decode it themselves (libVLC,
@@ -410,30 +396,26 @@ class FilesApi internal constructor(
      */
     fun buildOriginalStreamUrl(
         fileId: Long,
-        accessToken: String,
-    ): String =
-        transport.buildUrl(
-            path = "/files/$fileId/stream",
-            query = mapOf("oauth_token" to accessToken),
-        )
+        downloadToken: AccountDownloadToken,
+    ): String = mediaUrl("/files/$fileId/stream", downloadToken.value)
 
     fun buildStreamUrl(
         file: PutioFile,
-        accessToken: String,
+        downloadToken: AccountDownloadToken,
     ): String? =
         when (file.fileType) {
-            PutioFileType.AUDIO -> buildAudioStreamUrl(fileId = file.id, accessToken = accessToken)
-            PutioFileType.VIDEO -> buildHlsStreamUrl(fileId = file.id, accessToken = accessToken)
+            PutioFileType.AUDIO -> buildAudioStreamUrl(fileId = file.id, downloadToken = downloadToken)
+            PutioFileType.VIDEO -> buildHlsStreamUrl(fileId = file.id, downloadToken = downloadToken)
             else -> null
         }
 
     fun buildStreamUrl(
         nextFile: NextFile,
-        accessToken: String,
+        downloadToken: AccountDownloadToken,
     ): String? =
         when (nextFile.fileType) {
-            NextFileType.AUDIO -> buildAudioStreamUrl(fileId = nextFile.id, accessToken = accessToken)
-            NextFileType.VIDEO -> buildHlsStreamUrl(fileId = nextFile.id, accessToken = accessToken)
+            NextFileType.AUDIO -> buildAudioStreamUrl(fileId = nextFile.id, downloadToken = downloadToken)
+            NextFileType.VIDEO -> buildHlsStreamUrl(fileId = nextFile.id, downloadToken = downloadToken)
             else -> null
         }
 
@@ -444,16 +426,28 @@ class FilesApi internal constructor(
      */
     fun buildHlsStreamUrl(
         fileId: Long,
-        accessToken: String,
+        downloadToken: AccountDownloadToken,
         subtitleLanguages: List<String> = emptyList(),
         maxSubtitleCount: Int? = null,
+    ): String = hlsUrl(fileId, downloadToken.value, subtitleLanguages, maxSubtitleCount)
+
+    internal fun mediaUrl(
+        path: String,
+        token: String,
+    ): String = transport.buildUrl(path = path, query = mapOf("oauth_token" to token))
+
+    internal fun hlsUrl(
+        fileId: Long,
+        token: String,
+        subtitleLanguages: List<String>,
+        maxSubtitleCount: Int?,
     ): String {
         requireValidMaxSubtitleCount(maxSubtitleCount)
         return transport.buildUrl(
             path = "/files/$fileId/hls/media.m3u8",
             query =
                 buildMap {
-                    put("oauth_token", accessToken)
+                    put("oauth_token", token)
                     put("subtitle_key", "all")
                     if (subtitleLanguages.isNotEmpty()) {
                         put("subtitle_languages", subtitleLanguages.joinToString(","))
@@ -540,20 +534,20 @@ private fun FilesApi.buildPlaybackUrl(
     PutioCredentialUrl(
         when (kind) {
             PlaybackSourceKind.ORIGINAL -> {
-                buildOriginalStreamUrl(fileId, request.mediaCredential.value)
+                mediaUrl("/files/$fileId/stream", request.mediaCredential.value)
             }
 
             PlaybackSourceKind.HLS -> {
-                buildHlsStreamUrl(
+                hlsUrl(
                     fileId = fileId,
-                    accessToken = request.mediaCredential.value,
+                    token = request.mediaCredential.value,
                     subtitleLanguages = request.subtitleLanguages,
                     maxSubtitleCount = request.maxSubtitleCount,
                 )
             }
 
             PlaybackSourceKind.MP4 -> {
-                buildMp4StreamUrl(fileId, request.mediaCredential.value)
+                mediaUrl("/files/$fileId/mp4/stream", request.mediaCredential.value)
             }
         },
     )
