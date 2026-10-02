@@ -102,7 +102,7 @@ graph LR
   - `setStartFrom`
   - `resetStartFrom`
   - `getDownloadUrl` (API-issued URL with its own token, bound to the requesting IP; for external players that must not receive the account token)
-  - `buildDownloadUrl`, `buildMp4DownloadUrl`, `buildStreamUrl`, `buildHlsStreamUrl`, `buildOriginalStreamUrl`, `buildAudioStreamUrl`
+  - `buildDownloadUrl`, `buildMp4DownloadUrl`, `buildStreamUrl`, `buildHlsStreamUrl`, `buildOriginalStreamUrl`, `buildAudioStreamUrl` (take an `AccountDownloadToken`, sent as `oauth_token`)
 - `grants`
   - `list`
   - `revoke`
@@ -163,7 +163,10 @@ setting. It may also declare `originalVideoPlayable` after platform proof; the S
 does not read or own `/config` playback keys.
 
 Direct media URLs use the account `download_token`, decoded as an
-`AccountDownloadToken` and supplied as a `PlaybackMediaCredential`. The account token,
+`AccountDownloadToken` and supplied as a `PlaybackMediaCredential`; the public
+`build*Url` builders take the `AccountDownloadToken` directly. The API accepts it on
+media endpoints (download, stream, MP4, HLS, subtitles, XSPF) and rejects it on API
+calls such as account info or file listing, so a leaked media URL cannot drive the account. The account token,
 playback credential, and resolved URL redact their debug representations. Consumers may reveal the URL only at the player boundary and must
 not log, persist, cache, share, or attach it to analytics, notifications, or errors.
 

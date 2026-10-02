@@ -2,6 +2,7 @@ package io.putdotio.sdk.files
 
 import io.putdotio.sdk.PutioClient
 import io.putdotio.sdk.PutioConfig
+import io.putdotio.sdk.account.AccountDownloadToken
 import io.putdotio.sdk.errors.PutioApiException
 import io.putdotio.sdk.errors.PutioKnownErrorContract
 import io.putdotio.sdk.errors.PutioOperationErrorReason
@@ -955,29 +956,29 @@ class FilesApiTest {
 
         assertEquals(
             "https://api.put.io/v2/files/10/hls/media.m3u8?oauth_token=abc&subtitle_key=all&max_subtitle_count=-1",
-            sdk.files.buildHlsStreamUrl(fileId = 10, accessToken = "abc", maxSubtitleCount = HLS_ALL_SUBTITLES),
+            sdk.files.buildHlsStreamUrl(fileId = 10, downloadToken = DOWNLOAD_TOKEN, maxSubtitleCount = HLS_ALL_SUBTITLES),
         )
         assertEquals(
             "https://api.put.io/v2/files/10/hls/media.m3u8?oauth_token=abc&subtitle_key=all&max_subtitle_count=0",
-            sdk.files.buildHlsStreamUrl(fileId = 10, accessToken = "abc", maxSubtitleCount = 0),
+            sdk.files.buildHlsStreamUrl(fileId = 10, downloadToken = DOWNLOAD_TOKEN, maxSubtitleCount = 0),
         )
         assertEquals(
             "https://api.put.io/v2/files/10/hls/media.m3u8?oauth_token=abc&subtitle_key=all" +
                 "&subtitle_languages=en%2Ctr&max_subtitle_count=2",
             sdk.files.buildHlsStreamUrl(
                 fileId = 10,
-                accessToken = "abc",
+                downloadToken = DOWNLOAD_TOKEN,
                 subtitleLanguages = listOf("en", "tr"),
                 maxSubtitleCount = 2,
             ),
         )
         assertFailsWith<IllegalArgumentException> {
-            sdk.files.buildHlsStreamUrl(fileId = 10, accessToken = "abc", maxSubtitleCount = -2)
+            sdk.files.buildHlsStreamUrl(fileId = 10, downloadToken = DOWNLOAD_TOKEN, maxSubtitleCount = -2)
         }
     }
 
     @Test
-    fun `buildDownloadUrl appends oauth token query`() {
+    fun `media url builders carry the download token as oauth_token`() {
         val sdk = PutioClient()
         val videoFile =
             PutioFile(
@@ -1002,33 +1003,33 @@ class FilesApiTest {
 
         assertEquals(
             "https://api.put.io/v2/files/10/download?oauth_token=abc",
-            sdk.files.buildDownloadUrl(fileId = 10, accessToken = "abc"),
+            sdk.files.buildDownloadUrl(fileId = 10, downloadToken = DOWNLOAD_TOKEN),
         )
         assertEquals(
             "https://api.put.io/v2/files/10/mp4/download?oauth_token=abc",
-            sdk.files.buildMp4DownloadUrl(fileId = 10, accessToken = "abc"),
+            sdk.files.buildMp4DownloadUrl(fileId = 10, downloadToken = DOWNLOAD_TOKEN),
         )
         assertEquals(
             "https://api.put.io/v2/files/10/stream?oauth_token=abc",
-            sdk.files.buildAudioStreamUrl(fileId = 10, accessToken = "abc"),
+            sdk.files.buildAudioStreamUrl(fileId = 10, downloadToken = DOWNLOAD_TOKEN),
         )
         assertEquals(
             "https://api.put.io/v2/files/12/stream?oauth_token=abc",
-            sdk.files.buildOriginalStreamUrl(fileId = 12, accessToken = "abc"),
+            sdk.files.buildOriginalStreamUrl(fileId = 12, downloadToken = DOWNLOAD_TOKEN),
         )
         assertEquals(
             "https://api.put.io/v2/files/10/hls/media.m3u8?oauth_token=abc&subtitle_key=all",
-            sdk.files.buildHlsStreamUrl(fileId = 10, accessToken = "abc"),
+            sdk.files.buildHlsStreamUrl(fileId = 10, downloadToken = DOWNLOAD_TOKEN),
         )
         assertEquals(
             "https://api.put.io/v2/files/11/hls/media.m3u8?oauth_token=abc&subtitle_key=all",
-            sdk.files.buildStreamUrl(file = videoFile, accessToken = "abc"),
+            sdk.files.buildStreamUrl(file = videoFile, downloadToken = DOWNLOAD_TOKEN),
         )
         assertEquals(
             "https://api.put.io/v2/files/12/stream?oauth_token=abc",
-            sdk.files.buildStreamUrl(nextFile = audioNextFile, accessToken = "abc"),
+            sdk.files.buildStreamUrl(nextFile = audioNextFile, downloadToken = DOWNLOAD_TOKEN),
         )
-        assertEquals(null, sdk.files.buildStreamUrl(file = folderFile, accessToken = "abc"))
+        assertEquals(null, sdk.files.buildStreamUrl(file = folderFile, downloadToken = DOWNLOAD_TOKEN))
     }
 
     private fun withServer(block: (MockWebServer) -> Unit) {
@@ -1048,3 +1049,5 @@ class FilesApiTest {
 
     private fun decodeCursor(body: String): String = URLDecoder.decode(body.substringAfter("cursor="), StandardCharsets.UTF_8)
 }
+
+private val DOWNLOAD_TOKEN = AccountDownloadToken("abc")

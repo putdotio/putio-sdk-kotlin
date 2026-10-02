@@ -103,6 +103,20 @@ An injected client remains caller-owned: `PutioClient.close()` does not close
 its cache, dispatcher, or connection pool. A client created internally by
 `PutioClient` is closed with the SDK.
 
+## Media URLs
+
+Download and stream URL builders take the account download token, never the
+access token, because their URLs leave the app for players, cast receivers,
+and caches:
+
+```kotlin
+val downloadToken = sdk.account.getInfo(AccountInfoQuery(downloadToken = true)).downloadToken
+    ?: error("account returned no download token")
+val url = sdk.files.buildHlsStreamUrl(fileId = file.id, downloadToken = downloadToken)
+```
+
+Treat the returned URL as a credential: do not log it or attach it to errors.
+
 ## Device-Code Linking (TV)
 
 ```kotlin
