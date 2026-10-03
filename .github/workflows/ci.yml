@@ -5,17 +5,24 @@ on:
   push:
     branches:
       - main
+  workflow_dispatch:
+    inputs:
+      recover_version:
+        description: Existing release version to finish publishing, e.g. 1.0.0
+        required: true
+        type: string
 
 permissions:
   contents: read
 
+# Cancelling a main run mid-publish would strand a tag without its artifact.
 concurrency:
   group: ci-${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
   verify:
-    if: github.event_name != 'push' || !contains(github.event.head_commit.message, '[skip ci]')
+    if: github.event_name == 'pull_request' || (github.event_name == 'push' && !contains(github.event.head_commit.message, '[skip ci]'))
     name: Verify Kotlin SDK
     runs-on: ubuntu-24.04-arm
     timeout-minutes: 20
@@ -38,3 +45,183 @@ jobs:
 
       - name: Verify repository
         run: ./gradlew verify
+
+  release:
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main' && !contains(github.event.head_commit.message, '[skip ci]')
+    name: Release Kotlin SDK
+    needs:
+      - verify
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 30
+    concurrency:
+      group: release-${{ github.repository }}-main
+      cancel-in-progress: false
+    environment:
+      name: release
+      deployment: false
+    permissions:
+      contents: read
+
+    steps:
+      - name: Create release bot token
+        id: release-bot
+        uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3
+        with:
+          client-id: ${{ vars.PUTIO_RELEASE_BOT_CLIENT_ID }}
+          private-key: ${{ secrets.PUTIO_RELEASE_BOT_PRIVATE_KEY }}
+          permission-contents: write
+          permission-issues: write
+          permission-pull-requests: write
+
+      - name: Check out repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Set up Java
+        uses: actions/setup-java@dd06d9cba3e5552c54d9f8ea23572deb30010f7c # v5
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      # No shared cache in a job that holds publishing and signing credentials.
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@9c971963bec38e04b3d30dcc455b5382be2fdbfb # v6
+        with:
+          cache-disabled: true
+
+      - name: Configure release bot remote
+        run: git remote set-url origin "https://x-access-token:${RELEASE_BOT_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
+        env:
+          RELEASE_BOT_TOKEN: ${{ steps.release-bot.outputs.token }}
+
+      - name: Release SDK
+        uses: cycjimmy/semantic-release-action@b12c8f6015dc215fe37bc154d4ad456dd3833c90 # v6.0.0
+        with:
+          extra_plugins: |
+            @semantic-release/commit-analyzer@13.0.1
+            @semantic-release/release-notes-generator@14.1.1
+            @semantic-release/exec@7.1.0
+            @semantic-release/github@12.0.8
+            conventional-changelog-conventionalcommits@9.3.1
+        env:
+          GITHUB_TOKEN: ${{ steps.release-bot.outputs.token }}
+          ORG_GRADLE_PROJECT_mavenCentralUsername: ${{ secrets.MAVEN_CENTRAL_USERNAME }}
+          ORG_GRADLE_PROJECT_mavenCentralPassword: ${{ secrets.MAVEN_CENTRAL_PASSWORD }}
+          ORG_GRADLE_PROJECT_signingInMemoryKeyId: ${{ secrets.SIGNING_KEY_ID }}
+          ORG_GRADLE_PROJECT_signingInMemoryKey: ${{ secrets.SIGNING_KEY }}
+          ORG_GRADLE_PROJECT_signingInMemoryKeyPassword: ${{ secrets.SIGNING_PASSWORD }}
+
+  # semantic-release pushes the tag before publishing. When Central or the
+  # GitHub release fails after that, this finishes the existing tag instead of
+  # cutting a new version.
+  recover_release:
+    if: github.event_name == 'workflow_dispatch'
+    name: Recover Kotlin SDK release
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 30
+    concurrency:
+      group: release-${{ github.repository }}-main
+      cancel-in-progress: false
+    environment:
+      name: release
+      deployment: false
+    permissions:
+      contents: read
+
+    steps:
+      - name: Validate recovery target
+        id: target
+        env:
+          RAW_VERSION: ${{ inputs.recover_version }}
+        run: |
+          set -euo pipefail
+          if [[ "$GITHUB_REF" != "refs/heads/main" ]]; then
+            echo "release recovery must run from main (got: $GITHUB_REF)" >&2
+            exit 1
+          fi
+          if [[ ! "$RAW_VERSION" =~ ^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$ ]]; then
+            echo "recover_version must be a stable semantic version" >&2
+            exit 1
+          fi
+          echo "version=$RAW_VERSION" >> "$GITHUB_OUTPUT"
+          echo "tag=v$RAW_VERSION" >> "$GITHUB_OUTPUT"
+
+      - name: Check out release tag
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: refs/tags/${{ steps.target.outputs.tag }}
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Require the tag to be on main
+        env:
+          TAG: ${{ steps.target.outputs.tag }}
+        run: |
+          set -euo pipefail
+          git fetch --no-tags origin main
+          git merge-base --is-ancestor HEAD origin/main \
+            || { echo "$TAG is not reachable from main" >&2; exit 1; }
+
+      - name: Check Maven Central
+        id: central
+        env:
+          VERSION: ${{ steps.target.outputs.version }}
+        run: |
+          set -euo pipefail
+          url="https://repo1.maven.org/maven2/io/put/putio-sdk-kotlin/${VERSION}/putio-sdk-kotlin-${VERSION}.pom"
+          status="$(curl -sS -o /dev/null -w '%{http_code}' "$url")"
+          case "$status" in
+            200) echo "published=true" >> "$GITHUB_OUTPUT" ;;
+            404) echo "published=false" >> "$GITHUB_OUTPUT" ;;
+            *) echo "unexpected Maven Central status $status for $url" >&2; exit 1 ;;
+          esac
+
+      - name: Set up Java
+        if: steps.central.outputs.published == 'false'
+        uses: actions/setup-java@dd06d9cba3e5552c54d9f8ea23572deb30010f7c # v5
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - name: Set up Gradle
+        if: steps.central.outputs.published == 'false'
+        uses: gradle/actions/setup-gradle@9c971963bec38e04b3d30dcc455b5382be2fdbfb # v6
+        with:
+          cache-disabled: true
+
+      - name: Verify and publish to Maven Central
+        if: steps.central.outputs.published == 'false'
+        env:
+          VERSION: ${{ steps.target.outputs.version }}
+          ORG_GRADLE_PROJECT_mavenCentralUsername: ${{ secrets.MAVEN_CENTRAL_USERNAME }}
+          ORG_GRADLE_PROJECT_mavenCentralPassword: ${{ secrets.MAVEN_CENTRAL_PASSWORD }}
+          ORG_GRADLE_PROJECT_signingInMemoryKeyId: ${{ secrets.SIGNING_KEY_ID }}
+          ORG_GRADLE_PROJECT_signingInMemoryKey: ${{ secrets.SIGNING_KEY }}
+          ORG_GRADLE_PROJECT_signingInMemoryKeyPassword: ${{ secrets.SIGNING_PASSWORD }}
+        run: |
+          set -euo pipefail
+          ./gradlew verify -Pversion="$VERSION"
+          ./gradlew publishToMavenCentral --no-configuration-cache -Pversion="$VERSION"
+
+      - name: Create release bot token
+        id: release-bot
+        uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3
+        with:
+          client-id: ${{ vars.PUTIO_RELEASE_BOT_CLIENT_ID }}
+          private-key: ${{ secrets.PUTIO_RELEASE_BOT_PRIVATE_KEY }}
+          permission-contents: write
+
+      - name: Create missing GitHub release
+        env:
+          GH_TOKEN: ${{ steps.release-bot.outputs.token }}
+          GH_REPO: ${{ github.repository }}
+          TAG: ${{ steps.target.outputs.tag }}
+        run: |
+          set -euo pipefail
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            echo "$TAG already has a GitHub release"
+            exit 0
+          fi
+          gh release create "$TAG" --verify-tag --title "$TAG" --generate-notes

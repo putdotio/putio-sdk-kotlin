@@ -21,21 +21,13 @@
 
 ## Installation
 
-Publishing to Maven Central is wired to version tags ([Release](./docs/RELEASE.md)); the first tag, `v0.1.0`, is tracked in [#43](https://github.com/putdotio/putio-sdk-kotlin/issues/43). Until then, consume the SDK from a checkout:
-
-```bash
-./gradlew publishToMavenLocal -Pversion=0.1.0
-```
-
-or as a Gradle composite build with `includeBuild("../putio-sdk-kotlin")`, which is how the Android app consumes it today.
-
-Once released, the coordinate will be:
-
 ```kotlin
 dependencies {
-    implementation("io.put:putio-sdk-kotlin:0.1.0")
+    implementation("io.put:putio-sdk-kotlin:<version>")
 }
 ```
+
+The latest version is on [Maven Central](https://central.sonatype.com/artifact/io.put/putio-sdk-kotlin) and in [GitHub releases](https://github.com/putdotio/putio-sdk-kotlin/releases). To build against a checkout instead, use a Gradle composite build with `includeBuild("../putio-sdk-kotlin")`.
 
 ## Quick Start
 

@@ -3,62 +3,70 @@
 ## Coordinates
 
 `io.put:putio-sdk-kotlin` on Maven Central, published through the Sonatype
-Central Portal by `.github/workflows/release.yml`. The Maven group is the
-reverse DNS of put.io; the Kotlin package stays `io.putdotio.sdk`.
+Central Portal. The Maven group is the reverse DNS of put.io; the Kotlin
+package stays `io.putdotio.sdk`.
 
-## Cut a release
+## How a release happens
 
-1. Land the release commit on `main` with CI green.
-2. Tag it and push the tag:
+Every push to `main` runs the `release` job in
+[`ci.yml`](../.github/workflows/ci.yml) after verify passes, once a maintainer
+approves the `release` environment. [semantic-release](../.releaserc.json)
+reads the Conventional Commits since the last `v*` tag:
 
-   ```bash
-   git tag v0.1.0
-   git push origin v0.1.0
-   ```
+- `fix:` and `perf:` cut a patch, `feat:` a minor, and `!` or a
+  `BREAKING CHANGE:` footer a major
+- `docs:`, `chore:`, `ci:`, `test:`, and `refactor:` cut nothing; the run ends
+  without publishing
 
-3. The workflow verifies the tagged commit, publishes with the tag's version,
-   waits for Central validation, and creates the GitHub release with generated
-   notes. Central lists the version within about half an hour.
+When a release is due, semantic-release pushes the `v<version>` tag, runs
+`./gradlew publishToMavenCentral -Pversion=<version>`, waits for Central
+validation, and creates the GitHub release with generated notes. Central lists
+the version within about half an hour. No version file is committed back.
 
-Publishing and the GitHub release are separate jobs. If the release job fails
-after Central accepted the bundle, use "Re-run failed jobs" so only the release
-job runs; a full re-run would try to upload the immutable version again and
-fail. The release job itself skips when the release already exists.
+Local builds keep the version `0.1.0-SNAPSHOT`. Every remote `publish*` task
+refuses a SNAPSHOT version, so a build without `-Pversion` cannot publish even
+with credentials present.
 
-Local builds keep the version `0.1.0-SNAPSHOT`. A version is only ever set from
-a tag through `-Pversion`; every remote `publish*` task refuses a SNAPSHOT version,
-so `main` cannot publish by accident even with credentials present.
+## Recovery
 
-The tagged commit's build scripts run with the publishing credentials, so the
-trust boundary sits outside the workflow, where a tag cannot rewrite it:
-
-- The "Protect v* release tags" ruleset lets only organization admins and the
-  `putio-releaser` GitHub App create, move, or delete `v*` tags.
-- The `release` environment requires a maintainer to approve each run before the
-  publish job can read its secrets, and its deployment rule allows only `v*` tags
-  (a branch rule would block every tag-triggered run).
-
-Before approving, confirm the tag is on `main`:
+The tag is pushed before publishing, so a failed publish or GitHub release
+leaves a tag without its artifact or release. Never push a new tag for it, and
+never delete it: semantic-release would then cut the same version again, and
+Central rejects a re-upload. Finish it from `main` instead:
 
 ```bash
-git fetch origin main --tags
-git merge-base --is-ancestor v0.1.0 origin/main && echo on-main
+gh workflow run ci.yml --repo putdotio/putio-sdk-kotlin --ref main -f recover_version=X.Y.Z
 ```
 
-The workflow repeats that ancestry check and rejects tags that are not strict
-`vMAJOR.MINOR.PATCH`, as a guard against mistakes rather than the control.
+The recovery job checks out the tag, publishes only when the POM is not yet on
+`repo1.maven.org`, and creates the GitHub release only when it is missing.
+
+## Trust boundary
+
+The release job runs `main`'s build scripts with the publishing credentials,
+so the controls sit outside the workflow:
+
+- the `release` environment requires a maintainer to approve each run before
+  any job can read its secrets, and its deployment rule allows only `main`
+- the "Protect v* release tags" ruleset lets only organization admins and the
+  `putio-releaser` GitHub App create, move, or delete `v*` tags
+- release jobs run without the shared Gradle cache
 
 ## Credentials
 
-All secrets live in the `release` environment on the GitHub repository. None are
-checked in or read by `./gradlew verify`.
+All secrets live in the `release` environment on the GitHub repository. None
+are checked in or read by `./gradlew verify`. The put.io 1Password item
+`frontend/putio-android-maven-sonatype` holds the Central token and the
+signing key; `put.io/github-putio-releaser-app` holds the App key.
 
-| Secret | Source |
-| --- | --- |
-| `MAVEN_CENTRAL_USERNAME`, `MAVEN_CENTRAL_PASSWORD` | Central Portal user token for an account that owns the verified `io.put` namespace |
-| `SIGNING_KEY_ID` | Last eight hex characters of the GPG key id |
-| `SIGNING_KEY` | ASCII-armored private key: `gpg --armor --export-secret-keys <id>` |
-| `SIGNING_PASSWORD` | The key's passphrase |
+| Name | Kind | Source |
+| --- | --- | --- |
+| `MAVEN_CENTRAL_USERNAME`, `MAVEN_CENTRAL_PASSWORD` | secret | Central Portal user token for an account that owns the verified `io.put` namespace |
+| `SIGNING_KEY_ID` | secret | Last eight hex characters of the GPG key id |
+| `SIGNING_KEY` | secret | ASCII-armored private key: `gpg --armor --export-secret-keys <id>` |
+| `SIGNING_PASSWORD` | secret | The key's passphrase |
+| `PUTIO_RELEASE_BOT_PRIVATE_KEY` | secret | `putio-releaser` App private key |
+| `PUTIO_RELEASE_BOT_CLIENT_ID` | variable | `putio-releaser` App client id |
 
 The public key must be on `keyserver.ubuntu.com` or Central rejects the
 signature:
@@ -71,8 +79,8 @@ gpg --keyserver keyserver.ubuntu.com --send-keys <id>
 ## Local dry run
 
 ```bash
-./gradlew publishToMavenLocal -Pversion=0.1.0
-ls ~/.m2/repository/io/put/putio-sdk-kotlin/0.1.0/
+./gradlew publishToMavenLocal -Pversion=1.0.0
+ls ~/.m2/repository/io/put/putio-sdk-kotlin/1.0.0/
 ```
 
 Signing is skipped locally when no signing key is configured.
