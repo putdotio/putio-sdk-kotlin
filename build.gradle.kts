@@ -17,7 +17,7 @@ plugins {
 
 // Reverse DNS of put.io; the Kotlin package stays io.putdotio.sdk.
 group = "io.put"
-// Release tags set the version: `./gradlew publish -Pversion=0.1.0`. Local builds stay SNAPSHOT.
+// semantic-release sets the version: `./gradlew publishToMavenCentral -Pversion=1.0.0`. Local builds stay SNAPSHOT.
 version = providers.gradleProperty("version").orNull?.takeUnless { it == "unspecified" } ?: "0.1.0-SNAPSHOT"
 
 repositories {
@@ -117,11 +117,11 @@ tasks.register("verify") {
     dependsOn("check", "jar", "jacocoTestCoverageVerification")
 }
 
-// Only the release workflow passes -Pversion; a default SNAPSHOT must never reach Central.
+// Only the release job passes -Pversion; a default SNAPSHOT must never reach Central.
 tasks.matching { it.name.startsWith("publish") && !it.name.endsWith("ToMavenLocal") }.configureEach {
     doFirst {
         check(!project.version.toString().endsWith("-SNAPSHOT")) {
-            "Remote publishing needs an explicit release version, e.g. -Pversion=0.1.0"
+            "Remote publishing needs an explicit release version, e.g. -Pversion=1.0.0"
         }
     }
 }
@@ -130,7 +130,7 @@ mavenPublishing {
     // Central Portal publishing; credentials come from ORG_GRADLE_PROJECT_mavenCentralUsername/Password.
     // Waits for Central validation, then releases without a manual portal step.
     publishToMavenCentral(automaticRelease = true)
-    // Central requires signed artifacts. The release workflow supplies the key through
+    // Central requires signed artifacts. The release job supplies the key through
     // ORG_GRADLE_PROJECT_signingInMemoryKey*; without one, local dry runs publish unsigned to mavenLocal.
     if (providers.gradleProperty("signingInMemoryKey").isPresent) {
         signAllPublications()

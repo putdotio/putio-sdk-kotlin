@@ -5,17 +5,26 @@ on:
   push:
     branches:
       - main
+  workflow_dispatch:
+    inputs:
+      recover_version:
+        description: Existing release version to finish publishing, e.g. 1.0.0
+        required: true
+        type: string
 
 permissions:
   contents: read
 
+# Cancelling a main run mid-publish would strand a tag without its artifact.
+# Recovery dispatches get their own group so they never displace a queued
+# main release.
 concurrency:
-  group: ci-${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
+  group: ci-${{ github.workflow }}-${{ github.event_name }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
   verify:
-    if: github.event_name != 'push' || !contains(github.event.head_commit.message, '[skip ci]')
+    if: github.event_name == 'pull_request' || (github.event_name == 'push' && !contains(github.event.head_commit.message, '[skip ci]'))
     name: Verify Kotlin SDK
     runs-on: ubuntu-24.04-arm
     timeout-minutes: 20
@@ -24,7 +33,6 @@ jobs:
       - name: Check out repository
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          fetch-depth: 0
           persist-credentials: false
 
       - name: Set up Java
@@ -38,3 +46,235 @@ jobs:
 
       - name: Verify repository
         run: ./gradlew verify
+
+  release:
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main' && !contains(github.event.head_commit.message, '[skip ci]')
+    name: Release Kotlin SDK
+    needs:
+      - verify
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 30
+    concurrency:
+      group: release-${{ github.repository }}-main
+      cancel-in-progress: false
+    environment:
+      name: release
+      deployment: false
+    permissions:
+      contents: read
+
+    steps:
+      - name: Create release bot token
+        id: release-bot
+        uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3
+        with:
+          client-id: ${{ vars.PUTIO_RELEASE_BOT_CLIENT_ID }}
+          private-key: ${{ secrets.PUTIO_RELEASE_BOT_PRIVATE_KEY }}
+          permission-contents: write
+          permission-issues: write
+          permission-pull-requests: write
+
+      - name: Resolve release bot identity
+        id: release-bot-identity
+        env:
+          GH_TOKEN: ${{ steps.release-bot.outputs.token }}
+          APP_SLUG: ${{ steps.release-bot.outputs.app-slug }}
+        run: |
+          set -euo pipefail
+          user_id="$(gh api "/users/${APP_SLUG}%5Bbot%5D" --jq .id)"
+          if [[ ! "$user_id" =~ ^[0-9]+$ ]]; then
+            echo "failed to resolve numeric bot user id for ${APP_SLUG}[bot] (got: ${user_id})" >&2
+            exit 1
+          fi
+          echo "user_id=${user_id}" >> "$GITHUB_OUTPUT"
+
+      - name: Check out repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Set up Java
+        uses: actions/setup-java@dd06d9cba3e5552c54d9f8ea23572deb30010f7c # v5
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      # No shared cache in a job that holds publishing and signing credentials.
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@9c971963bec38e04b3d30dcc455b5382be2fdbfb # v6
+        with:
+          cache-disabled: true
+
+      - name: Configure release bot remote
+        run: git remote set-url origin "https://x-access-token:${RELEASE_BOT_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
+        env:
+          RELEASE_BOT_TOKEN: ${{ steps.release-bot.outputs.token }}
+
+      - name: Release SDK
+        uses: cycjimmy/semantic-release-action@b12c8f6015dc215fe37bc154d4ad456dd3833c90 # v6.0.0
+        with:
+          semantic_version: 25.0.9
+          extra_plugins: |
+            @semantic-release/commit-analyzer@13.0.1
+            @semantic-release/release-notes-generator@14.1.1
+            @semantic-release/exec@7.1.0
+            @semantic-release/github@12.0.8
+            conventional-changelog-conventionalcommits@9.3.1
+        env:
+          GITHUB_TOKEN: ${{ steps.release-bot.outputs.token }}
+          GIT_AUTHOR_NAME: ${{ steps.release-bot.outputs.app-slug }}[bot]
+          GIT_AUTHOR_EMAIL: ${{ steps.release-bot-identity.outputs.user_id }}+${{ steps.release-bot.outputs.app-slug }}[bot]@users.noreply.github.com
+          GIT_COMMITTER_NAME: ${{ steps.release-bot.outputs.app-slug }}[bot]
+          GIT_COMMITTER_EMAIL: ${{ steps.release-bot-identity.outputs.user_id }}+${{ steps.release-bot.outputs.app-slug }}[bot]@users.noreply.github.com
+          ORG_GRADLE_PROJECT_mavenCentralUsername: ${{ secrets.MAVEN_CENTRAL_USERNAME }}
+          ORG_GRADLE_PROJECT_mavenCentralPassword: ${{ secrets.MAVEN_CENTRAL_PASSWORD }}
+          ORG_GRADLE_PROJECT_signingInMemoryKeyId: ${{ secrets.SIGNING_KEY_ID }}
+          ORG_GRADLE_PROJECT_signingInMemoryKey: ${{ secrets.SIGNING_KEY }}
+          ORG_GRADLE_PROJECT_signingInMemoryKeyPassword: ${{ secrets.SIGNING_PASSWORD }}
+
+  # semantic-release pushes the tag before publishing. When Central or the
+  # GitHub release fails after that, recovery finishes the existing tag instead
+  # of cutting a new version. Inputs are validated before any secret loads.
+  validate_recovery:
+    if: github.event_name == 'workflow_dispatch'
+    name: Validate release recovery
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 5
+    permissions:
+      contents: read
+    outputs:
+      tag: ${{ steps.validate.outputs.tag }}
+      version: ${{ steps.validate.outputs.version }}
+      sha: ${{ steps.validate.outputs.sha }}
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Validate recovery target
+        id: validate
+        env:
+          RAW_VERSION: ${{ inputs.recover_version }}
+        run: |
+          set -euo pipefail
+          if [[ "$GITHUB_REF" != "refs/heads/main" ]]; then
+            echo "release recovery must run from main (got: $GITHUB_REF)" >&2
+            exit 1
+          fi
+          if [[ ! "$RAW_VERSION" =~ ^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$ ]]; then
+            echo "recover_version must be a stable semantic version" >&2
+            exit 1
+          fi
+          tag="v${RAW_VERSION}"
+          if ! sha="$(git rev-parse --verify --quiet "refs/tags/${tag}^{commit}")"; then
+            echo "recovery tag $tag does not exist" >&2
+            exit 1
+          fi
+          if ! git merge-base --is-ancestor "$sha" "$GITHUB_SHA"; then
+            echo "$tag is not an ancestor of recovery main $GITHUB_SHA" >&2
+            exit 1
+          fi
+          {
+            echo "tag=$tag"
+            echo "version=$RAW_VERSION"
+            echo "sha=$sha"
+          } >> "$GITHUB_OUTPUT"
+
+  recover_release:
+    if: github.event_name == 'workflow_dispatch'
+    name: Recover Kotlin SDK release
+    needs:
+      - validate_recovery
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 30
+    concurrency:
+      group: release-${{ github.repository }}-main
+      cancel-in-progress: false
+    environment:
+      name: release
+      deployment: false
+    permissions:
+      contents: read
+
+    steps:
+      - name: Check out release tag
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ needs.validate_recovery.outputs.sha }}
+          persist-credentials: false
+
+      # The Portal API answers immediately; repo1.maven.org lags by up to
+      # half an hour, and a re-upload during that window fails as a duplicate.
+      - name: Check Maven Central
+        id: central
+        env:
+          VERSION: ${{ needs.validate_recovery.outputs.version }}
+          CENTRAL_USERNAME: ${{ secrets.MAVEN_CENTRAL_USERNAME }}
+          CENTRAL_PASSWORD: ${{ secrets.MAVEN_CENTRAL_PASSWORD }}
+        run: |
+          set -euo pipefail
+          token="$(printf '%s:%s' "$CENTRAL_USERNAME" "$CENTRAL_PASSWORD" | base64 -w0)"
+          published="$(curl -sS --fail-with-body \
+            -H "Authorization: Bearer ${token}" \
+            "https://central.sonatype.com/api/v1/publisher/published?namespace=io.put&name=putio-sdk-kotlin&version=${VERSION}" \
+            | jq -r '.published')"
+          case "$published" in
+            true|false) echo "published=$published" >> "$GITHUB_OUTPUT" ;;
+            *) echo "unexpected Central Portal answer for ${VERSION}: ${published}" >&2; exit 1 ;;
+          esac
+
+      - name: Set up Java
+        if: steps.central.outputs.published == 'false'
+        uses: actions/setup-java@dd06d9cba3e5552c54d9f8ea23572deb30010f7c # v5
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - name: Set up Gradle
+        if: steps.central.outputs.published == 'false'
+        uses: gradle/actions/setup-gradle@9c971963bec38e04b3d30dcc455b5382be2fdbfb # v6
+        with:
+          cache-disabled: true
+
+      - name: Verify and publish to Maven Central
+        if: steps.central.outputs.published == 'false'
+        env:
+          VERSION: ${{ needs.validate_recovery.outputs.version }}
+          ORG_GRADLE_PROJECT_mavenCentralUsername: ${{ secrets.MAVEN_CENTRAL_USERNAME }}
+          ORG_GRADLE_PROJECT_mavenCentralPassword: ${{ secrets.MAVEN_CENTRAL_PASSWORD }}
+          ORG_GRADLE_PROJECT_signingInMemoryKeyId: ${{ secrets.SIGNING_KEY_ID }}
+          ORG_GRADLE_PROJECT_signingInMemoryKey: ${{ secrets.SIGNING_KEY }}
+          ORG_GRADLE_PROJECT_signingInMemoryKeyPassword: ${{ secrets.SIGNING_PASSWORD }}
+        run: |
+          set -euo pipefail
+          ./gradlew verify -Pversion="$VERSION"
+          ./gradlew publishToMavenCentral --no-configuration-cache -Pversion="$VERSION"
+
+      - name: Create release bot token
+        id: release-bot
+        uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3
+        with:
+          client-id: ${{ vars.PUTIO_RELEASE_BOT_CLIENT_ID }}
+          private-key: ${{ secrets.PUTIO_RELEASE_BOT_PRIVATE_KEY }}
+          permission-contents: write
+
+      - name: Create missing GitHub release
+        env:
+          GH_TOKEN: ${{ steps.release-bot.outputs.token }}
+          GH_REPO: ${{ github.repository }}
+          TAG: ${{ needs.validate_recovery.outputs.tag }}
+        run: |
+          set -euo pipefail
+          if gh api "repos/${GH_REPO}/releases/tags/${TAG}" --silent 2>"$RUNNER_TEMP/lookup.err"; then
+            echo "$TAG already has a GitHub release"
+            exit 0
+          fi
+          if ! grep -q 'HTTP 404' "$RUNNER_TEMP/lookup.err"; then
+            cat "$RUNNER_TEMP/lookup.err" >&2
+            exit 1
+          fi
+          gh release create "$TAG" --verify-tag --title "$TAG" --generate-notes
