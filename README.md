@@ -54,7 +54,7 @@ suspend fun loadAccount() {
 
 ## Status
 
-Pre-1.0. The public surface is deliberately smaller than [`putio-sdk-typescript`](https://github.com/putdotio/putio-sdk-typescript); [Architecture](./docs/ARCHITECTURE.md#current-namespace-scope) lists the namespaces and operations.
+Stable since 1.0.0 and versioned with [semver](https://semver.org): breaking changes ship only in a major release. The public surface is deliberately smaller than [`putio-sdk-typescript`](https://github.com/putdotio/putio-sdk-typescript); [Architecture](./docs/ARCHITECTURE.md#current-namespace-scope) lists the namespaces and operations.
 
 The surface grows with the put.io mobile and TV apps. The primary consumer is [putio-android](https://github.com/putdotio/putio-android), which uses this SDK as its API boundary through a Gradle composite build.
 
