@@ -158,7 +158,7 @@ Both need a Java `21` runtime. `verify` is the deterministic gate; `liveTest` is
 - [Architecture](./docs/ARCHITECTURE.md)
 - [Testing](./docs/TESTING.md)
 - [Readiness](./docs/READINESS.md)
-- [Release](./docs/RELEASE.md)
+- [Distribution](./docs/DISTRIBUTION.md)
 - [Security policy](https://github.com/putdotio/.github/blob/main/SECURITY.md)
 - [Agent guide](./AGENTS.md)
 

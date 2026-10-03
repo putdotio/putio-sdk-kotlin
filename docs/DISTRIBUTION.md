@@ -1,4 +1,4 @@
-# Release
+# Distribution
 
 ## Coordinates
 
@@ -9,8 +9,8 @@ package stays `io.putdotio.sdk`.
 ## How a release happens
 
 Every push to `main` runs the `release` job in
-[`ci.yml`](../.github/workflows/ci.yml) after verify passes, once a maintainer
-approves the `release` environment. [semantic-release](../.releaserc.json)
+[`ci.yml`](../.github/workflows/ci.yml) after verify passes, so every merge to
+`main` should already be releasable. [semantic-release](../.releaserc.json)
 reads the Conventional Commits since the last `v*` tag:
 
 - `fix:` and `perf:` cut a patch, `feat:` a minor, and `!` or a
@@ -18,7 +18,8 @@ reads the Conventional Commits since the last `v*` tag:
 - `docs:`, `chore:`, `ci:`, `test:`, and `refactor:` cut nothing; the run ends
   without publishing
 
-When a release is due, semantic-release pushes the `v<version>` tag, runs
+When a release is due, semantic-release pushes the `v<version>` tag as the
+`putio-releaser` App, runs
 `./gradlew publishToMavenCentral -Pversion=<version>`, waits for Central
 validation, and creates the GitHub release with generated notes. Central lists
 the version within about half an hour. No version file is committed back.
@@ -38,16 +39,18 @@ Central rejects a re-upload. Finish it from `main` instead:
 gh workflow run ci.yml --repo putdotio/putio-sdk-kotlin --ref main -f recover_version=X.Y.Z
 ```
 
-The recovery job checks out the tag, publishes only when the POM is not yet on
-`repo1.maven.org`, and creates the GitHub release only when it is missing.
+A secretless job first checks that the tag exists and is on `main`. The
+recovery job then checks out that commit, publishes only when the POM is not
+yet on `repo1.maven.org`, and creates the GitHub release only when the API
+reports it missing.
 
 ## Trust boundary
 
 The release job runs `main`'s build scripts with the publishing credentials,
 so the controls sit outside the workflow:
 
-- the `release` environment requires a maintainer to approve each run before
-  any job can read its secrets, and its deployment rule allows only `main`
+- the `release` environment is approval-free and its deployment rule allows
+  only `main`, so no other ref can read its secrets
 - the "Protect v* release tags" ruleset lets only organization admins and the
   `putio-releaser` GitHub App create, move, or delete `v*` tags
 - release jobs run without the shared Gradle cache

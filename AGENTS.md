@@ -12,7 +12,7 @@
 - [Architecture](./docs/ARCHITECTURE.md)
 - [Testing](./docs/TESTING.md)
 - [Readiness](./docs/READINESS.md)
-- [Release](./docs/RELEASE.md)
+- [Distribution](./docs/DISTRIBUTION.md)
 
 ## Commands
 
@@ -20,7 +20,7 @@
 - `./gradlew test`: unit suite only
 - `./gradlew liveTest`: opt-in live suite; needs credentials from [Testing](./docs/TESTING.md#live-environment)
 - `./gradlew spotlessApply`: fix formatting findings
-- `./gradlew publishToMavenLocal -Pversion=X.Y.Z`: local dry run; see [Release](./docs/RELEASE.md#local-dry-run)
+- `./gradlew publishToMavenLocal -Pversion=X.Y.Z`: local dry run; see [Distribution](./docs/DISTRIBUTION.md#local-dry-run)
 - `make secrets-setup` / `make secrets-clean`: write or remove the ignored live-test `.env.local` from `PUTIO_SDK_KOTLIN_SOPS_FILE` ([Makefile](./Makefile))
 
 ## Worktrees
