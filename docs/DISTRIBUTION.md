@@ -40,9 +40,11 @@ gh workflow run ci.yml --repo putdotio/putio-sdk-kotlin --ref main -f recover_ve
 ```
 
 A secretless job first checks that the tag exists and is on `main`. The
-recovery job then checks out that commit, publishes only when the POM is not
-yet on `repo1.maven.org`, and creates the GitHub release only when the API
-reports it missing.
+recovery job then checks out that commit, publishes only when the Central
+Portal reports the version unpublished, and creates the GitHub release only
+when the API reports it missing. If the Portal still shows the deployment as
+publishing, wait for it to finish before recovering; a re-upload fails as a
+duplicate.
 
 ## Trust boundary
 

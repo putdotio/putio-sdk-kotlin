@@ -16,8 +16,10 @@ permissions:
   contents: read
 
 # Cancelling a main run mid-publish would strand a tag without its artifact.
+# Recovery dispatches get their own group so they never displace a queued
+# main release.
 concurrency:
-  group: ci-${{ github.workflow }}-${{ github.ref }}
+  group: ci-${{ github.workflow }}-${{ github.event_name }}-${{ github.ref }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
@@ -205,18 +207,24 @@ jobs:
           ref: ${{ needs.validate_recovery.outputs.sha }}
           persist-credentials: false
 
+      # The Portal API answers immediately; repo1.maven.org lags by up to
+      # half an hour, and a re-upload during that window fails as a duplicate.
       - name: Check Maven Central
         id: central
         env:
           VERSION: ${{ needs.validate_recovery.outputs.version }}
+          CENTRAL_USERNAME: ${{ secrets.MAVEN_CENTRAL_USERNAME }}
+          CENTRAL_PASSWORD: ${{ secrets.MAVEN_CENTRAL_PASSWORD }}
         run: |
           set -euo pipefail
-          url="https://repo1.maven.org/maven2/io/put/putio-sdk-kotlin/${VERSION}/putio-sdk-kotlin-${VERSION}.pom"
-          status="$(curl -sS -o /dev/null -w '%{http_code}' "$url")"
-          case "$status" in
-            200) echo "published=true" >> "$GITHUB_OUTPUT" ;;
-            404) echo "published=false" >> "$GITHUB_OUTPUT" ;;
-            *) echo "unexpected Maven Central status $status for $url" >&2; exit 1 ;;
+          token="$(printf '%s:%s' "$CENTRAL_USERNAME" "$CENTRAL_PASSWORD" | base64 -w0)"
+          published="$(curl -sS --fail-with-body \
+            -H "Authorization: Bearer ${token}" \
+            "https://central.sonatype.com/api/v1/publisher/published?namespace=io.put&name=putio-sdk-kotlin&version=${VERSION}" \
+            | jq -r '.published')"
+          case "$published" in
+            true|false) echo "published=$published" >> "$GITHUB_OUTPUT" ;;
+            *) echo "unexpected Central Portal answer for ${VERSION}: ${published}" >&2; exit 1 ;;
           esac
 
       - name: Set up Java
