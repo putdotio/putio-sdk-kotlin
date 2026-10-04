@@ -17,4 +17,3 @@ Describe the intent of the change and the user-visible outcome.
 ## Notes
 
 Follow-ups, rollout notes, or caveats.
-

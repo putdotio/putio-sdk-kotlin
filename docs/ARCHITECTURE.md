@@ -37,13 +37,13 @@ graph LR
 
 ## Components
 
-| Component | Responsibility |
-| --- | --- |
-| `PutioClient` | shared SDK entrypoint and namespace composition |
-| Domain namespaces | grouped endpoint operations by product domain |
-| Shared transport | OkHttp request execution, auth resolution, and response parsing |
-| Error model | configuration, transport, API, operation-aware failures, and user-facing localization |
-| Query models | encode request flags and keep call sites explicit |
+| Component         | Responsibility                                                                        |
+| ----------------- | ------------------------------------------------------------------------------------- |
+| `PutioClient`     | shared SDK entrypoint and namespace composition                                       |
+| Domain namespaces | grouped endpoint operations by product domain                                         |
+| Shared transport  | OkHttp request execution, auth resolution, and response parsing                       |
+| Error model       | configuration, transport, API, operation-aware failures, and user-facing localization |
+| Query models      | encode request flags and keep call sites explicit                                     |
 
 ## Design Rules
 
