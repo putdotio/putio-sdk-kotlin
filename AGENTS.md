@@ -44,4 +44,4 @@ Run `make secrets-setup` if the live-test env is missing or stale.
 
 ## Delivery
 
-Pull requests squash-merge to `main`. A push to `main` runs `verify`; when the commits since the last `v*` tag include `feat`, `fix`, `perf`, or a breaking change, semantic-release pushes the tag, publishes to Maven Central, and creates the GitHub release. `docs`, `chore`, `ci`, `test`, and `refactor` publish nothing. Central rejects a re-upload, so a failed publish is finished with the recovery dispatch in [Distribution](./docs/DISTRIBUTION.md#recovery); never delete or re-push its tag.
+Pull requests squash-merge to `main`. A push to `main` runs `verify`; when the commits since the last `v*` tag include `feat`, `fix`, `perf`, a revert, or a breaking change, semantic-release pushes the tag, publishes to Maven Central, and creates the GitHub release. `docs`, `chore`, `ci`, `test`, and `refactor` publish nothing. Central rejects a re-upload, so a failed publish is finished with the recovery dispatch in [Distribution](./docs/DISTRIBUTION.md#recovery); never delete or re-push its tag.
