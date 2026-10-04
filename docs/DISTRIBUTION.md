@@ -25,7 +25,7 @@ reads the Conventional Commits since the last `v*` tag:
   without publishing
 
 When a release is due, semantic-release pushes the `v<version>` tag as the
-`putio-releaser` App, runs
+`putio-ci` App, runs
 `./gradlew publishToMavenCentral -Pversion=<version>`, waits for Central
 validation, and creates the GitHub release with generated notes. Central lists
 the version within about half an hour. No version file is committed back.
@@ -60,7 +60,7 @@ so the controls sit outside the workflow:
 - the `release` environment is approval-free and its deployment rule allows
   only `main`, so no other ref can read its secrets
 - the "Protect v* release tags" ruleset lets only organization admins and the
-  `putio-releaser` GitHub App create, move, or delete `v*` tags
+  `putio-ci` GitHub App create, move, or delete `v*` tags
 - release jobs run without the shared Gradle cache
 
 ## Credentials
@@ -68,7 +68,7 @@ so the controls sit outside the workflow:
 All secrets live in the `release` environment on the GitHub repository. None
 are checked in or read by `./gradlew verify`. The put.io 1Password item
 `frontend/putio-android-maven-sonatype` holds the Central token and the
-signing key; `put.io/github-putio-releaser-app` holds the App key.
+signing key; `put.io/github-putio-ci-app` holds the App key.
 
 | Name | Kind | Source |
 | --- | --- | --- |
@@ -76,8 +76,8 @@ signing key; `put.io/github-putio-releaser-app` holds the App key.
 | `SIGNING_KEY_ID` | secret | Last eight hex characters of the GPG key id |
 | `SIGNING_KEY` | secret | ASCII-armored private key: `gpg --armor --export-secret-keys <id>` |
 | `SIGNING_PASSWORD` | secret | The key's passphrase |
-| `PUTIO_RELEASE_BOT_PRIVATE_KEY` | secret | `putio-releaser` App private key |
-| `PUTIO_RELEASE_BOT_CLIENT_ID` | variable | `putio-releaser` App client id |
+| `PUTIO_CI_APP_PRIVATE_KEY` | secret | `putio-ci` App private key |
+| `PUTIO_CI_APP_CLIENT_ID` | variable | `putio-ci` App client id |
 
 The public key must be on `keyserver.ubuntu.com` or Central rejects the
 signature:
