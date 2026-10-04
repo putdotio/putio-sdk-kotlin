@@ -151,7 +151,7 @@ val loginUrl = sdk.auth.buildLoginUrl(
 ./gradlew liveTest
 ```
 
-Both need a Java `21` runtime. `verify` is the deterministic gate; `liveTest` is opt-in against the real put.io API and needs credentials. [Testing](./docs/TESTING.md) covers both.
+Both need a Java `21` runtime, and `verify` also needs Node for its Markdown check. `verify` is the deterministic gate; `liveTest` is opt-in against the real put.io API and needs credentials. [Testing](./docs/TESTING.md) covers both.
 
 ## Docs
 

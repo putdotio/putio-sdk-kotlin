@@ -20,6 +20,7 @@
 - `./gradlew test`: unit suite only
 - `./gradlew liveTest`: opt-in live suite; needs credentials from [Testing](./docs/TESTING.md#live-environment)
 - `./gradlew spotlessApply`: fix formatting findings
+- `./gradlew markdownCheck`: oxfmt Markdown check, part of `verify`; needs Node. `npx --yes oxfmt@0.70.0 '**/*.md'` fixes findings
 - `./gradlew publishToMavenLocal -Pversion=X.Y.Z`: local dry run; see [Distribution](./docs/DISTRIBUTION.md#local-dry-run)
 - `make secrets-setup` / `make secrets-clean`: write or remove the ignored live-test `.env.local` from `PUTIO_SDK_KOTLIN_SOPS_FILE` ([Makefile](./Makefile))
 
@@ -37,7 +38,7 @@ Run `make secrets-setup` if the live-test env is missing or stale.
 
 ## Proof
 
-- Docs only: no Markdown gate exists; confirm the commands and links you name resolve. No runtime proof.
+- Docs only: `./gradlew markdownCheck` checks formatting, not links; confirm the commands and links you name resolve. No runtime proof.
 - Source change: `./gradlew verify`, which enforces the 90% line coverage floor in [build.gradle.kts](./build.gradle.kts).
 - API behavior `MockWebServer` cannot prove: `./gradlew liveTest`, inside the [safety rules](./docs/TESTING.md#safety-rules). The live account is shared and real; disabling `use_start_from`, for one, wipes every saved resume position.
 - Public surface putio-android uses: build that app against this checkout by setting `putioSdkKotlinPath` in its `local.properties`.

@@ -70,14 +70,14 @@ are checked in or read by `./gradlew verify`. The put.io 1Password item
 `frontend/putio-android-maven-sonatype` holds the Central token and the
 signing key; `put.io/github-putio-ci-app` holds the App key.
 
-| Name | Kind | Source |
-| --- | --- | --- |
-| `MAVEN_CENTRAL_USERNAME`, `MAVEN_CENTRAL_PASSWORD` | secret | Central Portal user token for an account that owns the verified `io.put` namespace |
-| `SIGNING_KEY_ID` | secret | Last eight hex characters of the GPG key id |
-| `SIGNING_KEY` | secret | ASCII-armored private key: `gpg --armor --export-secret-keys <id>` |
-| `SIGNING_PASSWORD` | secret | The key's passphrase |
-| `PUTIO_CI_APP_PRIVATE_KEY` | secret | `putio-ci` App private key |
-| `PUTIO_CI_APP_CLIENT_ID` | variable | `putio-ci` App client id |
+| Name                                               | Kind     | Source                                                                             |
+| -------------------------------------------------- | -------- | ---------------------------------------------------------------------------------- |
+| `MAVEN_CENTRAL_USERNAME`, `MAVEN_CENTRAL_PASSWORD` | secret   | Central Portal user token for an account that owns the verified `io.put` namespace |
+| `SIGNING_KEY_ID`                                   | secret   | Last eight hex characters of the GPG key id                                        |
+| `SIGNING_KEY`                                      | secret   | ASCII-armored private key: `gpg --armor --export-secret-keys <id>`                 |
+| `SIGNING_PASSWORD`                                 | secret   | The key's passphrase                                                               |
+| `PUTIO_CI_APP_PRIVATE_KEY`                         | secret   | `putio-ci` App private key                                                         |
+| `PUTIO_CI_APP_CLIENT_ID`                           | variable | `putio-ci` App client id                                                           |
 
 The public key must be on `keyserver.ubuntu.com` or Central rejects the
 signature:

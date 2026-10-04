@@ -111,10 +111,17 @@ val liveTest by tasks.registering(Test::class) {
     shouldRunAfter(tasks.test)
 }
 
+// Same oxfmt release the put.io TypeScript repos run through Vite+; needs Node on PATH.
+tasks.register<Exec>("markdownCheck") {
+    group = "verification"
+    description = "Check Markdown formatting with oxfmt"
+    commandLine("npx", "--yes", "oxfmt@0.70.0", "--check", "**/*.md")
+}
+
 tasks.register("verify") {
     group = "verification"
     description = "Run the canonical local verification checks"
-    dependsOn("check", "jar", "jacocoTestCoverageVerification")
+    dependsOn("check", "jar", "jacocoTestCoverageVerification", "markdownCheck")
 }
 
 // Only the release job passes -Pversion; a default SNAPSHOT must never reach Central.
