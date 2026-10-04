@@ -15,9 +15,12 @@ reads the Conventional Commits since the last `v*` tag:
 
 - `fix:`, `perf:`, and reverts cut a patch, `feat:` a minor, and `!` or a
   `BREAKING CHANGE:` footer a major
-- a revert is a `Revert "..."` commit whose body keeps
+- a revert is a `Revert "<header>"` commit whose body keeps
   `This reverts commit <sha>.`, as `git revert` and GitHub's Revert button
-  write it; it cuts a patch even when the reverted commit released nothing
+  write it. Squash-merged, it cuts a patch even when the reverted commit is
+  unreleased, and that commit still counts: the appended ` (#N)` keeps the
+  pair from matching. A `git revert` pushed straight to `main` cancels an
+  unreleased original, and neither counts
 - `docs:`, `chore:`, `ci:`, `test:`, and `refactor:` cut nothing; the run ends
   without publishing
 
