@@ -56,15 +56,15 @@ suspend fun loadAccount() {
 
 Stable since 1.0.0 and versioned with [semver](https://semver.org): breaking changes ship only in a major release. The public surface is deliberately smaller than [`putio-sdk-typescript`](https://github.com/putdotio/putio-sdk-typescript); [Architecture](./docs/ARCHITECTURE.md#current-namespace-scope) lists the namespaces and operations.
 
-The surface grows with the put.io mobile and TV apps. The primary consumer is [putio-android](https://github.com/putdotio/putio-android), which uses this SDK as its API boundary through a Gradle composite build.
+The surface grows with the put.io mobile and TV apps. The primary consumer is [putio-android](https://github.com/putdotio/putio-android), which uses this SDK as its API boundary and pins the Maven Central release.
 
 Only `main` and the latest `io.put:putio-sdk-kotlin` release receive fixes.
 
 ## Android Consumers
 
 The SDK emits Java 8 bytecode and leaves the Android minimum SDK to the
-consumer. The first-party Android app has validated composite-build
-consumption at minSdk 26 with an unsigned, R8-minified release build. The
+consumer. The first-party Android app's CI builds unsigned, R8-minified
+releases at minSdk 26 against the Maven Central release. The
 current SDK, OkHttp, coroutines, and serialization stack needs no
 SDK-specific consumer keep rules.
 

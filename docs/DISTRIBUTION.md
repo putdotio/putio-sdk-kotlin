@@ -13,8 +13,11 @@ Every push to `main` runs the `release` job in
 `main` should already be releasable. [semantic-release](../.releaserc.json)
 reads the Conventional Commits since the last `v*` tag:
 
-- `fix:` and `perf:` cut a patch, `feat:` a minor, and `!` or a
+- `fix:`, `perf:`, and reverts cut a patch, `feat:` a minor, and `!` or a
   `BREAKING CHANGE:` footer a major
+- a revert is a `Revert "..."` commit whose body keeps
+  `This reverts commit <sha>.`, as `git revert` and GitHub's Revert button
+  write it; it cuts a patch even when the reverted commit released nothing
 - `docs:`, `chore:`, `ci:`, `test:`, and `refactor:` cut nothing; the run ends
   without publishing
 
