@@ -1,6 +1,7 @@
 import com.vanniktech.maven.publish.JavadocJar
 import com.vanniktech.maven.publish.KotlinJvm
 import com.vanniktech.maven.publish.SourcesJar
+import groovy.json.JsonSlurper
 import org.gradle.api.tasks.testing.Test
 import org.gradle.testing.jacoco.tasks.JacocoCoverageVerification
 import org.gradle.testing.jacoco.tasks.JacocoReport
@@ -112,11 +113,17 @@ tasks.register<Test>("liveTest") {
     shouldRunAfter(tasks.test)
 }
 
-// Same oxfmt release the put.io TypeScript repos run through Vite+; needs Node on PATH.
+// package.json pins oxfmt so Dependabot can bump it; needs Node on PATH.
+val oxfmtVersion =
+    providers.fileContents(layout.projectDirectory.file("package.json")).asText.map { text ->
+        val devDependencies = (JsonSlurper().parseText(text) as? Map<*, *>)?.get("devDependencies") as? Map<*, *>
+        devDependencies?.get("oxfmt") as? String ?: error("package.json must pin oxfmt in devDependencies")
+    }
+
 tasks.register<Exec>("markdownCheck") {
     group = "verification"
     description = "Check Markdown formatting with oxfmt"
-    commandLine("npx", "--yes", "oxfmt@0.70.0", "--check", "**/*.md")
+    commandLine("npx", "--yes", "oxfmt@${oxfmtVersion.get()}", "--check", "**/*.md")
 }
 
 tasks.register("verify") {
