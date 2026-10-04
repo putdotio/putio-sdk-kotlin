@@ -20,7 +20,7 @@
 - `./gradlew test`: unit suite only
 - `./gradlew liveTest`: opt-in live suite; needs credentials from [Testing](./docs/TESTING.md#live-environment)
 - `./gradlew spotlessApply`: fix formatting findings
-- `./gradlew markdownCheck`: oxfmt Markdown check, part of `verify`; needs Node. `npx --yes oxfmt@0.70.0 '**/*.md'` fixes findings
+- `./gradlew markdownCheck`: oxfmt Markdown check, part of `verify`; needs Node. `npx --yes oxfmt@<version> '**/*.md'` fixes findings, with the version pinned in [package.json](./package.json)
 - `./gradlew publishToMavenLocal -Pversion=X.Y.Z`: local dry run; see [Distribution](./docs/DISTRIBUTION.md#local-dry-run)
 - `make secrets-setup` / `make secrets-clean`: write or remove the ignored live-test `.env.local` from `PUTIO_SDK_KOTLIN_SOPS_FILE` ([Makefile](./Makefile))
 

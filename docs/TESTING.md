@@ -13,7 +13,7 @@ Install a Java `21` runtime before running these commands. The checked-in [.java
 ## Current Verification Shape
 
 - `./gradlew test` runs the unit suite; request and response behavior is exercised with `MockWebServer`, including the localized user-facing error mapping layer
-- `./gradlew verify` is the canonical guardrail: `check` (test plus `spotlessCheck` with stock ktlint rules; `./gradlew spotlessApply` fixes findings), `jar`, the `90%` line coverage floor defined in [build.gradle.kts](../build.gradle.kts), and `markdownCheck`, which runs oxfmt over the repo's Markdown through `npx` (needs Node `20.19` or newer; `npx --yes oxfmt@0.70.0 '**/*.md'` fixes findings)
+- `./gradlew verify` is the canonical guardrail: `check` (test plus `spotlessCheck` with stock ktlint rules; `./gradlew spotlessApply` fixes findings), `jar`, the `90%` line coverage floor defined in [build.gradle.kts](../build.gradle.kts), and `markdownCheck`, which runs oxfmt over the repo's Markdown through `npx` at the version pinned in [package.json](../package.json) (needs Node `20.19` or newer; `npx --yes oxfmt@<version> '**/*.md'` fixes findings)
 - [ci.yml](../.github/workflows/ci.yml) runs the same `verify` lane on `ubuntu-24.04-arm` with Temurin 21
 - `./gradlew liveTest` runs the opt-in live suite against the real put.io API; it is excluded from `test` and `verify`
 - JaCoCo HTML and XML reports are written under `build/reports/jacoco/test`
