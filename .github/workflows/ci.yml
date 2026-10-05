@@ -8,23 +8,27 @@ on:
   workflow_dispatch:
     inputs:
       recover_version:
-        description: Existing release version to finish publishing, e.g. 1.0.0
-        required: true
+        description: >-
+          Existing release version to finish publishing, e.g. 1.0.0. Leave
+          empty to verify and audit every workflow without recovering.
+        required: false
+        default: ""
         type: string
 
 permissions:
   contents: read
 
-# Cancelling a main run mid-publish would strand a tag without its artifact.
-# Recovery dispatches get their own group so they never displace a queued
-# main release.
+# Pull requests share a group per ref so a new push cancels the stale run. Every
+# push and dispatch gets its own group, so no main run is cancelled or replaced
+# while queued: each pushed range gets scanned, and a publish is never cut short.
+# The release jobs queue on their own group.
 concurrency:
-  group: ci-${{ github.workflow }}-${{ github.event_name }}-${{ github.ref }}
+  group: ci-${{ github.workflow }}-${{ github.event_name == 'pull_request' && github.ref || github.run_id }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
   verify:
-    if: github.event_name == 'pull_request' || (github.event_name == 'push' && !contains(github.event.head_commit.message, '[skip ci]'))
+    if: github.event_name != 'push' || !contains(github.event.head_commit.message, '[skip ci]')
     name: Verify Kotlin SDK
     runs-on: ubuntu-24.04-arm
     timeout-minutes: 20
@@ -46,6 +50,13 @@ jobs:
 
       - name: Verify repository
         run: ./gradlew verify
+
+      - name: Check Markdown links
+        uses: putdotio/.github/.github/actions/links@c1830f7938b7dc98f085082e988d3c46437bb15c # v1.2.0
+
+      - name: Scan secrets and workflows
+        if: ${{ !cancelled() }}
+        uses: putdotio/.github/.github/actions/scan@c1830f7938b7dc98f085082e988d3c46437bb15c # v1.2.0
 
   release:
     if: github.event_name == 'push' && github.ref == 'refs/heads/main' && !contains(github.event.head_commit.message, '[skip ci]')
@@ -137,7 +148,7 @@ jobs:
   # GitHub release fails after that, recovery finishes the existing tag instead
   # of cutting a new version. Inputs are validated before any secret loads.
   validate_recovery:
-    if: github.event_name == 'workflow_dispatch'
+    if: github.event_name == 'workflow_dispatch' && inputs.recover_version != ''
     name: Validate release recovery
     runs-on: ubuntu-24.04-arm
     timeout-minutes: 5
@@ -185,7 +196,7 @@ jobs:
           } >> "$GITHUB_OUTPUT"
 
   recover_release:
-    if: github.event_name == 'workflow_dispatch'
+    if: github.event_name == 'workflow_dispatch' && inputs.recover_version != ''
     name: Recover Kotlin SDK release
     needs:
       - validate_recovery

@@ -50,7 +50,8 @@ recovery job then checks out that commit, publishes only when the Central
 Portal reports the version unpublished, and creates the GitHub release only
 when the API reports it missing. If the Portal still shows the deployment as
 publishing, wait for it to finish before recovering; a re-upload fails as a
-duplicate.
+duplicate. A dispatch without `recover_version` skips recovery and runs only
+`verify`, whose scan audits every workflow.
 
 ## Trust boundary
 
