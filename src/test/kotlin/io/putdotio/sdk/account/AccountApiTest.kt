@@ -121,7 +121,6 @@ class AccountApiTest {
                     assertEquals(true, settings.hideSubtitles)
                     assertEquals(false, settings.diagnosticsEnabled)
                     assertEquals(true, settings.productAnalyticsEnabled)
-                    assertEquals(false, settings.supportWidgetEnabled)
                 }
             }
 

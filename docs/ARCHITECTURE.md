@@ -61,7 +61,7 @@ graph LR
 - `account`
   - `getInfo`
   - `getSettings`
-  - `saveSettings` (includes the cross-client privacy controls `diagnostics_enabled`, `product_analytics_enabled`, and `support_widget_enabled`; absent keys read as `true`)
+  - `saveSettings` (includes the cross-client privacy controls `diagnostics_enabled` and `product_analytics_enabled`; an absent `diagnostics_enabled` reads as `true` and an absent `product_analytics_enabled` as `false`, matching the backend)
   - `clearData`
   - `destroy`
 - `auth`
