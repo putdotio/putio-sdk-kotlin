@@ -113,7 +113,7 @@ tasks.register<Test>("liveTest") {
     shouldRunAfter(tasks.test)
 }
 
-// package.json pins oxfmt so Dependabot can bump it; needs Node on PATH.
+// package.json pins oxfmt so Renovate can bump it; needs Node on PATH.
 val oxfmtVersion =
     providers.fileContents(layout.projectDirectory.file("package.json")).asText.map { text ->
         val devDependencies = (JsonSlurper().parseText(text) as? Map<*, *>)?.get("devDependencies") as? Map<*, *>
