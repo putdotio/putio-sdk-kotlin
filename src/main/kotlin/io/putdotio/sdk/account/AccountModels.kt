@@ -43,10 +43,9 @@ data class AccountSettings(
     @SerialName("two_factor_enabled") val twoFactorEnabled: Boolean = false,
     @SerialName("hide_subtitles") val hideSubtitles: Boolean = false,
     @SerialName("dont_autoselect_subtitles") val dontAutoselectSubtitles: Boolean = false,
-    // Privacy controls default to true server-side; the API omits them only on older deployments.
+    // Defaults mirror the backend: diagnostics opt-out, product analytics opt-in.
     @SerialName("diagnostics_enabled") val diagnosticsEnabled: Boolean = true,
-    @SerialName("product_analytics_enabled") val productAnalyticsEnabled: Boolean = true,
-    @SerialName("support_widget_enabled") val supportWidgetEnabled: Boolean = true,
+    @SerialName("product_analytics_enabled") val productAnalyticsEnabled: Boolean = false,
 ) {
     @Deprecated("Use useStartFrom; the canonical account setting is use_start_from")
     val startFrom: Boolean
@@ -127,7 +126,6 @@ data class AccountSettingsPatch(
     @SerialName("use_start_from") val useStartFrom: Boolean? = null,
     @SerialName("diagnostics_enabled") val diagnosticsEnabled: Boolean? = null,
     @SerialName("product_analytics_enabled") val productAnalyticsEnabled: Boolean? = null,
-    @SerialName("support_widget_enabled") val supportWidgetEnabled: Boolean? = null,
 ) : AccountSettingsUpdate
 
 @Serializable
