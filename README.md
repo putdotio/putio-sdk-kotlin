@@ -54,7 +54,7 @@ suspend fun loadAccount() {
 
 ## Status
 
-Stable since 1.0.0 and versioned with [semver](https://semver.org): breaking changes ship only in a major release. The public surface is deliberately smaller than [`putio-sdk-typescript`](https://github.com/putdotio/putio-sdk-typescript); [Architecture](./docs/ARCHITECTURE.md#current-namespace-scope) lists the namespaces and operations.
+Stable since 1.0.0 and versioned with [semver](https://semver.org): breaking changes ship only in a major release. The public surface is deliberately smaller than [`putio-sdk-typescript`](https://github.com/putdotio/putio-sdk-typescript); [Architecture](./docs/architecture.md#current-namespace-scope) lists the namespaces and operations.
 
 The surface grows with the put.io mobile and TV apps. The primary consumer is [putio-android](https://github.com/putdotio/putio-android), which uses this SDK as its API boundary and pins the Maven Central release.
 
@@ -126,7 +126,7 @@ sdk.deviceCodeAuth.link().collect { state ->
 ```
 
 One collection is one attempt; collect again for a new code. Polling, timeout, and
-token validation live in the SDK; see the [device-code contract](./docs/ARCHITECTURE.md#device-code-contract).
+token validation live in the SDK; see the [device-code contract](./docs/architecture.md#device-code-contract).
 
 ## Authentication URL Example
 
@@ -151,14 +151,14 @@ val loginUrl = sdk.auth.buildLoginUrl(
 ./gradlew liveTest
 ```
 
-Both need a Java `21` runtime, and `verify` also needs Node for its Markdown check. `verify` is the deterministic gate; `liveTest` is opt-in against the real put.io API and needs credentials. [Testing](./docs/TESTING.md) covers both.
+Both need a Java `21` runtime, and `verify` also needs Node for its Markdown check. `verify` is the deterministic gate; `liveTest` is opt-in against the real put.io API and needs credentials. [Testing](./docs/testing.md) covers both.
 
 ## Docs
 
-- [Architecture](./docs/ARCHITECTURE.md)
-- [Testing](./docs/TESTING.md)
-- [Readiness](./docs/READINESS.md)
-- [Distribution](./docs/DISTRIBUTION.md)
+- [Architecture](./docs/architecture.md)
+- [Testing](./docs/testing.md)
+- [Readiness](./docs/readiness.md)
+- [Distribution](./docs/distribution.md)
 - [Security policy](https://github.com/putdotio/.github/blob/main/SECURITY.md)
 - [Agent guide](./AGENTS.md)
 
