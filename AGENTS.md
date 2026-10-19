@@ -32,7 +32,6 @@ Run `make secrets-setup` if the live-test env is missing or stale.
 ## Repo-Specific Guidance
 
 - Follow the [design rules](./docs/architecture.md#design-rules): mirror the domain-first API shape of `putio-sdk-typescript`, coroutine-first suspend functions, typed SDK errors, parsing at the boundary
-- Keep the namespace surface small until a real app use case proves expansion
 - Update docs when the public surface, verification flow, or publishing story changes
 - Keep `README.md` consumer-facing and use `docs/*` for repo-operator detail
 

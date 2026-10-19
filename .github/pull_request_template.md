@@ -3,20 +3,10 @@
 <!-- One sentence on the outcome, then one visual aid: a screenshot or short
 recording for UI (`gh pr create --attach ./file.png`, never committed), a
 Mermaid diagram for a flow, a table for numbers, or a short code sample for an
-API. Add one-line bullets only for risks the aid doesn't show. -->
+API. Add one-line bullets only for risks the aid doesn't show, such as auth,
+request or response contracts, or publishing. -->
 
-## Validation
+## Verification
 
 - [ ] `./gradlew verify`
-- [ ] additional manual or integration checks when relevant
-
-## Risk
-
-- [ ] auth flow
-- [ ] request or response contract
-- [ ] publishing or release flow
-- [ ] none
-
-## Notes
-
-Follow-ups, rollout notes, or caveats.
+- [ ] `./gradlew liveTest`, when API behavior `MockWebServer` cannot prove changed
