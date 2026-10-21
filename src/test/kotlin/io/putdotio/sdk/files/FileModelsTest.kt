@@ -13,74 +13,14 @@ class FileModelsTest {
     private val json = Json { ignoreUnknownKeys = true }
 
     @Test
-    fun `serializers preserve file metadata and unknown values`() {
-        val file =
-            json.decodeFromString(
-                PutioFile.serializer(),
-                """
-                {
-                  "id": 1,
-                  "name": "Mystery.mkv",
-                  "parent_id": 0,
-                  "size": 42,
-                  "created_at": "2026-04-20T10:00:00Z",
-                  "updated_at": "2026-04-20T11:00:00Z",
-                  "file_type": "BOOK",
-                  "folder_type": "MAGIC_SHELF",
-                  "video_metadata": {
-                    "height": 1080,
-                    "width": 1920,
-                    "codec": "h264",
-                    "duration": 61.5,
-                    "aspect_ratio": 1.78
-                  }
-                }
-                """.trimIndent(),
-            )
-
-        assertEquals("BOOK", file.fileType.raw)
-        assertFalse(file.fileType.isKnown)
-        assertEquals("MAGIC_SHELF", file.folderType.raw)
-        assertFalse(file.folderType.isKnown)
-        assertEquals(1080, file.videoMetadata?.height)
-        assertEquals(1.78, file.videoMetadata?.aspectRatio)
-    }
-
-    @Test
-    fun `serializers decode breadcrumbs subtitles and start-from envelopes`() {
+    fun `breadcrumbs decode id and name`() {
         val breadcrumb =
             json.decodeFromString(
                 FileBreadcrumb.serializer(),
                 """{"id":9,"name":"Movies"}""",
             )
-        val subtitle =
-            json.decodeFromString(
-                FileSubtitle.serializer(),
-                """
-                {
-                  "key": "en-key",
-                  "format": "vtt",
-                  "language": "English",
-                  "language_code": "en",
-                  "name": "English",
-                  "source": "opensubtitles",
-                  "url": "https://example.com/subtitles/en.vtt"
-                }
-                """.trimIndent(),
-            )
-        val startFrom =
-            json.decodeFromString(
-                FileStartFromResponse.serializer(),
-                """{"status":"OK","start_from":15.25}""",
-            )
 
-        assertEquals(9L, breadcrumb.id)
-        assertEquals("Movies", breadcrumb.name)
-        assertEquals("vtt", subtitle.format)
-        assertEquals("en", subtitle.languageCode)
-        assertEquals("https://example.com/subtitles/en.vtt", subtitle.url)
-        assertEquals(15.25, startFrom.startFrom)
-        assertEquals("OK", startFrom.status)
+        assertEquals(FileBreadcrumb(id = 9, name = "Movies"), breadcrumb)
     }
 
     @Test

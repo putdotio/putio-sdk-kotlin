@@ -13,7 +13,6 @@ import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 import kotlin.test.assertFalse
 import kotlin.test.assertIs
-import kotlin.test.assertNotNull
 import kotlin.test.assertNull
 
 class AccountApiTest {
@@ -34,6 +33,15 @@ class AccountApiTest {
                             "avatar_url": "https://static.put.io/avatar.png",
                             "account_status": "active",
                             "trash_size": 12,
+                            "account_active": true,
+                            "download_token": "download-token",
+                            "features": {
+                              "beta": true
+                            },
+                            "files_will_be_deleted_at": "2026-05-01T10:00:00Z",
+                            "password_last_changed_at": "2026-04-20T10:00:00Z",
+                            "user_hash": "user-hash",
+                            "is_sub_account": true,
                             "disk": {
                               "avail": 90,
                               "size": 100,
@@ -65,9 +73,19 @@ class AccountApiTest {
                 ).use { sdk ->
                     val account = sdk.account.getInfo(AccountInfoQuery(downloadToken = true))
 
+                    assertEquals(42L, account.userId)
                     assertEquals("altay", account.username)
+                    assertEquals("active", account.accountStatus)
+                    assertEquals(true, account.accountActive)
                     assertEquals(90L, account.disk.available)
-                    assertNotNull(account.settings)
+                    assertEquals("download-token", account.downloadToken?.value)
+                    assertEquals("<redacted download token>", account.downloadToken.toString())
+                    assertFalse(account.toString().contains("download-token"))
+                    assertEquals(true, account.features["beta"])
+                    assertEquals("user-hash", account.userHash)
+                    assertEquals("2026-05-01T10:00:00Z", account.filesWillBeDeletedAt)
+                    assertEquals(true, account.isSubAccount)
+                    assertEquals(true, account.settings.useStartFrom)
                 }
             }
 
@@ -117,6 +135,10 @@ class AccountApiTest {
 
                     assertEquals("NAME_ASC", settings.sortBy)
                     assertEquals("eu-west", settings.tunnelRouteName)
+                    assertEquals(true, settings.historyEnabled)
+                    assertEquals(true, settings.useStartFrom)
+                    @Suppress("DEPRECATION")
+                    assertEquals(settings.useStartFrom, settings.startFrom)
                     assertEquals(true, settings.twoFactorEnabled)
                     assertEquals(true, settings.hideSubtitles)
                     assertEquals(false, settings.diagnosticsEnabled)
