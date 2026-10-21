@@ -14,40 +14,67 @@ class PutioErrorLocalizerTest {
         val errorType: String,
     )
 
-    // Each inner list is one guidance: its triggers share copy, and no two guidances share a message.
+    // `names` are the failure each error code or route names, so a message swapped onto the wrong code fails.
+    private class Guidance(
+        val names: List<String>,
+        val triggers: List<Trigger>,
+    )
+
+    // Statuses mirror each operation's PutioOperationErrorSpec. Triggers in one guidance share copy; guidances never share a message.
     private val operationGuidance =
         listOf(
-            listOf(Trigger("auth", "checkCodeMatch", 404, "NOT_FOUND")),
-            listOf(Trigger("auth", "validateToken", 401, "INVALID_TOKEN"), Trigger("auth", "validateToken", 403, "FORBIDDEN")),
-            listOf(Trigger("auth", "generateTotp", 400, "already_exists")),
-            listOf(Trigger("auth", "verifyTotp", 400, "invalid_code"), Trigger("auth", "verifyTotp", 400, "code_not_found")),
-            listOf("verifyTotp", "getRecoveryCodes", "regenerateRecoveryCodes").map { Trigger("auth", it, 400, "invalid_setup") },
-            listOf("generateTotp", "verifyTotp", "getRecoveryCodes", "regenerateRecoveryCodes").map {
-                Trigger("auth", it, 401, "invalid_scope")
-            },
-            listOf(Trigger("transfers", "add", 400, "EMPTY_URL")),
-            listOf(Trigger("transfers", "addMany", 400, "TOO_MANY_URLS")),
-            listOf(Trigger("transfers", "get", 404, "NOT_FOUND"), Trigger("transfers", "retry", 404, "NOT_FOUND")),
-            listOf(Trigger("files", "get", 404, "NOT_FOUND")),
-            listOf("search", "continueSearch").map { Trigger("files", it, 400, "SEARCH_TOO_LONG_QUERY") },
-            listOf(Trigger("files", "createFolder", 400, "EMPTY_NAME")),
-            listOf(Trigger("files", "createFolder", 400, "SLASH_IN_NAME")),
-            listOf(Trigger("files", "createFolder", 400, "NAME_TOO_LONG")),
-            listOf(Trigger("files", "createFolder", 400, "NAME_ALREADY_EXIST")),
-            listOf(Trigger("files", "startFrom", 400, "FEATURE_DISABLED")),
-            listOf(Trigger("files", "startFrom", 400, "INVALID_MEDIA")),
-            listOf(Trigger("files", "listSubtitles", 404, "NOT_FOUND")),
-            listOf(Trigger("trash", "restore", 404, "NOT_FOUND")),
-            listOf(Trigger("trash", "delete", 404, "NOT_FOUND")),
-            listOf(Trigger("events", "list", 400, "INVALID_PER_PAGE")),
+            Guidance(listOf("device code"), listOf(Trigger("auth", "checkCodeMatch", 404, "NOT_FOUND"))),
+            Guidance(
+                listOf("access token"),
+                listOf(Trigger("auth", "validateToken", 401, "INVALID_TOKEN"), Trigger("auth", "validateToken", 403, "FORBIDDEN")),
+            ),
+            Guidance(listOf("two-factor", "already exists"), listOf(Trigger("auth", "generateTotp", 403, "already_exists"))),
+            Guidance(
+                listOf("two-factor", "code"),
+                listOf(Trigger("auth", "verifyTotp", 400, "invalid_code"), Trigger("auth", "verifyTotp", 400, "code_not_found")),
+            ),
+            Guidance(
+                listOf("two-factor", "not enabled"),
+                listOf("verifyTotp", "getRecoveryCodes", "regenerateRecoveryCodes").map { Trigger("auth", it, 400, "invalid_setup") },
+            ),
+            Guidance(
+                listOf("two-factor", "token"),
+                listOf("generateTotp", "verifyTotp", "getRecoveryCodes", "regenerateRecoveryCodes").map {
+                    Trigger("auth", it, 401, "invalid_scope")
+                },
+            ),
+            Guidance(listOf("url", "required"), listOf(Trigger("transfers", "add", 400, "EMPTY_URL"))),
+            Guidance(listOf("too many", "urls"), listOf(Trigger("transfers", "addMany", 403, "TOO_MANY_URLS"))),
+            Guidance(
+                listOf("transfer", "not be found"),
+                listOf(Trigger("transfers", "get", 404, "NOT_FOUND"), Trigger("transfers", "retry", 404, "NOT_FOUND")),
+            ),
+            Guidance(listOf("file", "not be found"), listOf(Trigger("files", "get", 404, "NOT_FOUND"))),
+            Guidance(
+                listOf("search query", "too long"),
+                listOf("search", "continueSearch").map { Trigger("files", it, 400, "SEARCH_TOO_LONG_QUERY") },
+            ),
+            Guidance(listOf("folder name", "required"), listOf(Trigger("files", "createFolder", 400, "EMPTY_NAME"))),
+            Guidance(listOf("slash"), listOf(Trigger("files", "createFolder", 400, "SLASH_IN_NAME"))),
+            Guidance(listOf("folder name", "too long"), listOf(Trigger("files", "createFolder", 400, "NAME_TOO_LONG"))),
+            Guidance(listOf("folder", "already exists"), listOf(Trigger("files", "createFolder", 400, "NAME_ALREADY_EXIST"))),
+            Guidance(listOf("resume", "not available"), listOf(Trigger("files", "startFrom", 400, "FEATURE_DISABLED"))),
+            Guidance(listOf("media"), listOf(Trigger("files", "startFrom", 400, "INVALID_MEDIA"))),
+            Guidance(listOf("subtitles"), listOf(Trigger("files", "listSubtitles", 404, "NOT_FOUND"))),
+            Guidance(listOf("trash item", "not be found"), listOf(Trigger("trash", "restore", 404, "NOT_FOUND"))),
+            Guidance(listOf("trash item", "no longer available"), listOf(Trigger("trash", "delete", 404, "NOT_FOUND"))),
+            Guidance(listOf("page size"), listOf(Trigger("events", "list", 400, "INVALID_PER_PAGE"))),
         )
 
     @Test
     fun `every mapped operation error gets its own complete guidance instead of the generic api copy`() {
         val messages =
-            operationGuidance.map { triggers ->
-                val localized = triggers.map { trigger -> trigger to PutioErrorLocalizer.localize(trigger.operationError()) }
+            operationGuidance.map { guidance ->
+                val localized = guidance.triggers.map { trigger -> trigger to PutioErrorLocalizer.localize(trigger.operationError()) }
                 localized.forEach { (trigger, error) ->
+                    guidance.names.forEach { name ->
+                        assertTrue(error.message.contains(name, ignoreCase = true), "$trigger message names '$name': ${error.message}")
+                    }
                     assertTrue(error.message.isNotBlank(), "$trigger message")
                     assertTrue(error.recoverySuggestion.description.isNotBlank(), "$trigger recovery")
                     assertIs<PutioRecoverySuggestion.Instruction>(error.recoverySuggestion, "$trigger recovery")
@@ -68,7 +95,8 @@ class PutioErrorLocalizerTest {
 
     @Test
     fun `unmapped error codes on a mapped operation fall back to the underlying api guidance`() {
-        operationGuidance.flatten().map { it.copy(statusCode = 400, errorType = "UNMAPPED_CODE") }.distinct().forEach { trigger ->
+        val unmapped = operationGuidance.flatMap { it.triggers }.map { it.copy(statusCode = 400, errorType = "UNMAPPED_CODE") }.distinct()
+        unmapped.forEach { trigger ->
             val fallback = PutioErrorLocalizer.localize(trigger.apiError())
             val localized = PutioErrorLocalizer.localize(trigger.operationError())
 
