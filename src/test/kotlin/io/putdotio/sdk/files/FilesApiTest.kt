@@ -360,7 +360,14 @@ class FilesApiTest {
                               "created_at": "2026-04-20T10:00:00Z",
                               "updated_at": "2026-04-20T10:00:00Z",
                               "file_type": "BOOK",
-                              "folder_type": "MAGIC_SHELF"
+                              "folder_type": "MAGIC_SHELF",
+                              "video_metadata": {
+                                "height": 1080,
+                                "width": 1920,
+                                "codec": "h264",
+                                "duration": 61.5,
+                                "aspect_ratio": 1.78
+                              }
                             }
                           ],
                           "cursor": null
@@ -381,6 +388,8 @@ class FilesApiTest {
                     assertFalse(files.first().fileType.isKnown)
                     assertEquals("MAGIC_SHELF", files.first().folderType.raw)
                     assertFalse(files.first().folderType.isKnown)
+                    assertEquals(1080, files.first().videoMetadata?.height)
+                    assertEquals(1.78, files.first().videoMetadata?.aspectRatio)
                 }
             }
         }

@@ -16,6 +16,8 @@ import mockwebserver3.MockWebServer
 import mockwebserver3.SocketEffect
 import okhttp3.Call
 import okhttp3.EventListener
+import okhttp3.HttpUrl
+import okhttp3.HttpUrl.Companion.toHttpUrl
 import okhttp3.MediaType
 import okhttp3.OkHttpClient
 import okhttp3.Protocol
@@ -29,6 +31,7 @@ import okio.buffer
 import java.io.IOException
 import java.util.concurrent.TimeUnit
 import kotlin.coroutines.cancellation.CancellationException
+import kotlin.random.Random
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
@@ -355,6 +358,53 @@ class PutioTransportTest {
 
         assertFailsWith<IllegalArgumentException> {
             transport.buildUrl(pathSegments = listOf("config", ".", ".."))
+        }
+    }
+
+    @Test
+    fun `build url round-trips arbitrary path segments and query parameters`() {
+        val transport =
+            PutioTransport(
+                config = PutioConfig(baseUrl = "https://api.put.io/v2/", accessToken = "token"),
+                httpClient = OkHttpClient(),
+                json = PutioTransport.defaultJson,
+            )
+        val random = Random(20261021)
+
+        repeat(500) { iteration ->
+            val segments = List(random.nextInt(0, 5)) { random.urlText(excluding = setOf(".", "..")) }
+            val query = List(random.nextInt(0, 4)) { random.urlText() to random.urlText() }.toMap()
+            val expectedQuery = query.toList()
+            val expectedPath = basePathPlus(segments)
+
+            val literal = transport.buildUrl(pathSegments = segments, query = query).toHttpUrl()
+            assertEquals(expectedPath, literal.pathSegments, "literal segments, iteration $iteration: $segments")
+            assertEquals(expectedQuery, literal.queryPairs(), "literal query, iteration $iteration: $query")
+
+            val slashFree = segments.map { it.replace("/", "") }.filter { it != "." && it != ".." }
+            val joined = transport.buildUrl(path = slashFree.joinToString("/", prefix = "/"), query = query).toHttpUrl()
+            assertEquals(basePathPlus(slashFree), joined.pathSegments, "path, iteration $iteration: $slashFree")
+            assertEquals(expectedQuery, joined.queryPairs(), "path query, iteration $iteration: $query")
+        }
+    }
+
+    // The base URL's trailing slash stays an empty last segment until a segment replaces it.
+    private fun basePathPlus(segments: List<String>): List<String> =
+        listOf("v2") + segments.filter(String::isNotEmpty).ifEmpty { listOf("") }
+
+    private fun HttpUrl.queryPairs(): List<Pair<String, String?>> =
+        (0 until querySize).map {
+            queryParameterName(it) to
+                queryParameterValue(it)
+        }
+
+    // Printable ASCII covers every reserved URL character; the rest add multi-byte and surrogate-pair code points.
+    private val urlAlphabet = (0x20..0x7e).map { it.toChar().toString() } + listOf("é", "ş", "İ", "中", "\uD83D\uDE00", "%2e", "%2F")
+
+    private fun Random.urlText(excluding: Set<String> = emptySet()): String {
+        while (true) {
+            val text = List(nextInt(0, 8)) { urlAlphabet[nextInt(urlAlphabet.size)] }.joinToString("")
+            if (text !in excluding) return text
         }
     }
 

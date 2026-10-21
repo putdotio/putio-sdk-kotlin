@@ -15,6 +15,7 @@ import java.net.SocketException
 import java.net.SocketTimeoutException
 import java.net.UnknownHostException
 import javax.net.ssl.SSLHandshakeException
+import kotlin.random.Random
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
@@ -371,6 +372,94 @@ class PutioExceptionTest {
         val redactedSuppressed = assertIs<SSLHandshakeException>(redactedNestedCause.suppressed.single())
         assertFalse(redactedSuppressed.message.orEmpty().contains("suppressed-secret"))
     }
+
+    @Test
+    fun `no credential reaches any rendered sdk exception string`() {
+        val random = Random(20261021)
+        val credentialNames =
+            listOf(
+                "oauth_token",
+                "access_token",
+                "accessToken",
+                "refresh_token",
+                "download_token",
+                "client_secret",
+                "api_key",
+                "X-Amz-Signature",
+                "password",
+                "session_id",
+            )
+        val tokenAlphabet = ('a'..'z') + ('A'..'Z') + ('0'..'9') + listOf('-', '_', '.', '~')
+
+        repeat(300) { iteration ->
+            val name = credentialNames[random.nextInt(credentialNames.size)]
+            val token = "tk" + List(20) { tokenAlphabet[random.nextInt(tokenAlphabet.size)] }.joinToString("")
+            val params =
+                (List(random.nextInt(0, 3)) { "cursor$it=page-${random.nextInt(1000)}" } + "$name=$token").shuffled(random)
+            val url = "https://api.put.io/v2/files/list?" + params.joinToString("&")
+            val escapedUrl = url.replace("/", "\\/")
+            val body = """{"error":"failed for $escapedUrl","$name":"$token","nested":{"$name":"$token"}}"""
+            val request = PutioRequestData(method = "GET", url = url)
+            val errors =
+                listOf(
+                    PutioTransportException(request, IOException("failed for $url", IOException("retry of $url"))),
+                    PutioSerializationException(request, body, IllegalArgumentException("Unexpected JSON input: $body")),
+                    PutioApiException(
+                        request = request,
+                        resolvedStatusCode = 400,
+                        resolvedErrorType = "BAD_REQUEST",
+                        envelope =
+                            PutioApiErrorEnvelope(
+                                message = "failed for $url",
+                                errorType = "BAD_REQUEST",
+                                details = buildJsonObject { put(name, JsonPrimitive(token)) },
+                                errorMessage = "rejected $url",
+                            ),
+                        responseBody = body,
+                        message = "failed for $url",
+                    ),
+                )
+
+            (errors + errors.map { PutioOperationException("files", "list", contract = null, reason = null, underlyingError = it) })
+                .forEach { error ->
+                    val rendered =
+                        listOf(error.stackTraceToString(), error.toString(), PutioErrorLocalizer.localize(error).toString()) +
+                            error.typedDiagnostics()
+                    rendered.forEach { text ->
+                        assertFalse(text.contains(token), "iteration $iteration leaked $name from ${error::class.simpleName}: $text")
+                    }
+                }
+        }
+    }
+
+    private fun PutioException.typedDiagnostics(): List<String> =
+        when (this) {
+            is PutioOperationException -> {
+                underlyingError.typedDiagnostics()
+            }
+
+            is PutioTransportException -> {
+                listOf(request.toString())
+            }
+
+            is PutioSerializationException -> {
+                listOf(request.toString(), responseBody)
+            }
+
+            is PutioApiException -> {
+                listOf(
+                    request.toString(),
+                    responseBody,
+                    envelope.toString(),
+                    errorMessage.orEmpty(),
+                    errorType.orEmpty(),
+                )
+            }
+
+            is PutioConfigurationException -> {
+                emptyList()
+            }
+        }
 
     @Test
     fun `transport exception classifies standard failure kinds`() {

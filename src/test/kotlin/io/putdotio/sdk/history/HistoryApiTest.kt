@@ -113,7 +113,14 @@ class HistoryApiTest {
                               "id": 7,
                               "user_id": 42,
                               "type": "FUTURE_EVENT",
-                              "created_at": "2026-04-20T10:00:00Z"
+                              "created_at": "2026-04-20T10:00:00Z",
+                              "file_id": 99,
+                              "file_name": "Movie.mkv",
+                              "transfer_id": 55,
+                              "transfer_name": "Transfer",
+                              "rss_filter_title": "Weekly feed",
+                              "zip_id": 4,
+                              "icon": "video"
                             }
                           ]
                         }
@@ -133,6 +140,11 @@ class HistoryApiTest {
                     assertFalse(response.hasMore)
                     assertEquals("FUTURE_EVENT", event.type.raw)
                     assertFalse(event.type.isKnown)
+                    assertEquals(99L, event.fileId)
+                    assertEquals("Transfer", event.transferName)
+                    assertEquals("Weekly feed", event.rssFilterTitle)
+                    assertEquals(4L, event.zipId)
+                    assertEquals("video", event.icon)
                 }
             }
         }

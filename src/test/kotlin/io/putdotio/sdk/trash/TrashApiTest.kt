@@ -13,6 +13,7 @@ import java.nio.charset.StandardCharsets
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
+import kotlin.test.assertFalse
 import kotlin.test.assertIs
 import kotlin.test.assertNull
 
@@ -34,12 +35,21 @@ class TrashApiTest {
                             {
                               "id": 10,
                               "name": "Old Movie",
+                              "icon": "video",
+                              "parent_id": 2,
                               "size": 99,
                               "created_at": "2026-04-20T10:00:00Z",
                               "deleted_at": "2026-04-21T10:00:00Z",
                               "expiration_date": "2026-05-01T10:00:00Z",
-                              "file_type": "VIDEO",
-                              "folder_type": "REGULAR"
+                              "file_type": "BOOK",
+                              "folder_type": "MAGIC_SHELF",
+                              "video_metadata": {
+                                "height": 1080,
+                                "width": 1920,
+                                "codec": "h264",
+                                "duration": 61.5,
+                                "aspect_ratio": 1.78
+                              }
                             }
                           ]
                         }
@@ -58,7 +68,14 @@ class TrashApiTest {
                     assertEquals("next-page", response.cursor)
                     assertEquals(1, response.total)
                     assertEquals(123L, response.trashSize)
-                    assertEquals(1, response.files.size)
+                    val file = response.files.single()
+                    assertEquals(2L, file.parentId)
+                    assertEquals("BOOK", file.fileType.raw)
+                    assertFalse(file.fileType.isKnown)
+                    assertEquals("MAGIC_SHELF", file.folderType.raw)
+                    assertFalse(file.folderType.isKnown)
+                    assertEquals(1080, file.videoMetadata?.height)
+                    assertEquals("2026-05-01T10:00:00Z", file.expirationDate)
                 }
             }
         }

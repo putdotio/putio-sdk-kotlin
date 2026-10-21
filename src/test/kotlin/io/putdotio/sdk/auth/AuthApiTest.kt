@@ -64,6 +64,8 @@ class AuthApiTest {
                 ).use { sdk ->
                     val result = sdk.auth.validateToken("override-token")
                     assertEquals(true, result.result)
+                    assertEquals(5L, result.tokenId)
+                    assertEquals("default", result.tokenScope)
                     assertEquals(42L, result.userId)
                 }
             }
