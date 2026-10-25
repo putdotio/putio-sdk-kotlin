@@ -37,4 +37,4 @@ Run `make secrets-setup` if the live-test env is missing or stale.
 
 ## Delivery
 
-Pull requests squash-merge to `main`. A merge with a releasing commit type publishes to Maven Central ([.releaserc.json](./.releaserc.json)); use `docs:`, `chore:`, `ci:`, `test:`, or `refactor:` for changes that must not publish. Never delete or re-push a `v*` tag; finish a failed publish with the [recovery dispatch](./CONTRIBUTING.md#releases).
+Pull requests squash-merge to `main`. The squash commit's type decides whether a merge publishes to Maven Central ([.releaserc.json](./.releaserc.json)). A squash-merged `Revert "…"` commit publishes a patch even when it reverts a `docs:` commit, and Central never takes a release back. Never delete or re-push a `v*` tag; finish a failed publish with the [recovery dispatch](./CONTRIBUTING.md#releases).
