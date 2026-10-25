@@ -1,38 +1,29 @@
 # Distribution
 
-## Coordinates
-
 `io.put:putio-sdk-kotlin` on Maven Central, published through the Sonatype
-Central Portal. The Maven group is the reverse DNS of put.io; the Kotlin
-package stays `io.putdotio.sdk`.
+Central Portal. The Maven group is put.io's reverse DNS; the Kotlin package
+stays `io.putdotio.sdk`.
 
-## How a release happens
+## Releases
 
 Every push to `main` runs the `release` job in
-[`ci.yml`](../.github/workflows/ci.yml) after verify passes, so every merge to
-`main` should already be releasable. [semantic-release](../.releaserc.json)
-reads the Conventional Commits since the last `v*` tag:
+[ci.yml](../.github/workflows/ci.yml) after `verify`, so every merge must be
+releasable. [semantic-release](../.releaserc.json) reads the Conventional
+Commits since the last `v*` tag:
 
 - `fix:`, `perf:`, and reverts cut a patch, `feat:` a minor, and `!` or a
-  `BREAKING CHANGE:` footer a major
-- a revert is a `Revert "<header>"` commit whose body keeps
-  `This reverts commit <sha>.`, as `git revert` and GitHub's Revert button
-  write it. Squash-merged, it cuts a patch even when the reverted commit is
-  unreleased, and that commit still counts: the appended ` (#N)` keeps the
-  pair from matching. A `git revert` pushed straight to `main` cancels an
-  unreleased original, and neither counts
-- `docs:`, `chore:`, `ci:`, `test:`, and `refactor:` cut nothing; the run ends
-  without publishing
+  `BREAKING CHANGE:` footer a major.
+- `docs:`, `chore:`, `ci:`, `test:`, and `refactor:` publish nothing.
+- A squash-merged revert cuts a patch even when the reverted commit is
+  unreleased; the appended ` (#N)` stops the pair from matching. A
+  `git revert` pushed straight to `main` cancels an unreleased original.
 
-When a release is due, semantic-release pushes the `v<version>` tag as the
-`putio-ci` App, runs
-`./gradlew publishToMavenCentral -Pversion=<version>`, waits for Central
-validation, and creates the GitHub release with generated notes. Central lists
-the version within about half an hour. No version file is committed back.
+A release pushes the `v<version>` tag as the `putio-ci` App, publishes and
+waits for Central validation, then creates the GitHub release. Central lists
+the version within about half an hour.
 
-Local builds keep the version `0.1.0-SNAPSHOT`. Every remote `publish*` task
-refuses a SNAPSHOT version, so a build without `-Pversion` cannot publish even
-with credentials present.
+Remote `publish*` tasks refuse the local `0.1.0-SNAPSHOT` version, so a build
+without `-Pversion` cannot publish.
 
 ## Recovery
 
@@ -45,13 +36,9 @@ Central rejects a re-upload. Finish it from `main` instead:
 gh workflow run ci.yml --repo putdotio/putio-sdk-kotlin --ref main -f recover_version=X.Y.Z
 ```
 
-A secretless job first checks that the tag exists and is on `main`. The
-recovery job then checks out that commit, publishes only when the Central
-Portal reports the version unpublished, and creates the GitHub release only
-when the API reports it missing. If the Portal still shows the deployment as
-publishing, wait for it to finish before recovering; a re-upload fails as a
-duplicate. A dispatch without `recover_version` skips recovery and runs only
-`verify`, whose scan audits every workflow.
+Recovery publishes only a version the Central Portal reports unpublished and
+creates only a missing GitHub release. If the Portal still shows the
+deployment as publishing, wait; a re-upload fails as a duplicate.
 
 ## Trust boundary
 
@@ -62,12 +49,11 @@ so the controls sit outside the workflow:
   only `main`, so no other ref can read its secrets
 - the "Protect v* release tags" ruleset lets only organization admins and the
   `putio-ci` GitHub App create, move, or delete `v*` tags
-- release jobs run without the shared Gradle cache
 
 ## Credentials
 
-All secrets live in the `release` environment on the GitHub repository. None
-are checked in or read by `./gradlew verify`. The put.io 1Password item
+Secrets live in the `release` environment; `verify` reads none. The put.io
+1Password item
 `frontend/putio-android-maven-sonatype` holds the Central token and the
 signing key; `put.io/github-putio-ci-app` holds the App key.
 

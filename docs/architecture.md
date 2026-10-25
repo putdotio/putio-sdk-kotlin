@@ -1,157 +1,34 @@
 # Architecture
 
-## System View
-
-```mermaid
-graph LR
-  Consumer["consumer app"] --> Client["PutioClient"]
-  Client --> Account["account namespace"]
-  Client --> Auth["auth namespace"]
-  Client --> DeviceCode["deviceCodeAuth orchestrator"]
-  Client --> Config["appConfig namespace"]
-  Client --> Files["files namespace"]
-  Client --> Grants["grants namespace"]
-  Client --> History["history namespace"]
-  Client --> Ifttt["ifttt namespace"]
-  Client --> Routes["routes namespace"]
-  Client --> Sharing["sharing namespace"]
-  Client --> Trash["trash namespace"]
-  Client --> Transfers["transfers namespace"]
-  Account --> Transport["shared transport"]
-  Auth --> Transport
-  DeviceCode --> Auth
-  DeviceCode --> Account
-  Config --> Transport
-  Files --> Transport
-  Grants --> Transport
-  History --> Transport
-  Ifttt --> Transport
-  Routes --> Transport
-  Sharing --> Transport
-  Trash --> Transport
-  Transfers --> Transport
-  Transport --> Errors["typed SDK errors"]
-  Transport --> Json["kotlinx.serialization"]
-  Transport --> API["put.io API"]
-```
-
-## Components
-
-| Component         | Responsibility                                                                        |
-| ----------------- | ------------------------------------------------------------------------------------- |
-| `PutioClient`     | shared SDK entrypoint and namespace composition                                       |
-| Domain namespaces | grouped endpoint operations by product domain                                         |
-| Shared transport  | OkHttp request execution, auth resolution, and response parsing                       |
-| Error model       | configuration, transport, API, operation-aware failures, and user-facing localization |
-| Query models      | encode request flags and keep call sites explicit                                     |
+[`PutioClient`](../src/main/kotlin/io/putdotio/sdk/PutioClient.kt) composes one
+namespace per product domain over a shared OkHttp transport. Each namespace's
+`*Api.kt` lists its operations.
 
 ## Design Rules
 
-- keep the public surface close to `putio-sdk-typescript`
-- use coroutine-first suspend APIs for network operations
-- parse response JSON at the boundary with `kotlinx.serialization`
-- preserve unknown backend string values in public value types instead of failing whole payloads
-- keep operator-facing exceptions typed, wrap API failures in `domain.operation` context, and derive user-facing recovery guidance separately through `PutioErrorLocalizer`
-- keep namespaces small and explicit until app needs prove expansion
-- prefer transport helpers and typed models over generic JSON bags
-- no Android UI or app lifecycle types in the SDK
-
-## Current Namespace Scope
-
-- `account`
-  - `getInfo`
-  - `getSettings`
-  - `saveSettings` (includes the cross-client privacy controls `diagnostics_enabled` and `product_analytics_enabled`; an absent `diagnostics_enabled` reads as `true` and an absent `product_analytics_enabled` as `false`, matching the backend)
-  - `clearData`
-  - `destroy`
-- `auth`
-  - `buildLoginUrl`
-  - `getCode`
-  - `checkCodeMatch`
-  - `validateToken`
-  - `logout`
-  - `generateTotp`
-  - `verifyTotp`
-  - `getRecoveryCodes`
-  - `regenerateRecoveryCodes`
-- `deviceCodeAuth`
-  - `link` (see Device-Code Contract)
-- `appConfig`
-  - `get`
-  - `save`
-- `files`
-  - `list`
-  - `continueList`
-  - `get`
-  - `resolvePlayback`
-  - `search`
-  - `continueSearch`
-  - `createFolder`
-  - `upload` (multipart to `PutioConfig.uploadBaseUrl`, default `https://upload.put.io/v2/`; returns the saved file or, for a `.torrent`/`.magnet` name, the started transfer; `requireTorrent` sends `torrent=true` so put.io rejects non-torrent content with `NotTorrent` instead of storing it)
-  - `copy` (`/files/copy-to-disk`, root only; put.io keeps it for an older client, so prefer `sharing.cloneSharedFiles`)
-  - `delete`
-  - `move`
-  - `rename`
-  - `findNextFile`
-  - `setSortBy`
-  - `resetFileSpecificSortSettings`
-  - `startMp4Conversion`
-  - `getMp4ConversionStatus`
-  - `listSubtitles`
-  - `getStartFrom`
-  - `setStartFrom`
-  - `resetStartFrom`
-  - `getDownloadUrl` (API-issued URL with its own token, bound to the requesting IP; for external players that must not receive the account token)
-  - `buildDownloadUrl`, `buildMp4DownloadUrl`, `buildStreamUrl`, `buildHlsStreamUrl`, `buildOriginalStreamUrl`, `buildAudioStreamUrl` (take an `AccountDownloadToken`, sent as `oauth_token`)
-- `grants`
-  - `list`
-  - `revoke`
-  - `linkDevice`
-- `history`
-  - `list`
-  - `delete`
-  - `clear`
-  - `HistoryEventType` constants carry the API's lowercase wire values (`transfer_completed`, `file_shared`, ...); `fromRaw` matches any casing to the canonical constant and keeps unknown types verbatim; `FILE_FROM_RSS_DELETED_ERROR` is a deprecated alias of `FILE_FROM_RSS_DELETED_FOR_SPACE`
-- `ifttt`
-  - `sendPlaybackEvent`
-- `routes`
-  - `list`
-- `sharing`
-  - `shareFiles` (to everyone or named friends)
-  - `listSharedFiles`
-  - `getSharedWith`
-  - `unshare` (named share ids), `unshareAll`
-  - `cloneSharedFiles` (copy items shared with the viewer into one of their folders; runs in the background), `getCloneInfo` (its `NEW`, `PROCESSING`, `DONE` or `ERROR` status and put.io's error message, redacted)
-  - `publicShares.create`, `publicShares.list`, `publicShares.delete`; `PublicShare.token` and `pushToken` are bearer secrets with redacted `toString`
-- `trash`
-  - `list`
-  - `continueList`
-  - `restore`
-  - `delete`
-  - `empty`
-- `transfers`
-  - `list`
-  - `continueList`
-  - `get`
-  - `count`
-  - `info`
-  - `add`
-  - `addMany`
-  - `cancel`
-  - `clean`
-  - `retry`
+- Keep the public surface close to `putio-sdk-typescript`.
+- Use coroutine-first suspend APIs for network operations.
+- Parse response JSON at the boundary with `kotlinx.serialization`.
+- Preserve unknown backend string values in public value types instead of failing whole payloads.
+- Keep exceptions typed, wrap API failures in `domain.operation` context, and derive user-facing guidance separately through `PutioErrorLocalizer`.
+- Keep namespaces small until app needs prove expansion.
+- Prefer transport helpers and typed models over generic JSON bags.
+- Keep Android UI and app lifecycle types out of the SDK.
+- `files.copy` wraps `/files/copy-to-disk`, which put.io keeps for an older client; new callers use `sharing.cloneSharedFiles`.
 
 ## Device-Code Contract
 
 `DeviceCodeAuth.link` is a cold `Flow<DeviceCodeAuthState>` that runs one linking
-attempt from the auth-and-device-linking contract: `Requesting` → `AwaitingLink(code,
-qrCodeUrl, budget)` → `Validating` → `Linked(accessToken, account)`. The consumer shows the
-code and `put.io/link`, and stores the token from `Linked`; it never polls. Polling uses
-`DeviceCodeAuthOptions` (three-second interval, five-minute budget by default, matching the
-shipping TV app). A 404 from the match endpoint or a rejected validation ends the attempt in
-`Expired(CODE_REJECTED)`; running out the budget ends it in `Expired(BUDGET_ELAPSED)`; either
-way "Get new code" is a fresh collection. Transport failures while polling are retried inside
-the budget; any other SDK error ends the attempt in `Failed(error)` for `PutioErrorLocalizer`.
+attempt: `Requesting` → `AwaitingLink(code, qrCodeUrl, budget)` → `Validating` →
+`Linked(accessToken, account)`. The consumer shows the code and `put.io/link`, and
+stores the token from `Linked`; it never polls. `DeviceCodeAuthOptions` sets the poll
+interval and budget.
+
+A 404 from the match endpoint or a rejected validation ends the attempt in
+`Expired(CODE_REJECTED)`; an elapsed budget ends it in `Expired(BUDGET_ELAPSED)`.
+Either way, "Get new code" is a fresh collection. Transport failures while polling
+are retried inside the budget; any other SDK error ends the attempt in
+`Failed(error)` for `PutioErrorLocalizer`.
 Cancelling the collector stops polling. `Linked.toString()` omits the token.
 
 ## Playback Contract
@@ -166,9 +43,9 @@ Direct media URLs use the account `download_token`, decoded as an
 `AccountDownloadToken` and supplied as a `PlaybackMediaCredential`; the public
 `build*Url` builders take the `AccountDownloadToken` directly. The API accepts it on
 media endpoints (download, stream, MP4, HLS, subtitles, XSPF) and rejects it on API
-calls such as account info or file listing, so a leaked media URL cannot drive the account. The account token,
-playback credential, and resolved URL redact their debug representations. Consumers may reveal the URL only at the player boundary and must
-not log, persist, cache, share, or attach it to analytics, notifications, or errors.
+calls such as account info or file listing, so a leaked media URL cannot drive the account.
+The account token, playback credential, and resolved URL redact their debug representations.
+Consumers may reveal the URL only at the player boundary and must not log, persist, cache, share, or attach it to analytics, notifications, or errors.
 
 The account-wide resume setting is `use_start_from` (`AccountSettings.useStartFrom`);
 the app passes it as `PlaybackRequest.useStartFrom`, while the per-file offset remains
@@ -204,23 +81,19 @@ Consumers handle `PlaybackConversionState` as follows:
 - `Unknown` preserves the backend value, stops automatic polling, and offers retry
   or Back.
 
-The resolver never calls `startMp4Conversion`. Consumers call it once per viewer open
-of a `NotAvailable` file and on an explicit retry after `Failed`; never from polling.
+Never call `startMp4Conversion` from polling.
 
-## Error Context
+## Error Contract
 
-- `files.get` and `files.createFolder` require `status: "OK"` before returning the response file; non-OK HTTP 2xx envelopes are typed serialization failures
-- `files.delete` requires `status: "OK"`, a nonnegative `skipped`, and a non-blank `cursor` when present; `files.move` requires `status: "OK"` and an `errors` list
-- `OkResponse` requires `status: "OK"`; a non-OK acknowledgement on HTTP 2xx is a serialization failure with operation context
-- Trash list decoding requires explicit files and nonnegative initial totals; continuation may omit totals, so consumers retain the initial aggregates instead of replacing them with continuation defaults
-- `PutioApiException.errorMessage` is put.io's own explanation (`error_message`, else `message`) with credential-bearing URLs redacted; the exception message prefers it over the generic HTTP status text
-- domain namespaces wrap SDK failures with `domain.operation` context before surfacing them to consumers
-- `PutioErrorLocalizer` can layer operation-specific recovery guidance on top of the underlying typed API or transport error
-- transport exceptions expose a stable failure kind and retain sanitized timeout, DNS, connection, TLS, protocol, and I/O cause types
-- SDK-created exceptions redact credential-bearing query values from request URLs while retaining the method, path, query names, and non-sensitive query values
+- Domain namespaces wrap SDK failures with `domain.operation` context.
+- `PutioApiException.errorMessage` is put.io's own explanation (`error_message`, else `message`), redacted. The exception message prefers it over the HTTP status text.
+- A response that carries a non-OK `status` on HTTP 2xx is a serialization failure.
+- `PutioErrorLocalizer` layers operation-specific recovery guidance on the typed API or transport error.
+- Transport exceptions expose a stable failure kind and keep sanitized timeout, DNS, connection, TLS, protocol, and I/O cause types.
+- Trash continuations may omit totals; keep the aggregates from the first page.
 
 ## Credential-Bearing URLs
 
-- API requests send the token in the `Authorization` header where the endpoint supports it
-- media URL builders put the token in `oauth_token` because those endpoints accept URL authentication; treat returned URLs as credentials and do not log, persist, or share them
-- exception redaction replaces sensitive query values with `REDACTED` and covers token, secret, password, credential, signature, API-key, authorization-code, session, and nonce parameter names, including common compound forms
+- API requests send the token in the `Authorization` header where the endpoint supports it.
+- Media URL builders put the download token in `oauth_token`. Treat the returned URLs as credentials.
+- SDK exceptions replace sensitive query values with `REDACTED` and keep the method, path, query names, and other values. [PutioException.kt](../src/main/kotlin/io/putdotio/sdk/errors/PutioException.kt) owns the parameter list.
