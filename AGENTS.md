@@ -14,12 +14,7 @@
 - `./gradlew spotlessApply`: fix ktlint findings
 - `./gradlew markdownCheck`: oxfmt Markdown check, part of `verify`; needs Node. `npx --yes oxfmt@<version> '**/*.md'` fixes findings, with the version pinned in [package.json](./package.json)
 - `./gradlew publishToMavenLocal -Pversion=X.Y.Z`: local publish dry run
-- `make secrets-setup` / `make secrets-clean`: write or remove the ignored live-test `.env.local` from `PUTIO_SDK_KOTLIN_SOPS_FILE`
-
-## Worktrees
-
-`.worktreeinclude` carries `.env` and `.env.local` into Codex and Claude worktrees.
-Run `make secrets-setup` if the live-test env is missing or stale.
+- `make secrets-setup` / `make secrets-clean`: write or remove the ignored live-test `.env.local` from `PUTIO_SDK_KOTLIN_SOPS_FILE`. Run setup when it is missing or stale; clean before removing a worktree.
 
 ## Rules
 
@@ -31,10 +26,10 @@ Run `make secrets-setup` if the live-test env is missing or stale.
 ## Proof
 
 - Docs only: `./gradlew markdownCheck`. It does not check links; confirm the commands and links you name resolve.
-- Source change: `./gradlew verify`, which enforces the line coverage floor.
-- API behavior `MockWebServer` cannot prove: `./gradlew liveTest`, inside the [live safety rules](./CONTRIBUTING.md#live-safety-rules). The live account is shared and real.
+- Source change: `./gradlew verify`.
+- API behavior `MockWebServer` cannot prove: `./gradlew liveTest`, inside the [live safety rules](./CONTRIBUTING.md#live-safety-rules).
 - Public surface putio-android uses: build that app against this checkout by setting `putioSdkKotlinPath` in its `local.properties`.
 
 ## Delivery
 
-Pull requests squash-merge to `main`. The squash commit's type decides whether a merge publishes to Maven Central ([.releaserc.json](./.releaserc.json)). A squash-merged `Revert "…"` commit publishes a patch even when it reverts a `docs:` commit, and Central never takes a release back. Never delete or re-push a `v*` tag; finish a failed publish with the [recovery dispatch](./CONTRIBUTING.md#releases).
+Pull requests squash-merge to `main`. The squash commit's type decides whether a merge publishes to Maven Central ([.releaserc.json](./.releaserc.json)). A squash-merged `Revert "…"` commit publishes a patch even when it reverts a `docs:` commit, and Central never takes a release back. Never delete or re-push a `v*` tag; finish a failed publish through [Releases](./CONTRIBUTING.md#releases).
