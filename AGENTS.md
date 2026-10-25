@@ -4,7 +4,7 @@
 
 - Kotlin SDK for the put.io API, published as `io.put:putio-sdk-kotlin`.
 - First-party consumer: [putio-android](https://github.com/putdotio/putio-android), which pins the Maven Central release.
-- `README.md` is for consumers, [CONTRIBUTING.md](./CONTRIBUTING.md) for contributors, [docs/distribution.md](./docs/distribution.md) for releases.
+- `README.md` is for consumers, [CONTRIBUTING.md](./CONTRIBUTING.md) for contributors and maintainers.
 - Open [Architecture](./docs/architecture.md) before changing the public surface, errors, device-code linking, or playback.
 
 ## Commands
@@ -36,4 +36,4 @@ Run `make secrets-setup` if the live-test env is missing or stale.
 
 ## Delivery
 
-Pull requests squash-merge to `main`. The commit type decides whether a merge publishes to Maven Central; [Distribution](./docs/distribution.md) has the rules. Central rejects a re-upload, so finish a failed publish with the [recovery dispatch](./docs/distribution.md#recovery); never delete or re-push its tag.
+Pull requests squash-merge to `main`. A merge with a releasing commit type publishes to Maven Central ([.releaserc.json](./.releaserc.json)); use `docs:`, `chore:`, `ci:`, `test:`, or `refactor:` for changes that must not publish. Never delete or re-push a `v*` tag; finish a failed publish with the [recovery dispatch](./CONTRIBUTING.md#releases).

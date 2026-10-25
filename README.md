@@ -141,7 +141,6 @@ val loginUrl = sdk.auth.buildLoginUrl(
 
 - [Architecture](./docs/architecture.md): design rules and consumer contracts
 - [Contributing](./CONTRIBUTING.md)
-- [Distribution](./docs/distribution.md)
 - [Security policy](https://github.com/putdotio/.github/blob/main/SECURITY.md)
 - [Agent guide](./AGENTS.md)
 

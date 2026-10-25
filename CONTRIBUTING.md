@@ -54,4 +54,17 @@ They must never:
 
 Follow the [pull request template](./.github/pull_request_template.md). The
 commit type decides whether a merge publishes; see
-[Distribution](./docs/distribution.md).
+[.releaserc.json](./.releaserc.json).
+
+## Releases
+
+- A releasing push to `main` publishes from the `release` job in [ci.yml](./.github/workflows/ci.yml). Every merge must be releasable.
+- semantic-release pushes the tag before publishing. Never delete or re-push a `v*` tag: it would cut the same version again, and Central rejects a re-upload.
+- If a publish or GitHub release fails, finish it from `main`. If the Central Portal still shows the deployment as publishing, wait first.
+
+  ```bash
+  gh workflow run ci.yml --repo putdotio/putio-sdk-kotlin --ref main -f recover_version=X.Y.Z
+  ```
+
+- Keep the `release` environment's deployment rule limited to `main`, and the "Protect v\* release tags" ruleset limited to org admins and the `putio-ci` App. The release job runs `main`'s build scripts with publishing credentials.
+- When rotating the signing key, publish the public key to `keyserver.ubuntu.com`, or Central rejects the signature.
