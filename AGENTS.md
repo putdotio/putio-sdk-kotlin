@@ -2,46 +2,38 @@
 
 ## Repo
 
-- Standalone Kotlin SDK repo for the put.io API, published as `io.put:putio-sdk-kotlin`
-- Public package focused on Android-friendly Kotlin consumers; the first-party consumer is [putio-android](https://github.com/putdotio/putio-android), which pins the Maven Central release
-- Namespaces and operations: [Architecture](./docs/architecture.md#current-namespace-scope)
-
-## Start Here
-
-- [Overview](./README.md)
-- [Architecture](./docs/architecture.md)
-- [Testing](./docs/testing.md)
-- [Readiness](./docs/readiness.md)
-- [Distribution](./docs/distribution.md)
+- Kotlin SDK for the put.io API, published as `io.put:putio-sdk-kotlin`.
+- First-party consumer: [putio-android](https://github.com/putdotio/putio-android), which pins the Maven Central release.
+- `README.md` is for consumers, [CONTRIBUTING.md](./CONTRIBUTING.md) for contributors and maintainers.
+- Open [Architecture](./docs/architecture.md) before changing the public surface, errors, device-code linking, or playback.
 
 ## Commands
 
-- `./gradlew verify`: canonical local and CI guardrail; task graph in [build.gradle.kts](./build.gradle.kts)
+- `./gradlew verify`: the local and CI gate; task graph in [build.gradle.kts](./build.gradle.kts)
 - `./gradlew test`: unit suite only
-- `./gradlew liveTest`: opt-in live suite; needs credentials from [Testing](./docs/testing.md#live-environment)
-- `./gradlew spotlessApply`: fix formatting findings
+- `./gradlew liveTest`: opt-in live suite; credentials in [CONTRIBUTING.md](./CONTRIBUTING.md#live-environment)
+- `./gradlew spotlessApply`: fix ktlint findings
 - `./gradlew markdownCheck`: oxfmt Markdown check, part of `verify`; needs Node. `npx --yes oxfmt@<version> '**/*.md'` fixes findings, with the version pinned in [package.json](./package.json)
-- `./gradlew publishToMavenLocal -Pversion=X.Y.Z`: local dry run; see [Distribution](./docs/distribution.md#local-dry-run)
-- `make secrets-setup` / `make secrets-clean`: write or remove the ignored live-test `.env.local` from `PUTIO_SDK_KOTLIN_SOPS_FILE` ([Makefile](./Makefile))
+- `./gradlew publishToMavenLocal -Pversion=X.Y.Z`: local publish dry run
+- `make secrets-setup` / `make secrets-clean`: write or remove the ignored live-test `.env.local` from `PUTIO_SDK_KOTLIN_SOPS_FILE`
 
 ## Worktrees
 
 `.worktreeinclude` carries `.env` and `.env.local` into Codex and Claude worktrees.
 Run `make secrets-setup` if the live-test env is missing or stale.
 
-## Repo-Specific Guidance
+## Rules
 
-- Follow the [design rules](./docs/architecture.md#design-rules): mirror the domain-first API shape of `putio-sdk-typescript`, coroutine-first suspend functions, typed SDK errors, parsing at the boundary
-- Update docs when the public surface, verification flow, or publishing story changes
-- Keep `README.md` consumer-facing and use `docs/*` for repo-operator detail
+- Follow the [design rules](./docs/architecture.md#design-rules).
+- Update docs when the public surface, verification flow, or publishing changes.
 
 ## Proof
 
-- Docs only: `./gradlew markdownCheck` checks formatting, not links; confirm the commands and links you name resolve. No runtime proof.
-- Source change: `./gradlew verify`, which enforces the 90% line coverage floor in [build.gradle.kts](./build.gradle.kts).
-- API behavior `MockWebServer` cannot prove: `./gradlew liveTest`, inside the [safety rules](./docs/testing.md#safety-rules). The live account is shared and real; disabling `use_start_from`, for one, wipes every saved resume position.
+- Docs only: `./gradlew markdownCheck`. It does not check links; confirm the commands and links you name resolve.
+- Source change: `./gradlew verify`, which enforces the line coverage floor.
+- API behavior `MockWebServer` cannot prove: `./gradlew liveTest`, inside the [live safety rules](./CONTRIBUTING.md#live-safety-rules). The live account is shared and real.
 - Public surface putio-android uses: build that app against this checkout by setting `putioSdkKotlinPath` in its `local.properties`.
 
 ## Delivery
 
-Pull requests squash-merge to `main`. A push to `main` runs `verify`; when the commits since the last `v*` tag include `feat`, `fix`, `perf`, a revert, or a breaking change, semantic-release pushes the tag, publishes to Maven Central, and creates the GitHub release. `docs`, `chore`, `ci`, `test`, and `refactor` publish nothing. Central rejects a re-upload, so a failed publish is finished with the recovery dispatch in [Distribution](./docs/distribution.md#recovery); never delete or re-push its tag.
+Pull requests squash-merge to `main`. A merge with a releasing commit type publishes to Maven Central ([.releaserc.json](./.releaserc.json)); use `docs:`, `chore:`, `ci:`, `test:`, or `refactor:` for changes that must not publish. Never delete or re-push a `v*` tag; finish a failed publish with the [recovery dispatch](./CONTRIBUTING.md#releases).

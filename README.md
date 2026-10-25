@@ -54,19 +54,15 @@ suspend fun loadAccount() {
 
 ## Status
 
-Stable since 1.0.0 and versioned with [semver](https://semver.org): breaking changes ship only in a major release. The public surface is deliberately smaller than [`putio-sdk-typescript`](https://github.com/putdotio/putio-sdk-typescript); [Architecture](./docs/architecture.md#current-namespace-scope) lists the namespaces and operations.
+Versioned with [semver](https://semver.org): breaking changes ship only in a major release. Only `main` and the latest release receive fixes.
 
-The surface grows with the put.io mobile and TV apps. The primary consumer is [putio-android](https://github.com/putdotio/putio-android), which uses this SDK as its API boundary and pins the Maven Central release.
-
-Only `main` and the latest `io.put:putio-sdk-kotlin` release receive fixes.
+The surface is smaller than [`putio-sdk-typescript`](https://github.com/putdotio/putio-sdk-typescript) and grows with the put.io mobile and TV apps. [`PutioClient`](./src/main/kotlin/io/putdotio/sdk/PutioClient.kt) lists the namespaces.
 
 ## Android Consumers
 
-The SDK emits Java 8 bytecode and leaves the Android minimum SDK to the
-consumer. The first-party Android app's CI builds unsigned, R8-minified
-releases at minSdk 26 against the Maven Central release. The
-current SDK, OkHttp, coroutines, and serialization stack needs no
-SDK-specific consumer keep rules.
+The SDK emits Java 8 bytecode and leaves the minimum SDK to the consumer. It
+needs no SDK-specific R8 keep rules; putio-android builds minified releases at
+minSdk 26 against it.
 
 The SDK depends on `kotlinx-coroutines-core` and does not select
 `Dispatchers.Main`. Android apps that run their own coroutines on the main
@@ -78,8 +74,7 @@ dependencies {
 }
 ```
 
-Pass an `OkHttpClient` to add application interceptors, caching, or other
-consumer policy:
+Pass an `OkHttpClient` to add interceptors, caching, or other app policy:
 
 ```kotlin
 val httpClient = OkHttpClient.Builder()
@@ -93,15 +88,13 @@ val sdk = PutioClient(
 )
 ```
 
-An injected client remains caller-owned: `PutioClient.close()` does not close
-its cache, dispatcher, or connection pool. A client created internally by
-`PutioClient` is closed with the SDK.
+`PutioClient.close()` does not close an injected client's cache, dispatcher,
+or connection pool. It closes only a client it created.
 
 ## Media URLs
 
 Download and stream URL builders take the account download token, never the
-access token, because their URLs leave the app for players, cast receivers,
-and caches:
+access token. Their URLs leave the app for players, cast receivers, and caches:
 
 ```kotlin
 val downloadToken = sdk.account.getInfo(AccountInfoQuery(downloadToken = true)).downloadToken
@@ -125,8 +118,8 @@ sdk.deviceCodeAuth.link().collect { state ->
 }
 ```
 
-One collection is one attempt; collect again for a new code. Polling, timeout, and
-token validation live in the SDK; see the [device-code contract](./docs/architecture.md#device-code-contract).
+One collection is one attempt; collect again for a new code. The SDK owns polling,
+timeout, and token validation; see the [device-code contract](./docs/architecture.md#device-code-contract).
 
 ## Authentication URL Example
 
@@ -144,24 +137,13 @@ val loginUrl = sdk.auth.buildLoginUrl(
 )
 ```
 
-## Verification
-
-```bash
-./gradlew verify
-./gradlew liveTest
-```
-
-Both need a Java `21` runtime, and `verify` also needs Node for its Markdown check. `verify` is the deterministic gate; `liveTest` is opt-in against the real put.io API and needs credentials. [Testing](./docs/testing.md) covers both.
-
 ## Docs
 
-- [Architecture](./docs/architecture.md)
-- [Testing](./docs/testing.md)
-- [Readiness](./docs/readiness.md)
-- [Distribution](./docs/distribution.md)
+- [Architecture](./docs/architecture.md): design rules and consumer contracts
+- [Contributing](./CONTRIBUTING.md)
 - [Security policy](https://github.com/putdotio/.github/blob/main/SECURITY.md)
 - [Agent guide](./AGENTS.md)
 
 ## License
 
-This project is available under the [MIT License](./LICENSE)
+This project is available under the [MIT License](./LICENSE).
