@@ -119,7 +119,7 @@ sdk.deviceCodeAuth.link().collect { state ->
 ```
 
 One collection is one attempt; collect again for a new code. The SDK owns polling,
-timeout, and token validation; see the [device-code contract](./docs/architecture.md#device-code-contract).
+timeout, and token validation.
 
 ## Authentication URL Example
 
@@ -139,7 +139,6 @@ val loginUrl = sdk.auth.buildLoginUrl(
 
 ## Docs
 
-- [Architecture](./docs/architecture.md): design rules and consumer contracts
 - [Contributing](./CONTRIBUTING.md)
 - [Security policy](https://github.com/putdotio/.github/blob/main/SECURITY.md)
 - [Agent guide](./AGENTS.md)
