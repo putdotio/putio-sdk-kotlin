@@ -29,6 +29,16 @@ class ConfigApi internal constructor(
                 bodySerializer = ConfigValueUpdateBody.serializer(),
             )
         }
+
+    suspend fun delete(key: String): OkResponse {
+        requireConfigKey(key)
+        return putioOperation(DELETE_CONFIG_ERROR_SPEC) {
+            transport.delete(
+                pathSegments = listOf("config", key),
+                serializer = OkResponse.serializer(),
+            )
+        }
+    }
 }
 
 private val GET_CONFIG_ERROR_SPEC =
@@ -47,4 +57,11 @@ private val SAVE_CONFIG_ERROR_SPEC =
                 PutioKnownErrorContract(errorType = "invalid_scope", statusCode = 401),
                 PutioKnownErrorContract(statusCode = 400),
             ),
+    )
+
+private val DELETE_CONFIG_ERROR_SPEC =
+    PutioOperationErrorSpec(
+        domain = "config",
+        operation = "delete",
+        knownErrors = listOf(PutioKnownErrorContract(errorType = "invalid_scope", statusCode = 401)),
     )
