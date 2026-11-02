@@ -97,6 +97,18 @@ internal class PutioTransport(
             auth = auth,
         )
 
+    suspend fun <T> delete(
+        pathSegments: List<String>,
+        serializer: KSerializer<T>,
+        auth: PutioAuth = PutioAuth.ConfigToken,
+    ): T =
+        execute(
+            method = "DELETE",
+            pathSegments = pathSegments,
+            serializer = serializer,
+            auth = auth,
+        )
+
     suspend fun <T, TBody> postJson(
         path: String,
         serializer: KSerializer<T>,

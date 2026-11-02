@@ -94,6 +94,36 @@ class ConfigApiTest {
         }
 
     @Test
+    fun `delete removes one app-owned key as one path segment`() =
+        withServer { server ->
+            server.enqueue(MockResponse.Builder().body("""{"status":"OK"}""").build())
+
+            runBlocking {
+                PutioClient(
+                    PutioConfig(
+                        accessToken = "token",
+                        baseUrl = server.url("/v2/").toString(),
+                    ),
+                ).use { sdk ->
+                    sdk.appConfig.delete("../account/info")
+                }
+            }
+
+            val request = server.takeRequest()
+            assertEquals("/v2/config/..%2Faccount%2Finfo", request.target)
+            assertEquals("DELETE", request.method)
+        }
+
+    @Test
+    fun `delete rejects dot path segment keys before any request`() {
+        PutioClient(PutioConfig(accessToken = "token")).use { sdk ->
+            assertFailsWith<IllegalArgumentException> {
+                runBlocking { sdk.appConfig.delete("..") }
+            }
+        }
+    }
+
+    @Test
     fun `config update rejects blank keys`() {
         assertFailsWith<IllegalArgumentException> {
             AppConfigUpdate(" ", JsonPrimitive("value"))

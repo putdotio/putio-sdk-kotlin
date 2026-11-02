@@ -14,9 +14,13 @@ data class AppConfigUpdate(
     val value: JsonElement,
 ) {
     init {
-        require(key.isNotBlank()) { "Config key must not be blank" }
-        require(key != "." && key != "..") { "Config key must not be a dot path segment" }
+        requireConfigKey(key)
     }
+}
+
+internal fun requireConfigKey(key: String) {
+    require(key.isNotBlank()) { "Config key must not be blank" }
+    require(key != "." && key != "..") { "Config key must not be a dot path segment" }
 }
 
 @Serializable
