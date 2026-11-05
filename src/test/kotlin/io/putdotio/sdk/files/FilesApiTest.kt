@@ -730,36 +730,43 @@ class FilesApiTest {
                             "name": "Movie.mkv",
                             "size": 123,
                             "created_at": "2026-04-20T10:00:00Z",
-                            "file_type": "VIDEO"
+                            "file_type": "VIDEO",
+                            "media_info": {"mime_type": "video/x-matroska", "streams": [{"codec_type": "video"}]}
                           }
                         }
                         """.trimIndent(),
                     ).build(),
             )
 
-            runBlocking {
-                PutioClient(
-                    PutioConfig(
-                        accessToken = "token",
-                        baseUrl = server.url("/v2/").toString(),
-                    ),
-                ).use { sdk ->
-                    sdk.files.get(
-                        fileId = 9,
-                        query =
-                            FileDetailsQuery(
-                                mp4Size = false,
-                                mp4Status = true,
-                                startFrom = false,
-                                streamUrl = false,
-                                mp4StreamUrl = false,
-                            ),
-                    )
+            val file =
+                runBlocking {
+                    PutioClient(
+                        PutioConfig(
+                            accessToken = "token",
+                            baseUrl = server.url("/v2/").toString(),
+                        ),
+                    ).use { sdk ->
+                        sdk.files.get(
+                            fileId = 9,
+                            query =
+                                FileDetailsQuery(
+                                    mp4Size = false,
+                                    mp4Status = true,
+                                    startFrom = false,
+                                    streamUrl = false,
+                                    mp4StreamUrl = false,
+                                    mediaInfo = true,
+                                ),
+                        )
+                    }
                 }
-            }
 
             val request = server.takeRequest()
-            assertEquals("/v2/files/9?mp4_status=1", request.target)
+            assertEquals("/v2/files/9?media_info=1&mp4_status=1", request.target)
+            assertEquals(
+                PutioMediaInfo(mimeType = "video/x-matroska", streams = listOf(PutioMediaStream(codecType = "video"))),
+                file.mediaInfo,
+            )
         }
 
     @Test

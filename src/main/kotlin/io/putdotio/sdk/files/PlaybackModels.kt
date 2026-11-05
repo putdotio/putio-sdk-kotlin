@@ -12,8 +12,25 @@ enum class PlaybackPreference {
     MP4,
 }
 
+/**
+ * Decides whether this device can play a video's original file. `null` [mediaInfo] means put.io
+ * has not probed the file.
+ */
+fun interface OriginalVideoDecision {
+    fun canPlayOriginal(
+        mediaInfo: PutioMediaInfo?,
+        needConvert: Boolean,
+        isMp4Available: Boolean,
+    ): Boolean
+}
+
+/**
+ * [originalVideoPlayable] plays every original video without asking [originalVideoDecision].
+ * With neither, video resolves to put.io's converted stream.
+ */
 data class PlaybackCapabilities(
     val originalVideoPlayable: Boolean = false,
+    val originalVideoDecision: OriginalVideoDecision? = null,
 )
 
 class PlaybackMediaCredential private constructor(
@@ -80,12 +97,24 @@ enum class PlaybackSourceKind {
     MP4,
 }
 
+enum class PlaybackStreamFormat {
+    HLS,
+    PROGRESSIVE,
+}
+
+/**
+ * [kind] says what is played and [format] how it is delivered: an original video under the HLS
+ * preference is [PlaybackSourceKind.ORIGINAL] over [PlaybackStreamFormat.HLS].
+ */
 data class PlaybackSource(
     val fileId: Long,
     val kind: PlaybackSourceKind,
     val url: PutioCredentialUrl,
     val startFromSeconds: Double,
     val subtitles: PlaybackSubtitles,
+    val format: PlaybackStreamFormat =
+        if (kind == PlaybackSourceKind.HLS) PlaybackStreamFormat.HLS else PlaybackStreamFormat.PROGRESSIVE,
+    val mediaInfo: PutioMediaInfo? = null,
 )
 
 sealed interface PlaybackSubtitles {
@@ -188,6 +217,7 @@ internal data class PlaybackFile(
     @SerialName("is_mp4_available") val isMp4Available: Boolean? = null,
     @SerialName("need_convert") val needConvert: Boolean? = null,
     @SerialName("start_from") val startFrom: Double? = null,
+    @SerialName("media_info") val mediaInfo: PutioMediaInfo? = null,
 ) {
     init {
         if (fileType == PutioFileType.AUDIO || fileType == PutioFileType.VIDEO) {

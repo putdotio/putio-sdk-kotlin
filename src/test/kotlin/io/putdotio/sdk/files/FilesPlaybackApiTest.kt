@@ -44,7 +44,7 @@ class FilesPlaybackApiTest {
             )
             assertEquals("<redacted credential URL>", source.url.toString())
             assertEquals(
-                "/v2/files/42?mp4_status=1&start_from=1",
+                "/v2/files/42?media_info=1&mp4_status=1&start_from=1",
                 server.takeRequest().target,
             )
             assertEquals(1, server.requestCount)
@@ -141,7 +141,7 @@ class FilesPlaybackApiTest {
                     .url
                     .toString(),
             )
-            assertEquals("/v2/files/42?mp4_status=1&start_from=1", server.takeRequest().target)
+            assertEquals("/v2/files/42?media_info=1&mp4_status=1&start_from=1", server.takeRequest().target)
             assertEquals("/v2/files/42/subtitles?languages=en%2Ctr", server.takeRequest().target)
         }
 
@@ -169,7 +169,7 @@ class FilesPlaybackApiTest {
                         PlaybackRequest(
                             fileId = 42,
                             mediaCredential = PlaybackMediaCredential.downloadToken("download-secret"),
-                            preference = PlaybackPreference.HLS,
+                            preference = PlaybackPreference.MP4,
                             useStartFrom = true,
                             capabilities = PlaybackCapabilities(originalVideoPlayable = true),
                             subtitleLanguages = listOf("tr"),
@@ -178,6 +178,7 @@ class FilesPlaybackApiTest {
                 ).source
 
             assertEquals(PlaybackSourceKind.ORIGINAL, source.kind)
+            assertEquals(PlaybackStreamFormat.PROGRESSIVE, source.format)
             assertEquals(12.5, source.startFromSeconds)
             assertEquals(
                 server.url("/v2/files/42/stream?oauth_token=download-secret").toString(),
@@ -186,7 +187,7 @@ class FilesPlaybackApiTest {
             val subtitles = assertIs<PlaybackSubtitles.Sidecar>(source.subtitles).tracks
             assertEquals("tr", subtitles.single().languageCode)
             assertEquals("<redacted credential URL>", subtitles.single().url.toString())
-            assertEquals("/v2/files/42?mp4_status=1&start_from=1", server.takeRequest().target)
+            assertEquals("/v2/files/42?media_info=1&mp4_status=1&start_from=1", server.takeRequest().target)
             assertEquals("/v2/files/42/subtitles?languages=tr", server.takeRequest().target)
         }
 
@@ -255,6 +256,129 @@ class FilesPlaybackApiTest {
             }
         }
     }
+
+    @Test
+    fun `accepted original video under HLS resolves the original master with subtitle renditions`() =
+        withServer { server ->
+            server.enqueue(MockResponse.Builder().body(CAPTURED_WEBM_MEDIA_INFO_RESPONSE).build())
+            val decision = RecordingDecision(accept = true)
+
+            val source =
+                assertIs<PlaybackResolution.Ready>(
+                    server.resolvePlayback(
+                        PlaybackRequest(
+                            fileId = 42,
+                            mediaCredential = PlaybackMediaCredential.downloadToken("download-secret"),
+                            preference = PlaybackPreference.HLS,
+                            useStartFrom = true,
+                            capabilities = PlaybackCapabilities(originalVideoDecision = decision),
+                            subtitleLanguages = listOf("en"),
+                        ),
+                    ),
+                ).source
+
+            assertEquals(PlaybackSourceKind.ORIGINAL, source.kind)
+            assertEquals(PlaybackStreamFormat.HLS, source.format)
+            assertEquals(PlaybackSubtitles.Embedded, source.subtitles)
+            assertEquals(
+                server
+                    .url(
+                        "/v2/files/42/hls/media.m3u8?oauth_token=download-secret&subtitle_key=all&subtitle_languages=en&original=1",
+                    ).toString(),
+                source.url.value,
+            )
+            assertEquals(CAPTURED_WEBM_MEDIA_INFO, source.mediaInfo)
+            assertEquals(listOf(true, false), source.mediaInfo?.playbackIssues?.map { it.isKnown })
+            assertEquals(listOf(DecisionCall(CAPTURED_WEBM_MEDIA_INFO, false, true)), decision.calls)
+            assertEquals(1, server.requestCount)
+        }
+
+    @Test
+    fun `accepted original video under MP4 resolves the original stream`() =
+        withServer { server ->
+            server.enqueue(playbackFileResponse(isMp4Available = true, needConvert = false))
+
+            val source =
+                assertIs<PlaybackResolution.Ready>(
+                    server.resolvePlayback(
+                        PlaybackRequest(
+                            fileId = 42,
+                            mediaCredential = PlaybackMediaCredential.downloadToken("download-secret"),
+                            preference = PlaybackPreference.MP4,
+                            useStartFrom = true,
+                            capabilities = PlaybackCapabilities(originalVideoDecision = RecordingDecision(accept = true)),
+                            includeSidecarSubtitles = false,
+                        ),
+                    ),
+                ).source
+
+            assertEquals(PlaybackSourceKind.ORIGINAL, source.kind)
+            assertEquals(PlaybackStreamFormat.PROGRESSIVE, source.format)
+            assertEquals(server.url("/v2/files/42/stream?oauth_token=download-secret").toString(), source.url.value)
+        }
+
+    @Test
+    fun `declined original video keeps the converted source`() {
+        withServer { server ->
+            server.enqueue(playbackFileResponse(needConvert = false))
+
+            val source =
+                assertIs<PlaybackResolution.Ready>(
+                    server.resolvePlayback(decidingRequest(RecordingDecision(accept = false))),
+                ).source
+
+            assertEquals(PlaybackSourceKind.HLS, source.kind)
+            assertEquals(false, "original" in source.url.queryParameterNames)
+        }
+
+        withServer { server ->
+            server.enqueue(playbackFileResponse(needConvert = true))
+            server.enqueue(
+                MockResponse
+                    .Builder()
+                    .body("""{"status":"OK","mp4":{"status":"NOT_AVAILABLE"}}""")
+                    .build(),
+            )
+
+            val conversion =
+                assertIs<PlaybackResolution.Conversion>(
+                    server.resolvePlayback(decidingRequest(RecordingDecision(accept = false))),
+                )
+
+            assertEquals(PlaybackConversionState.NotAvailable, conversion.state)
+        }
+    }
+
+    @Test
+    fun `missing or null media_info reaches the original video decision`() {
+        listOf(null, "null").forEach { mediaInfo ->
+            withServer { server ->
+                server.enqueue(playbackFileResponse(needConvert = true, mediaInfo = mediaInfo))
+                val decision = RecordingDecision(accept = true)
+
+                val source =
+                    assertIs<PlaybackResolution.Ready>(server.resolvePlayback(decidingRequest(decision))).source
+
+                assertEquals(PlaybackSourceKind.ORIGINAL, source.kind)
+                assertEquals(null, source.mediaInfo)
+                assertEquals(listOf(DecisionCall(null, true, false)), decision.calls)
+            }
+        }
+    }
+
+    @Test
+    fun `audio plays the original without consulting the video decision`() =
+        withServer { server ->
+            server.enqueue(playbackFileResponse(fileType = "AUDIO", needConvert = true))
+            val decision = RecordingDecision(accept = false)
+
+            val source = assertIs<PlaybackResolution.Ready>(server.resolvePlayback(decidingRequest(decision))).source
+
+            assertEquals(PlaybackSourceKind.ORIGINAL, source.kind)
+            assertEquals(PlaybackStreamFormat.PROGRESSIVE, source.format)
+            assertEquals(server.url("/v2/files/42/stream?oauth_token=download-secret").toString(), source.url.value)
+            assertEquals(emptyList(), decision.calls)
+        }
 
     @Test
     fun `resolvePlayback applies the account-wide resume preference`() =
@@ -854,6 +978,7 @@ class FilesPlaybackApiTest {
         isMp4Available: Boolean = false,
         needConvert: Boolean,
         startFrom: Double = 0.0,
+        mediaInfo: String? = null,
     ): MockResponse =
         MockResponse
             .Builder()
@@ -862,6 +987,7 @@ class FilesPlaybackApiTest {
                 {
                   "status": "OK",
                   "file": {
+                    ${mediaInfo?.let { "\"media_info\": $it," }.orEmpty()}
                     "id": 42,
                     "file_type": "$fileType",
                     "is_mp4_available": $isMp4Available,
@@ -872,6 +998,36 @@ class FilesPlaybackApiTest {
                 """.trimIndent(),
             ).build()
 
+    private fun decidingRequest(decision: OriginalVideoDecision): PlaybackRequest =
+        PlaybackRequest(
+            fileId = 42,
+            mediaCredential = PlaybackMediaCredential.downloadToken("download-secret"),
+            preference = PlaybackPreference.HLS,
+            useStartFrom = true,
+            capabilities = PlaybackCapabilities(originalVideoDecision = decision),
+        )
+
+    private data class DecisionCall(
+        val mediaInfo: PutioMediaInfo?,
+        val needConvert: Boolean,
+        val isMp4Available: Boolean,
+    )
+
+    private class RecordingDecision(
+        private val accept: Boolean,
+    ) : OriginalVideoDecision {
+        val calls = mutableListOf<DecisionCall>()
+
+        override fun canPlayOriginal(
+            mediaInfo: PutioMediaInfo?,
+            needConvert: Boolean,
+            isMp4Available: Boolean,
+        ): Boolean {
+            calls += DecisionCall(mediaInfo, needConvert, isMp4Available)
+            return accept
+        }
+    }
+
     private data class PlaybackSelectionCase(
         val preference: PlaybackPreference,
         val originalVideoPlayable: Boolean,
@@ -879,4 +1035,82 @@ class FilesPlaybackApiTest {
         val needConvert: Boolean,
         val expectedKind: PlaybackSourceKind?,
     )
+
+    private companion object {
+        val CAPTURED_WEBM_MEDIA_INFO_RESPONSE =
+            """
+            {
+              "file": {
+                "content_type": "video/webm",
+                "crc32": "021a9b66",
+                "created_at": "2026-05-02T16:43:05",
+                "extension": "webm",
+                "file_type": "VIDEO",
+                "first_accessed_at": null,
+                "folder_type": "REGULAR",
+                "icon": "https://api.put.io/thumbnails/redacted.jpg",
+                "id": 42,
+                "is_hidden": false,
+                "is_mp4_available": true,
+                "is_shared": true,
+                "media_info": {
+                  "format": {
+                    "bit_rate": null,
+                    "duration": 734.167,
+                    "name": "matroska"
+                  },
+                  "mime_type": "video/webm",
+                  "playback_issues": ["open_gop", "future_issue"],
+                  "streams": [
+                    {
+                      "codec_name": "vp8",
+                      "codec_type": "video",
+                      "height": 800,
+                      "level": -99,
+                      "profile": "0",
+                      "rfc6381_codec": null,
+                      "width": 1920
+                    },
+                    {
+                      "channels": 2,
+                      "codec_name": "vorbis",
+                      "codec_type": "audio",
+                      "rfc6381_codec": null
+                    }
+                  ]
+                },
+                "mp4_size": 531918854,
+                "name": "Tears of Steel.webm",
+                "need_convert": false,
+                "opensubtitles_hash": "490d8c9fa2a1bfac",
+                "parent_id": 1584952416,
+                "screenshot": "https://api.put.io/screenshots/redacted.jpg",
+                "sha1": "",
+                "size": 571346576,
+                "start_from": 0,
+                "updated_at": "2026-05-02T16:43:06"
+              },
+              "status": "OK"
+            }
+            """.trimIndent()
+
+        val CAPTURED_WEBM_MEDIA_INFO =
+            PutioMediaInfo(
+                mimeType = "video/webm",
+                format = PutioMediaFormat(name = "matroska", duration = 734.167, bitRate = null),
+                streams =
+                    listOf(
+                        PutioMediaStream(
+                            codecType = "video",
+                            codecName = "vp8",
+                            width = 1920,
+                            height = 800,
+                            profile = "0",
+                            level = -99,
+                        ),
+                        PutioMediaStream(codecType = "audio", codecName = "vorbis", channels = 2),
+                    ),
+                playbackIssues = listOf(PutioPlaybackIssue.OPEN_GOP, PutioPlaybackIssue("future_issue")),
+            )
+    }
 }
