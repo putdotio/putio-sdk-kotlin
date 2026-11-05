@@ -49,13 +49,14 @@ class FilesApi internal constructor(
                         serializer = PlaybackFileEnvelope.serializer(),
                         query =
                             mapOf(
+                                "media_info" to "1",
                                 "mp4_status" to "1",
                                 "start_from" to "1",
                             ),
                     ).file
 
-            val sourceKind = file.selectPlaybackSource(request)
-            if (sourceKind == null) {
+            val selection = file.selectPlaybackSource(request)
+            if (selection == null) {
                 return@putioOperation when (file.fileType) {
                     PutioFileType.AUDIO, PutioFileType.VIDEO -> {
                         val conversion =
@@ -73,25 +74,25 @@ class FilesApi internal constructor(
                 }
             }
 
-            val subtitles = resolvePlaybackSubtitles(file, sourceKind, request)
-
             PlaybackResolution.Ready(
                 PlaybackSource(
                     fileId = request.fileId,
-                    kind = sourceKind,
-                    url = buildPlaybackUrl(request.fileId, sourceKind, request),
+                    kind = selection.kind,
+                    url = buildPlaybackUrl(request.fileId, selection, request),
                     startFromSeconds = if (request.useStartFrom) requireNotNull(file.startFrom) else 0.0,
-                    subtitles = subtitles,
+                    subtitles = resolvePlaybackSubtitles(file, selection.format, request),
+                    format = selection.format,
+                    mediaInfo = file.mediaInfo,
                 ),
             )
         }
 
     private suspend fun resolvePlaybackSubtitles(
         file: PlaybackFile,
-        sourceKind: PlaybackSourceKind,
+        format: PlaybackStreamFormat,
         request: PlaybackRequest,
     ): PlaybackSubtitles {
-        if (sourceKind == PlaybackSourceKind.HLS) {
+        if (format == PlaybackStreamFormat.HLS) {
             return PlaybackSubtitles.Embedded
         }
         if (file.fileType != PutioFileType.VIDEO || !request.includeSidecarSubtitles) {
@@ -441,6 +442,7 @@ class FilesApi internal constructor(
         token: String,
         subtitleLanguages: List<String>,
         maxSubtitleCount: Int?,
+        original: Boolean = false,
     ): String {
         requireValidMaxSubtitleCount(maxSubtitleCount)
         return transport.buildUrl(
@@ -455,24 +457,46 @@ class FilesApi internal constructor(
                     if (maxSubtitleCount != null) {
                         put("max_subtitle_count", maxSubtitleCount.toString())
                     }
+                    if (original) put("original", "1")
                 },
         )
     }
 }
 
-private fun PlaybackFile.selectPlaybackSource(request: PlaybackRequest): PlaybackSourceKind? =
+private data class PlaybackSelection(
+    val kind: PlaybackSourceKind,
+    val format: PlaybackStreamFormat,
+)
+
+private fun PlaybackFile.selectPlaybackSource(request: PlaybackRequest): PlaybackSelection? =
     when (fileType) {
         PutioFileType.AUDIO -> {
-            PlaybackSourceKind.ORIGINAL
+            PlaybackSelection(PlaybackSourceKind.ORIGINAL, PlaybackStreamFormat.PROGRESSIVE)
         }
 
         PutioFileType.VIDEO -> {
             when {
-                request.capabilities.originalVideoPlayable -> PlaybackSourceKind.ORIGINAL
-                request.preference == PlaybackPreference.MP4 && isMp4Available == true -> PlaybackSourceKind.MP4
-                needConvert == true -> null
-                request.preference == PlaybackPreference.HLS -> PlaybackSourceKind.HLS
-                else -> PlaybackSourceKind.HLS
+                acceptsOriginalVideo(request.capabilities) -> {
+                    PlaybackSelection(
+                        PlaybackSourceKind.ORIGINAL,
+                        when (request.preference) {
+                            PlaybackPreference.HLS -> PlaybackStreamFormat.HLS
+                            PlaybackPreference.MP4 -> PlaybackStreamFormat.PROGRESSIVE
+                        },
+                    )
+                }
+
+                request.preference == PlaybackPreference.MP4 && isMp4Available == true -> {
+                    PlaybackSelection(PlaybackSourceKind.MP4, PlaybackStreamFormat.PROGRESSIVE)
+                }
+
+                needConvert == true -> {
+                    null
+                }
+
+                else -> {
+                    PlaybackSelection(PlaybackSourceKind.HLS, PlaybackStreamFormat.HLS)
+                }
             }
         }
 
@@ -480,6 +504,14 @@ private fun PlaybackFile.selectPlaybackSource(request: PlaybackRequest): Playbac
             null
         }
     }
+
+private fun PlaybackFile.acceptsOriginalVideo(capabilities: PlaybackCapabilities): Boolean =
+    capabilities.originalVideoPlayable ||
+        capabilities.originalVideoDecision?.canPlayOriginal(
+            mediaInfo = mediaInfo,
+            needConvert = needConvert == true,
+            isMp4Available = isMp4Available == true,
+        ) == true
 
 private fun FileMp4Conversion.toPlaybackState(): PlaybackConversionState =
     when (status) {
@@ -528,26 +560,27 @@ private fun FileSubtitle.toPlaybackSubtitleOrNull(): PlaybackSubtitle? {
 
 private fun FilesApi.buildPlaybackUrl(
     fileId: Long,
-    kind: PlaybackSourceKind,
+    selection: PlaybackSelection,
     request: PlaybackRequest,
 ): PutioCredentialUrl =
     PutioCredentialUrl(
-        when (kind) {
-            PlaybackSourceKind.ORIGINAL -> {
-                mediaUrl("/files/$fileId/stream", request.mediaCredential.value)
-            }
-
-            PlaybackSourceKind.HLS -> {
+        when {
+            selection.format == PlaybackStreamFormat.HLS -> {
                 hlsUrl(
                     fileId = fileId,
                     token = request.mediaCredential.value,
                     subtitleLanguages = request.subtitleLanguages,
                     maxSubtitleCount = request.maxSubtitleCount,
+                    original = selection.kind == PlaybackSourceKind.ORIGINAL,
                 )
             }
 
-            PlaybackSourceKind.MP4 -> {
+            selection.kind == PlaybackSourceKind.MP4 -> {
                 mediaUrl("/files/$fileId/mp4/stream", request.mediaCredential.value)
+            }
+
+            else -> {
+                mediaUrl("/files/$fileId/stream", request.mediaCredential.value)
             }
         },
     )

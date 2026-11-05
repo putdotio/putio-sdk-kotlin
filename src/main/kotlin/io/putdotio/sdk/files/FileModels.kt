@@ -99,6 +99,74 @@ data class PutioVideoMetadata(
     @SerialName("aspect_ratio") val aspectRatio: Double? = null,
 )
 
+@Serializable(with = PutioPlaybackIssue.Serializer::class)
+@JvmInline
+value class PutioPlaybackIssue(
+    val raw: String,
+) {
+    val isKnown: Boolean
+        get() = raw in knownValues
+
+    override fun toString(): String = raw
+
+    companion object {
+        val MALFORMED_SEI = PutioPlaybackIssue("malformed_sei")
+        val MALFORMED_PARAMETER_SETS = PutioPlaybackIssue("malformed_parameter_sets")
+        val SPARSE_IDR = PutioPlaybackIssue("sparse_idr")
+        val INTERLACED_VIDEO = PutioPlaybackIssue("interlaced_video")
+        val EXCESSIVE_FRAME_RATE = PutioPlaybackIssue("excessive_frame_rate")
+        val OPEN_GOP = PutioPlaybackIssue("open_gop")
+        val MOVIE_FRAGMENTS = PutioPlaybackIssue("movie_fragments")
+
+        private val knownValues =
+            listOf(
+                MALFORMED_SEI,
+                MALFORMED_PARAMETER_SETS,
+                SPARSE_IDR,
+                INTERLACED_VIDEO,
+                EXCESSIVE_FRAME_RATE,
+                OPEN_GOP,
+                MOVIE_FRAGMENTS,
+            ).associateBy { it.raw }
+
+        fun fromRaw(raw: String): PutioPlaybackIssue = knownValues[raw] ?: PutioPlaybackIssue(raw)
+    }
+
+    object Serializer : RawStringValueSerializer<PutioPlaybackIssue>("PutioPlaybackIssue") {
+        override fun fromRaw(raw: String): PutioPlaybackIssue = Companion.fromRaw(raw)
+
+        override fun toRaw(value: PutioPlaybackIssue): String = value.raw
+    }
+}
+
+@Serializable
+data class PutioMediaFormat(
+    val name: String? = null,
+    val duration: Double? = null,
+    @SerialName("bit_rate") val bitRate: Long? = null,
+)
+
+/** One ffprobe stream. [level] is `-99` when FFmpeg does not know the codec level. */
+@Serializable
+data class PutioMediaStream(
+    @SerialName("codec_type") val codecType: String? = null,
+    @SerialName("codec_name") val codecName: String? = null,
+    @SerialName("rfc6381_codec") val rfc6381Codec: String? = null,
+    val width: Int? = null,
+    val height: Int? = null,
+    val profile: String? = null,
+    val level: Int? = null,
+    val channels: Int? = null,
+)
+
+@Serializable
+data class PutioMediaInfo(
+    @SerialName("mime_type") val mimeType: String? = null,
+    val format: PutioMediaFormat? = null,
+    val streams: List<PutioMediaStream>? = null,
+    @SerialName("playback_issues") val playbackIssues: List<PutioPlaybackIssue>? = null,
+)
+
 @Serializable
 data class PutioFile(
     val id: Long,
@@ -120,6 +188,7 @@ data class PutioFile(
     @SerialName("mp4_size") val mp4Size: Long? = null,
     val screenshot: String? = null,
     @SerialName("video_metadata") val videoMetadata: PutioVideoMetadata? = null,
+    @SerialName("media_info") val mediaInfo: PutioMediaInfo? = null,
 )
 
 @Serializable
@@ -208,10 +277,12 @@ data class FileDetailsQuery(
     val streamUrl: Boolean = true,
     val mp4StreamUrl: Boolean = true,
     val mp4Status: Boolean = false,
+    val mediaInfo: Boolean = false,
 )
 
 internal fun FileDetailsQuery.toQueryMap(): Map<String, String> =
     buildMap {
+        if (mediaInfo) put("media_info", "1")
         if (mp4Size) put("mp4_size", "1")
         if (mp4Status) put("mp4_status", "1")
         if (startFrom) put("start_from", "1")
