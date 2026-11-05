@@ -104,6 +104,30 @@ val url = sdk.files.buildHlsStreamUrl(fileId = file.id, downloadToken = download
 
 Treat the returned URL as a credential: do not log it or attach it to errors.
 
+## Original Video
+
+`resolvePlayback` returns put.io's converted stream for video unless the app
+accepts the original. An `OriginalVideoDecision` gets the file's `media_info`,
+or `null` when put.io has not probed it:
+
+```kotlin
+val request = PlaybackRequest(
+    fileId = file.id,
+    mediaCredential = PlaybackMediaCredential.downloadToken(downloadToken),
+    preference = PlaybackPreference.HLS,
+    useStartFrom = true,
+    capabilities = PlaybackCapabilities(
+        originalVideoDecision = OriginalVideoDecision { mediaInfo, _, _ ->
+            mediaInfo != null && deviceDecodes(mediaInfo)
+        },
+    ),
+)
+```
+
+An accepted original follows the preference: HLS plays
+`hls/media.m3u8?original=1`, MP4 plays `/files/{id}/stream`. The source's
+`kind` is `ORIGINAL` either way; its `format` says how to load it.
+
 ## Device-Code Linking (TV)
 
 ```kotlin
