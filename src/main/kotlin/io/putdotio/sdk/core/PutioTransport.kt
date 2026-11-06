@@ -7,7 +7,9 @@ import io.putdotio.sdk.errors.PutioConfigurationException
 import io.putdotio.sdk.errors.PutioRequestData
 import io.putdotio.sdk.errors.PutioSerializationException
 import io.putdotio.sdk.errors.PutioTransportException
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.suspendCancellableCoroutine
+import kotlinx.coroutines.withContext
 import kotlinx.serialization.KSerializer
 import kotlinx.serialization.json.Json
 import okhttp3.FormBody
@@ -284,14 +286,16 @@ internal class PutioTransport(
                 throw PutioTransportException(requestData, cause)
             }
 
-        if (!response.isSuccessful) {
-            throw decodeApiException(requestData, response.statusCode, response.body)
-        }
+        return withContext(Dispatchers.Default) {
+            if (!response.isSuccessful) {
+                throw decodeApiException(requestData, response.statusCode, response.body)
+            }
 
-        return try {
-            json.decodeFromString(serializer, response.body)
-        } catch (cause: Exception) {
-            throw PutioSerializationException(requestData, response.body, cause)
+            try {
+                json.decodeFromString(serializer, response.body)
+            } catch (cause: Exception) {
+                throw PutioSerializationException(requestData, response.body, cause)
+            }
         }
     }
 
