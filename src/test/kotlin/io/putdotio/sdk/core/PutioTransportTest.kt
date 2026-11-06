@@ -7,10 +7,14 @@ import io.putdotio.sdk.errors.PutioConfigurationException
 import io.putdotio.sdk.errors.PutioSerializationException
 import io.putdotio.sdk.errors.PutioTransportException
 import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.asCoroutineDispatcher
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withTimeout
 import kotlinx.coroutines.yield
+import kotlinx.serialization.KSerializer
+import kotlinx.serialization.encoding.Decoder
+import kotlinx.serialization.encoding.Encoder
 import mockwebserver3.MockResponse
 import mockwebserver3.MockWebServer
 import mockwebserver3.SocketEffect
@@ -29,6 +33,7 @@ import okio.Source
 import okio.Timeout
 import okio.buffer
 import java.io.IOException
+import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
 import kotlin.coroutines.cancellation.CancellationException
 import kotlin.random.Random
@@ -36,6 +41,7 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 import kotlin.test.assertIs
+import kotlin.test.assertNotEquals
 import kotlin.test.assertNotNull
 import kotlin.test.assertNull
 
@@ -101,6 +107,29 @@ class PutioTransportTest {
 
             assertEquals("GET", error.request.method)
             assertEquals("""{"status":"OK","unexpected":true}""", error.responseBody)
+        }
+
+    @Test
+    fun `transport decodes responses off the caller's thread`() =
+        withServer { server ->
+            server.enqueue(MockResponse.Builder().body("""{"status":"OK"}""").build())
+
+            val transport = newTransport(server, accessToken = "secret-token")
+            val decodingThreads = mutableListOf<Thread>()
+            val serializer = ThreadRecordingSerializer(OkResponse.serializer(), decodingThreads)
+            val caller = Executors.newSingleThreadExecutor()
+            val callerThread = caller.submit<Thread> { Thread.currentThread() }.get()
+
+            try {
+                runBlocking(caller.asCoroutineDispatcher()) {
+                    transport.get(path = "/account/info", serializer = serializer)
+                }
+            } finally {
+                caller.shutdown()
+            }
+
+            assertEquals(1, decodingThreads.size)
+            assertNotEquals(callerThread, decodingThreads.single())
         }
 
     @Test
@@ -491,3 +520,18 @@ private const val NOT_FOUND_MESSAGE =
 private const val NOT_FOUND_ENVELOPE =
     """{"error_id":null,"error_message":"$NOT_FOUND_MESSAGE","error_type":"NotFound",""" +
         """"error_uri":"http://api.put.io/v2/docs","extra":{},"status":"ERROR","status_code":404}"""
+
+private class ThreadRecordingSerializer<T>(
+    private val delegate: KSerializer<T>,
+    private val threads: MutableList<Thread>,
+) : KSerializer<T> by delegate {
+    override fun deserialize(decoder: Decoder): T {
+        synchronized(threads) { threads += Thread.currentThread() }
+        return delegate.deserialize(decoder)
+    }
+
+    override fun serialize(
+        encoder: Encoder,
+        value: T,
+    ) = delegate.serialize(encoder, value)
+}

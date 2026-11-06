@@ -64,8 +64,9 @@ The SDK emits Java 8 bytecode and leaves the minimum SDK to the consumer. It
 needs no SDK-specific R8 keep rules; putio-android builds minified releases at
 minSdk 26 against it.
 
-The SDK depends on `kotlinx-coroutines-core` and does not select
-`Dispatchers.Main`. Android apps that run their own coroutines on the main
+Every suspend function is main-safe: OkHttp runs the request and
+`Dispatchers.Default` decodes the response. The SDK depends on
+`kotlinx-coroutines-core` and does not select `Dispatchers.Main`. Android apps that run their own coroutines on the main
 dispatcher must add the Android dispatcher:
 
 ```kotlin
