@@ -201,7 +201,7 @@ class FilesPlaybackApiTest {
                 PlaybackSelectionCase(PlaybackPreference.HLS, false, true, true, null),
                 PlaybackSelectionCase(PlaybackPreference.MP4, false, true, false, PlaybackSourceKind.MP4),
                 PlaybackSelectionCase(PlaybackPreference.MP4, false, true, true, PlaybackSourceKind.MP4),
-                PlaybackSelectionCase(PlaybackPreference.MP4, false, false, false, PlaybackSourceKind.HLS),
+                PlaybackSelectionCase(PlaybackPreference.MP4, false, false, false, null, unsupported = true),
                 PlaybackSelectionCase(PlaybackPreference.MP4, false, false, true, null),
                 PlaybackSelectionCase(PlaybackPreference.HLS, true, false, false, PlaybackSourceKind.ORIGINAL),
                 PlaybackSelectionCase(PlaybackPreference.HLS, true, false, true, PlaybackSourceKind.ORIGINAL),
@@ -221,7 +221,7 @@ class FilesPlaybackApiTest {
                         needConvert = case.needConvert,
                     ),
                 )
-                if (case.expectedKind == null) {
+                if (case.expectedKind == null && !case.unsupported) {
                     server.enqueue(
                         MockResponse
                             .Builder()
@@ -243,7 +243,13 @@ class FilesPlaybackApiTest {
                         ),
                     )
 
-                if (case.expectedKind == null) {
+                if (case.unsupported) {
+                    assertEquals(
+                        PutioFileType.VIDEO,
+                        assertIs<PlaybackResolution.Unsupported>(resolution).fileType,
+                    )
+                    assertEquals(1, server.requestCount)
+                } else if (case.expectedKind == null) {
                     assertEquals(
                         PlaybackConversionState.Queued,
                         assertIs<PlaybackResolution.Conversion>(resolution).state,
@@ -1034,6 +1040,7 @@ class FilesPlaybackApiTest {
         val isMp4Available: Boolean,
         val needConvert: Boolean,
         val expectedKind: PlaybackSourceKind?,
+        val unsupported: Boolean = false,
     )
 
     private companion object {

@@ -129,6 +129,9 @@ An accepted original follows the preference: HLS plays
 `hls/media.m3u8?original=1`, MP4 plays `/files/{id}/stream`. The source's
 `kind` is `ORIGINAL` either way; its `format` says how to load it.
 
+MP4 never falls back to HLS: a video with no accepted original, no converted
+MP4 and nothing to convert resolves as `Unsupported`.
+
 ## Device-Code Linking (TV)
 
 ```kotlin
