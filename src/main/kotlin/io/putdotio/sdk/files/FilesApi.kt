@@ -57,6 +57,9 @@ class FilesApi internal constructor(
 
             val selection = file.selectPlaybackSource(request)
             if (selection == null) {
+                if (file.fileType == PutioFileType.VIDEO && file.needConvert != true) {
+                    return@putioOperation PlaybackResolution.Unsupported(file.fileType)
+                }
                 return@putioOperation when (file.fileType) {
                     PutioFileType.AUDIO, PutioFileType.VIDEO -> {
                         val conversion =
@@ -490,7 +493,7 @@ private fun PlaybackFile.selectPlaybackSource(request: PlaybackRequest): Playbac
                     PlaybackSelection(PlaybackSourceKind.MP4, PlaybackStreamFormat.PROGRESSIVE)
                 }
 
-                needConvert == true -> {
+                needConvert == true || request.preference == PlaybackPreference.MP4 -> {
                     null
                 }
 
