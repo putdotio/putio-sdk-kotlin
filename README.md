@@ -6,7 +6,7 @@
   <h1>putio-sdk-kotlin</h1>
 
   <p>
-    Kotlin SDK for the <a href="https://api.put.io/v2/docs">put.io API</a>
+    Kotlin SDK for the <a href="https://devs.put.io/api">put.io API</a>
   </p>
 
   <p>
