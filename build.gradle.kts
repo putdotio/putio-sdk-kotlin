@@ -9,11 +9,11 @@ import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 import java.math.BigDecimal
 
 plugins {
-    kotlin("jvm") version "2.4.10"
-    kotlin("plugin.serialization") version "2.4.10"
+    kotlin("jvm") version "2.4.21"
+    kotlin("plugin.serialization") version "2.4.21"
     `java-library`
     jacoco
-    id("com.diffplug.spotless") version "8.10.1"
+    id("com.diffplug.spotless") version "8.11.0"
     id("com.vanniktech.maven.publish") version "0.37.0"
 }
 
@@ -27,7 +27,7 @@ repositories {
 }
 
 jacoco {
-    toolVersion = "0.8.13"
+    toolVersion = "0.8.16"
 }
 
 spotless {
@@ -63,11 +63,11 @@ configurations[liveTestSourceSet.implementationConfigurationName].extendsFrom(co
 configurations[liveTestSourceSet.runtimeOnlyConfigurationName].extendsFrom(configurations.testRuntimeOnly.get())
 
 dependencies {
-    implementation(platform("com.squareup.okhttp3:okhttp-bom:5.5.0"))
+    implementation(platform("com.squareup.okhttp3:okhttp-bom:5.5.1"))
     implementation("com.squareup.okhttp3:okhttp")
     // `api`: Flow is part of the public surface (DeviceCodeAuth.link) and suspend functions need it on consumers.
     api("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.11.0")
-    api("org.jetbrains.kotlinx:kotlinx-serialization-json:1.11.0")
+    api("org.jetbrains.kotlinx:kotlinx-serialization-json:1.12.0")
 
     testImplementation(kotlin("test"))
     testImplementation("com.squareup.okhttp3:mockwebserver3")
