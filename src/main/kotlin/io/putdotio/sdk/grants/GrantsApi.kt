@@ -36,6 +36,14 @@ class GrantsApi internal constructor(
                 ).clients
         }
 
+    suspend fun revokeClient(id: Long): OkResponse =
+        putioOperation(REVOKE_CLIENT_ERROR_SPEC) {
+            transport.post(
+                path = "/oauth/clients/$id/delete",
+                serializer = OkResponse.serializer(),
+            )
+        }
+
     /**
      * The icon put.io stores for app [appId], when its grant reports `has_icon`. The URL carries
      * [accessToken], so it prints redacted.
@@ -81,6 +89,13 @@ private val REVOKE_GRANT_ERROR_SPEC =
         domain = "grants",
         operation = "revoke",
         knownErrors = listOf(PutioKnownErrorContract(statusCode = 404)),
+    )
+
+private val REVOKE_CLIENT_ERROR_SPEC =
+    PutioOperationErrorSpec(
+        domain = "grants",
+        operation = "revokeClient",
+        knownErrors = listOf(PutioKnownErrorContract(errorType = "invalid_scope", statusCode = 401)),
     )
 
 private val LINK_DEVICE_ERROR_SPEC =
