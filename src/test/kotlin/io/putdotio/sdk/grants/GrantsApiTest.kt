@@ -70,6 +70,88 @@ class GrantsApiTest {
         }
 
     @Test
+    fun `clients decodes each session with its app and last use`() =
+        withServer { server ->
+            server.enqueue(
+                MockResponse
+                    .Builder()
+                    .body(
+                        """
+                        {
+                          "status": "OK",
+                          "clients": [
+                            {
+                              "id": 31,
+                              "created_at": "2026-11-01T09:00:00",
+                              "app_id": 7,
+                              "note": null,
+                              "last_used_at": "2026-11-09T12:30:00",
+                              "user_agent": "okhttp",
+                              "client_name": "Pixel 9",
+                              "ip_address": "10.0.0.x",
+                              "active": true,
+                              "app_name": "Android TV"
+                            },
+                            {
+                              "id": 32,
+                              "created_at": "2026-10-01T09:00:00",
+                              "app_id": 8,
+                              "note": null,
+                              "last_used_at": null,
+                              "user_agent": "curl",
+                              "client_name": "",
+                              "ip_address": "10.0.0.x",
+                              "active": false
+                            }
+                          ]
+                        }
+                        """.trimIndent(),
+                    ).build(),
+            )
+
+            runBlocking {
+                PutioClient(
+                    PutioConfig(
+                        accessToken = "token",
+                        baseUrl = server.url("/v2/").toString(),
+                    ),
+                ).use { sdk ->
+                    val clients = sdk.grants.clients()
+                    assertEquals(
+                        listOf(
+                            OAuthClient(
+                                id = 31,
+                                appId = 7,
+                                appName = "Android TV",
+                                clientName = "Pixel 9",
+                                createdAt = "2026-11-01T09:00:00",
+                                lastUsedAt = "2026-11-09T12:30:00",
+                                active = true,
+                            ),
+                            OAuthClient(
+                                id = 32,
+                                appId = 8,
+                                createdAt = "2026-10-01T09:00:00",
+                            ),
+                        ),
+                        clients,
+                    )
+                }
+            }
+
+            assertEquals("/v2/oauth/clients", server.takeRequest().target)
+        }
+
+    @Test
+    fun `buildIconUrl points at the app icon and prints redacted`() {
+        PutioClient(PutioConfig(accessToken = "token")).use { sdk ->
+            val url = sdk.grants.buildIconUrl(appId = 7, accessToken = "secret-token")
+            assertEquals("https://api.put.io/v2/oauth/apps/7/icon?oauth_token=secret-token", url.value)
+            assertEquals(false, url.toString().contains("secret-token"))
+        }
+    }
+
+    @Test
     fun `linkDevice posts oob code and decodes linked app`() =
         withServer { server ->
             server.enqueue(
