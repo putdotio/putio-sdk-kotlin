@@ -70,6 +70,27 @@ class GrantsApiTest {
         }
 
     @Test
+    fun `revokeClient posts to the session delete endpoint`() =
+        withServer { server ->
+            server.enqueue(MockResponse.Builder().body("""{"status":"OK"}""").build())
+
+            runBlocking {
+                PutioClient(
+                    PutioConfig(
+                        accessToken = "token",
+                        baseUrl = server.url("/v2/").toString(),
+                    ),
+                ).use { sdk ->
+                    sdk.grants.revokeClient(id = 32)
+                }
+            }
+
+            val request = server.takeRequest()
+            assertEquals("POST", request.method)
+            assertEquals("/v2/oauth/clients/32/delete", request.target)
+        }
+
+    @Test
     fun `clients decodes each session with its app and last use`() =
         withServer { server ->
             server.enqueue(
