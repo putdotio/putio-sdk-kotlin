@@ -105,6 +105,21 @@ val url = sdk.files.buildHlsStreamUrl(fileId = file.id, downloadToken = download
 
 Treat the returned URL as a credential: do not log it or attach it to errors.
 
+## Logged-in Apps
+
+`grants.list()` returns the apps signed in to the account; `grants.clients()`
+returns each session, with its `appId`, `lastUsedAt` and whether it is the
+calling one (`active`). `grants.revoke(appId)` ends every session of that app.
+
+An app's icon URL takes the access token, not the download token; put.io
+serves it only when its grant reports `hasIcon`:
+
+```kotlin
+val icon = sdk.grants.buildIconUrl(appId = grant.id, accessToken = accessToken)
+```
+
+Treat it as a credential too: it prints redacted.
+
 ## Original Video
 
 `resolvePlayback` returns put.io's converted stream for video unless the app
