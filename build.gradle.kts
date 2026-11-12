@@ -67,7 +67,7 @@ dependencies {
     implementation("com.squareup.okhttp3:okhttp")
     // `api`: Flow is part of the public surface (DeviceCodeAuth.link) and suspend functions need it on consumers.
     api("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.11.0")
-    api("org.jetbrains.kotlinx:kotlinx-serialization-json:1.12.0")
+    api("org.jetbrains.kotlinx:kotlinx-serialization-json:1.13.0")
 
     testImplementation(kotlin("test"))
     testImplementation("com.squareup.okhttp3:mockwebserver3")
