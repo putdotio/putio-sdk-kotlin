@@ -8,3 +8,4 @@ out/
 !.env.example
 .claude/worktrees/
 .kotlin/
+.worktrees/
