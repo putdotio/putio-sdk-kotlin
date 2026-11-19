@@ -141,6 +141,11 @@ val request = PlaybackRequest(
 )
 ```
 
+Video streams expose `bitDepth`, `isHdr`, and `dolbyVisionProfile`. For default
+audio, use the first audio stream with `isDefault == true`, falling back to
+the first audio stream. Missing values are `null`. An explicit `false` remains
+`false`.
+
 An accepted original follows the preference: HLS plays
 `hls/media.m3u8?original=1`, MP4 plays `/files/{id}/stream`. The source's
 `kind` is `ORIGINAL` either way; its `format` says how to load it.

@@ -157,6 +157,10 @@ data class PutioMediaStream(
     val profile: String? = null,
     val level: Int? = null,
     val channels: Int? = null,
+    @SerialName("bit_depth") val bitDepth: Int? = null,
+    @SerialName("hdr") val isHdr: Boolean? = null,
+    @SerialName("dolby_vision_profile") val dolbyVisionProfile: Int? = null,
+    @SerialName("default") val isDefault: Boolean? = null,
 )
 
 @Serializable
