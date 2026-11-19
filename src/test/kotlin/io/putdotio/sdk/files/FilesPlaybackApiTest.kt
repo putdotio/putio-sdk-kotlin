@@ -13,6 +13,7 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 import kotlin.test.assertIs
+import kotlin.test.assertNotNull
 
 class FilesPlaybackApiTest {
     @Test
@@ -297,6 +298,42 @@ class FilesPlaybackApiTest {
             assertEquals(listOf(true, false), source.mediaInfo?.playbackIssues?.map { it.isKnown })
             assertEquals(listOf(DecisionCall(CAPTURED_WEBM_MEDIA_INFO, false, true)), decision.calls)
             assertEquals(1, server.requestCount)
+        }
+
+    @Test
+    fun `playback decodes Dolby Vision metadata and default audio flags`() =
+        withServer { server ->
+            val streams = server.resolvePlaybackStreams("dolby-vision")
+
+            assertEquals(listOf("video", "audio", "audio"), streams.map { it.codecType })
+            assertEquals(listOf(10, null, null), streams.map { it.bitDepth })
+            assertEquals(listOf(true, null, null), streams.map { it.isHdr })
+            assertEquals(listOf(5, null, null), streams.map { it.dolbyVisionProfile })
+            assertEquals(listOf(null, false, true), streams.map { it.isDefault })
+        }
+
+    @Test
+    fun `playback decodes SDR and a null Dolby Vision profile`() =
+        withServer { server ->
+            val streams = server.resolvePlaybackStreams("sdr")
+
+            assertEquals(listOf("video", "audio"), streams.map { it.codecType })
+            assertEquals(listOf(8, null), streams.map { it.bitDepth })
+            assertEquals(listOf(false, null), streams.map { it.isHdr })
+            assertEquals(listOf(null, null), streams.map { it.dolbyVisionProfile })
+            assertEquals(listOf(null, true), streams.map { it.isDefault })
+        }
+
+    @Test
+    fun `playback decodes legacy streams without the new fields`() =
+        withServer { server ->
+            val streams = server.resolvePlaybackStreams("legacy")
+
+            assertEquals(listOf("video", "audio"), streams.map { it.codecType })
+            assertEquals(listOf(null, null), streams.map { it.bitDepth })
+            assertEquals(listOf(null, null), streams.map { it.isHdr })
+            assertEquals(listOf(null, null), streams.map { it.dolbyVisionProfile })
+            assertEquals(listOf(null, null), streams.map { it.isDefault })
         }
 
     @Test
@@ -978,6 +1015,17 @@ class FilesPlaybackApiTest {
                 okHttpClient = okHttpClient,
             ).use { sdk -> sdk.files.resolvePlayback(request) }
         }
+
+    private fun MockWebServer.resolvePlaybackStreams(fixture: String): List<PutioMediaStream> {
+        val mediaInfo = checkNotNull(FilesPlaybackApiTest::class.java.getResource("/media-info/$fixture.json")).readText()
+        enqueue(playbackFileResponse(needConvert = false, mediaInfo = mediaInfo))
+        val decision = RecordingDecision(accept = true)
+
+        val source = assertIs<PlaybackResolution.Ready>(resolvePlayback(decidingRequest(decision))).source
+
+        assertEquals(listOf(DecisionCall(source.mediaInfo, false, false)), decision.calls)
+        return assertNotNull(source.mediaInfo?.streams)
+    }
 
     private fun playbackFileResponse(
         fileType: String = "VIDEO",

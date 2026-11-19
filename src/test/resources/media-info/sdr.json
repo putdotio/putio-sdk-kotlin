@@ -1,0 +1,33 @@
+{
+  "mime_type": "video/x-matroska",
+  "format": {
+    "name": "matroska",
+    "duration": 58.372,
+    "bit_rate": 2276529
+  },
+  "streams": [
+    {
+      "codec_type": "video",
+      "codec_name": "h264",
+      "rfc6381_codec": null,
+      "width": 1280,
+      "height": 720,
+      "profile": "High",
+      "level": 41,
+      "frame_rate": 23.976,
+      "bit_rate": null,
+      "hdr": false,
+      "dolby_vision_profile": null,
+      "bit_depth": 8
+    },
+    {
+      "codec_type": "audio",
+      "codec_name": "ac3",
+      "rfc6381_codec": null,
+      "channels": 6,
+      "default": true,
+      "language": null
+    }
+  ],
+  "playback_issues": []
+}
