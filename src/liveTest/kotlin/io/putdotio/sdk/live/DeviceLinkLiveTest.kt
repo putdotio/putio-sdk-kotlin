@@ -17,16 +17,18 @@ class DeviceLinkLiveTest {
             val appId = clientId.toLong()
             LiveSupport.newAuthedClient(clientId = clientId).use { sdk ->
                 val grantedBefore = sdk.isGranted(appId)
+                var token: String? = null
                 var linkedClientId: Long? = null
                 val code = sdk.auth.getCode().code
                 assertNull(sdk.auth.checkCodeMatch(code))
 
                 try {
                     val app = sdk.grants.linkDevice(code)
+                    token = sdk.auth.checkCodeMatch(code)
                     assertEquals(appId, app.id)
 
-                    val token = assertNotNull(sdk.auth.checkCodeMatch(code))
-                    val validation = sdk.auth.validateToken(token)
+                    val issued = assertNotNull(token)
+                    val validation = sdk.auth.validateToken(issued)
                     assertTrue(validation.result)
                     val linkedId = LiveSupport.recordFixture("client", assertNotNull(validation.tokenId))
                     linkedClientId = linkedId
@@ -36,9 +38,13 @@ class DeviceLinkLiveTest {
 
                     sdk.grants.revokeClient(linkedId)
                     assertTrue(sdk.grants.clients().none { it.id == linkedId })
-                    assertFalse(runCatching { sdk.auth.validateToken(token).result }.getOrDefault(false))
+                    assertFalse(runCatching { sdk.auth.validateToken(issued).result }.getOrDefault(false))
                 } finally {
-                    linkedClientId
+                    val issued = token ?: runCatching { sdk.auth.checkCodeMatch(code) }.getOrNull()
+                    val linkedId =
+                        linkedClientId
+                            ?: issued?.let { runCatching { sdk.auth.validateToken(it).tokenId }.getOrNull() }
+                    linkedId
                         ?.takeIf { id -> sdk.grants.clients().any { it.id == id } }
                         ?.let { sdk.grants.revokeClient(it) }
                 }
