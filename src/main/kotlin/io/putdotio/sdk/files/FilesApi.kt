@@ -355,6 +355,20 @@ class FilesApi internal constructor(
             )
         }
 
+    /**
+     * Marks the selected files watched or unwatched. Marking watched keeps any saved resume
+     * position, and unwatched clears it. Fails with `FEATURE_DISABLED` when the account turned
+     * off resume positions.
+     */
+    suspend fun setWatchStatus(input: FilesWatchStatusInput): OkResponse =
+        putioOperation(WATCH_STATUS_ERROR_SPEC) {
+            transport.post(
+                path = "/files/watch-status",
+                serializer = OkResponse.serializer(),
+                form = input.toFormMap(),
+            )
+        }
+
     suspend fun listSubtitles(
         fileId: Long,
         languages: List<String> = emptyList(),
@@ -777,6 +791,18 @@ private val START_FROM_ERROR_SPEC =
                 PutioKnownErrorContract(errorType = "FEATURE_DISABLED", statusCode = 400),
                 PutioKnownErrorContract(errorType = "INVALID_MEDIA", statusCode = 400),
                 PutioKnownErrorContract(statusCode = 404),
+            ),
+    )
+
+private val WATCH_STATUS_ERROR_SPEC =
+    PutioOperationErrorSpec(
+        domain = "files",
+        operation = "setWatchStatus",
+        knownErrors =
+            listOf(
+                PutioKnownErrorContract(errorType = "FEATURE_DISABLED", statusCode = 400),
+                PutioKnownErrorContract(errorType = "invalid_scope", statusCode = 401),
+                PutioKnownErrorContract(statusCode = 400),
             ),
     )
 

@@ -224,6 +224,31 @@ data class FileSearchResponse(
     val status: String,
 )
 
+/**
+ * Files to mark watched or unwatched with [FilesApi.setWatchStatus]: [ids], or every file a list or
+ * search [cursor] covers, first page included, minus [excludeIds]. put.io skips folders and other
+ * non-media files.
+ */
+data class FilesWatchStatusInput(
+    val watched: Boolean,
+    val ids: List<Long> = emptyList(),
+    val cursor: String? = null,
+    val excludeIds: List<Long> = emptyList(),
+) {
+    init {
+        require(ids.isNotEmpty() || !cursor.isNullOrBlank()) { "FilesWatchStatusInput requires either ids or cursor" }
+        require(ids.all { it > 0 } && excludeIds.all { it > 0 }) { "Watch status file ids must be positive" }
+    }
+}
+
+internal fun FilesWatchStatusInput.toFormMap(): Map<String, String> =
+    buildMap {
+        cursor?.takeIf { it.isNotBlank() }?.let { put("cursor", it) }
+        if (excludeIds.isNotEmpty()) put("exclude_ids", excludeIds.joinToString(","))
+        if (ids.isNotEmpty()) put("file_ids", ids.joinToString(","))
+        put("watched", if (watched) "true" else "")
+    }
+
 data class FilesSearchQuery(
     val keyword: String,
     val perPage: Int? = null,

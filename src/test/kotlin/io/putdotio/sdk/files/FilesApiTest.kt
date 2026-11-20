@@ -696,6 +696,70 @@ class FilesApiTest {
         }
 
     @Test
+    fun `setWatchStatus posts the selection and sends unwatched as an empty value`() =
+        withServer { server ->
+            repeat(2) { server.enqueue(MockResponse.Builder().body("""{"status":"OK"}""").build()) }
+
+            runBlocking {
+                client(server).use { sdk ->
+                    sdk.files.setWatchStatus(FilesWatchStatusInput(watched = true, ids = listOf(9, 10)))
+                    sdk.files.setWatchStatus(
+                        FilesWatchStatusInput(watched = false, cursor = "cursor-1", excludeIds = listOf(9)),
+                    )
+                }
+            }
+
+            val watched = server.takeRequest()
+            assertEquals("POST", watched.method)
+            assertEquals("/v2/files/watch-status", watched.target)
+            assertEquals("file_ids=9%2C10&watched=true", watched.body!!.utf8())
+            assertEquals("cursor=cursor-1&exclude_ids=9&watched=", server.takeRequest().body!!.utf8())
+        }
+
+    @Test
+    fun `setWatchStatus maps known api failures to its contracts`() =
+        withServer { server ->
+            val cases =
+                listOf(
+                    Triple(400, "FEATURE_DISABLED", PutioKnownErrorContract(errorType = "FEATURE_DISABLED", statusCode = 400)),
+                    Triple(400, "BadRequest", PutioKnownErrorContract(statusCode = 400)),
+                    Triple(401, "invalid_scope", PutioKnownErrorContract(errorType = "invalid_scope", statusCode = 401)),
+                )
+
+            runBlocking {
+                client(server).use { sdk ->
+                    cases.forEach { (statusCode, errorType, contract) ->
+                        server.enqueue(
+                            MockResponse
+                                .Builder()
+                                .code(statusCode)
+                                .body(
+                                    """{"error_id":null,"error_message":"no","error_type":"$errorType","error_uri":"http://api.put.io/v2/docs","extra":{},"status":"ERROR","status_code":$statusCode}""",
+                                ).build(),
+                        )
+                        val error =
+                            assertFailsWith<PutioOperationException>(errorType) {
+                                sdk.files.setWatchStatus(FilesWatchStatusInput(watched = true, ids = listOf(9)))
+                            }
+                        assertEquals("files", error.domain)
+                        assertEquals("setWatchStatus", error.operation)
+                        assertEquals(contract, error.contract)
+                    }
+                }
+            }
+        }
+
+    @Test
+    fun `watch status input requires a positive selection`() {
+        assertFailsWith<IllegalArgumentException> { FilesWatchStatusInput(watched = true) }
+        assertFailsWith<IllegalArgumentException> { FilesWatchStatusInput(watched = true, cursor = " ") }
+        assertFailsWith<IllegalArgumentException> { FilesWatchStatusInput(watched = true, ids = listOf(0)) }
+        assertFailsWith<IllegalArgumentException> {
+            FilesWatchStatusInput(watched = true, cursor = "cursor-1", excludeIds = listOf(-1))
+        }
+    }
+
+    @Test
     fun `rename posts typed file name mutation`() =
         withServer { server ->
             server.enqueue(MockResponse.Builder().body("""{"status":"OK"}""").build())
