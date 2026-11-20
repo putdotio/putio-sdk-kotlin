@@ -104,7 +104,7 @@ class FilesApi internal constructor(
         }
 
         return try {
-            val subtitles =
+            val response =
                 transport
                     .get(
                         path = "/files/${request.fileId}/subtitles",
@@ -114,13 +114,20 @@ class FilesApi internal constructor(
                                 .takeIf { it.isNotEmpty() }
                                 ?.let { mapOf("languages" to it.joinToString(",")) }
                                 ?: emptyMap(),
-                    ).subtitles
+                    )
             val tracks =
-                subtitles.map { subtitle ->
+                response.subtitles.map { subtitle ->
                     subtitle.toPlaybackSubtitleOrNull()
                         ?: return PlaybackSubtitles.Unavailable(PlaybackSubtitleFailure.InvalidResponse)
                 }
-            if (tracks.isEmpty()) PlaybackSubtitles.None else PlaybackSubtitles.Sidecar(tracks)
+            if (tracks.isEmpty()) {
+                PlaybackSubtitles.None
+            } else {
+                PlaybackSubtitles.Sidecar(
+                    tracks = tracks,
+                    defaultKey = response.defaultKey?.takeIf { key -> tracks.any { it.key == key } },
+                )
+            }
         } catch (error: PutioApiException) {
             if (error.httpStatusCode == 401 || error.httpStatusCode == 403) throw error
             PlaybackSubtitles.Unavailable(PlaybackSubtitleFailure.Rejected(error.statusCode))

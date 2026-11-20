@@ -12,6 +12,7 @@ import io.putdotio.sdk.files.PlaybackRequest
 import io.putdotio.sdk.files.PlaybackResolution
 import io.putdotio.sdk.files.PlaybackSourceKind
 import io.putdotio.sdk.files.PlaybackStreamFormat
+import io.putdotio.sdk.files.PlaybackSubtitles
 import io.putdotio.sdk.files.PutioFile
 import io.putdotio.sdk.files.PutioFileType
 import io.putdotio.sdk.files.PutioMediaInfo
@@ -202,6 +203,37 @@ class FilesPlaybackLiveTest {
                     assertTrue(subtitle.languageCode.isNotBlank())
                     assertTrue(subtitle.url.isNotBlank())
                 }
+            }
+        }
+    }
+
+    @Test
+    fun `playback sidecars name a default track for the playback fixture`() {
+        runBlocking {
+            LiveSupport.newAuthedClient().use { sdk ->
+                val account = sdk.account.getInfo(AccountInfoQuery(downloadToken = true))
+                val downloadToken =
+                    assertNotNull(
+                        account.downloadToken,
+                        "Dedicated live-test profile must return download_token",
+                    )
+
+                val sidecar =
+                    assertIs<PlaybackSubtitles.Sidecar>(
+                        assertIs<PlaybackResolution.Ready>(
+                            sdk.files.resolvePlayback(
+                                PlaybackRequest(
+                                    fileId = LiveSupport.requirePlaybackFixtureId(),
+                                    mediaCredential = PlaybackMediaCredential.downloadToken(downloadToken),
+                                    preference = PlaybackPreference.MP4,
+                                    useStartFrom = false,
+                                ),
+                            ),
+                        ).source.subtitles,
+                    )
+
+                val defaultKey = assertNotNull(sidecar.defaultKey)
+                assertTrue(sidecar.tracks.any { it.key == defaultKey })
             }
         }
     }
