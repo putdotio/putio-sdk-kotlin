@@ -76,6 +76,12 @@ data class HistoryEvent(
     @SerialName("rss_filter_title") val rssFilterTitle: String? = null,
     @SerialName("zip_id") val zipId: Long? = null,
     val icon: String? = null,
+    /** Size in bytes of the file the event names, sent on `upload`, `file_shared` and `file_from_rss_deleted_for_space`. */
+    @SerialName("file_size") val fileSize: Long? = null,
+    /** Name of the user who shared the file, sent on `file_shared`. */
+    @SerialName("sharing_user_name") val sharingUserName: String? = null,
+    /** Total size in bytes of the completed transfer, sent on `transfer_completed`. */
+    @SerialName("transfer_size") val transferSize: Long? = null,
 )
 
 @Serializable

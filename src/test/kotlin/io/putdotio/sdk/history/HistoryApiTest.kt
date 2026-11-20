@@ -12,6 +12,7 @@ import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 import kotlin.test.assertFalse
 import kotlin.test.assertIs
+import kotlin.test.assertNull
 
 class HistoryApiTest {
     @Test
@@ -57,6 +58,73 @@ class HistoryApiTest {
 
             val request = server.takeRequest()
             assertEquals("/v2/events/list?per_page=25&before=100", request.target)
+        }
+
+    @Test
+    fun `list decodes the sharer and sizes the API sends per event type`() =
+        withServer { server ->
+            server.enqueue(
+                MockResponse
+                    .Builder()
+                    .body(
+                        """
+                        {
+                          "status": "OK",
+                          "has_more": false,
+                          "events": [
+                            {
+                              "created_at": "2026-11-16T13:49:33",
+                              "id": 311959680,
+                              "user_id": 306077,
+                              "file_id": 1623501834,
+                              "file_name": "__playback-triage__",
+                              "file_size": 1097879989492,
+                              "sharing_user_name": "devs-admin",
+                              "type": "file_shared"
+                            },
+                            {
+                              "created_at": "2026-11-09T17:55:07",
+                              "id": 311815611,
+                              "user_id": 306077,
+                              "source": "https://raw.githubusercontent.com/putdotio/putio-android/main/LICENSE",
+                              "transfer_name": "LICENSE",
+                              "file_id": 1622158611,
+                              "transfer_size": 636,
+                              "type": "transfer_completed"
+                            },
+                            {
+                              "created_at": "2026-11-20T14:43:55",
+                              "id": 312030872,
+                              "user_id": 306077,
+                              "file_id": 1624430777,
+                              "file_name": "upload.txt",
+                              "file_size": 24,
+                              "type": "upload"
+                            }
+                          ]
+                        }
+                        """.trimIndent(),
+                    ).build(),
+            )
+
+            runBlocking {
+                PutioClient(
+                    PutioConfig(
+                        accessToken = "token",
+                        baseUrl = server.url("/v2/").toString(),
+                    ),
+                ).use { sdk ->
+                    val (shared, transfer, upload) = sdk.history.list().events
+                    assertEquals("devs-admin", shared.sharingUserName)
+                    assertEquals(1_097_879_989_492L, shared.fileSize)
+                    assertNull(shared.transferSize)
+                    assertEquals(636L, transfer.transferSize)
+                    assertNull(transfer.fileSize)
+                    assertNull(transfer.sharingUserName)
+                    assertEquals(24L, upload.fileSize)
+                    assertNull(upload.sharingUserName)
+                }
+            }
         }
 
     @Test
