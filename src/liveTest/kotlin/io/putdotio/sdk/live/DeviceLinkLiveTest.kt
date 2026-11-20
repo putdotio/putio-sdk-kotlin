@@ -46,7 +46,6 @@ class DeviceLinkLiveTest {
                     linkedId
                         ?.takeIf { id -> sdk.grants.clients().any { it.id == id && it.appId == appId } }
                         ?.let { sdk.grants.revokeClient(it) }
-                    if (!grantedBefore && sdk.isGranted(appId)) sdk.grants.revoke(appId)
                 }
                 assertEquals(grantedBefore, sdk.isGranted(appId))
             }
