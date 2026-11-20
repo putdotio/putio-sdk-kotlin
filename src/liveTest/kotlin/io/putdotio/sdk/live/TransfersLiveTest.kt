@@ -92,8 +92,17 @@ class TransfersLiveTest {
                             .map { it.id }
                     assertTrue(cancelled.none { it in remaining })
                 } finally {
+                    val inFolder =
+                        runCatching {
+                            sdk.transfers
+                                .list(TransfersListQuery(perPage = 1000))
+                                .transfers
+                                .filter { it.saveParentId == folder.id }
+                                .map { it.id }
+                        }.getOrDefault(emptyList())
                     val cancelFailure =
-                        createdIds
+                        (createdIds + inFolder)
+                            .distinct()
                             .takeIf { it.isNotEmpty() }
                             ?.let { runCatching { sdk.transfers.cancel(it) }.exceptionOrNull() }
                     sdk.files.delete(fileIds = listOf(folder.id), skipTrash = true)
