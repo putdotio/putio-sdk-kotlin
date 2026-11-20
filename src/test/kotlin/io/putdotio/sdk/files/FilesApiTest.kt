@@ -4,6 +4,7 @@ import io.putdotio.sdk.PutioClient
 import io.putdotio.sdk.PutioConfig
 import io.putdotio.sdk.account.AccountDownloadToken
 import io.putdotio.sdk.errors.PutioApiException
+import io.putdotio.sdk.errors.PutioConfigurationException
 import io.putdotio.sdk.errors.PutioKnownErrorContract
 import io.putdotio.sdk.errors.PutioOperationErrorReason
 import io.putdotio.sdk.errors.PutioOperationException
@@ -1047,6 +1048,60 @@ class FilesApiTest {
         )
         assertEquals(null, sdk.files.buildStreamUrl(file = folderFile, downloadToken = DOWNLOAD_TOKEN))
     }
+
+    @Test
+    fun `media request builders keep the token out of the url and send it as a header`() {
+        val sdk = PutioClient(PutioConfig(accessToken = "access", baseUrl = "https://example.test/v2/"))
+        val header = mapOf("Authorization" to "Token access")
+
+        assertEquals("https://example.test/v2/files/10/download", sdk.files.buildDownloadRequest(10).url)
+        assertEquals("https://example.test/v2/files/10/stream", sdk.files.buildOriginalStreamRequest(10).url)
+        assertEquals("https://example.test/v2/files/10/mp4/stream", sdk.files.buildMp4StreamRequest(10).url)
+        assertEquals(
+            "https://example.test/v2/files/10/hls/media.m3u8?subtitle_key=all&subtitle_languages=en%2Ctr&max_subtitle_count=0&original=1",
+            sdk.files
+                .buildHlsStreamRequest(fileId = 10, subtitleLanguages = listOf("en", "tr"), maxSubtitleCount = 0, original = true)
+                .url,
+        )
+        assertEquals(header, sdk.files.buildDownloadRequest(10).headers)
+        assertEquals(header, sdk.files.buildHlsStreamRequest(10).headers)
+        assertFalse(
+            sdk.files
+                .buildHlsStreamRequest(10)
+                .toString()
+                .contains("access"),
+        )
+
+        sdk.setAccessToken("rotated")
+        assertEquals(mapOf("Authorization" to "Token rotated"), sdk.files.buildMp4StreamRequest(10).headers)
+
+        sdk.clearAccessToken()
+        assertFailsWith<PutioConfigurationException> { sdk.files.buildDownloadRequest(10) }
+    }
+
+    @Test
+    fun `a media request authenticates against the server by header`() =
+        withServer { server ->
+            server.enqueue(MockResponse(code = 200, body = "bytes"))
+            val config = PutioConfig(accessToken = "access", baseUrl = server.url("/v2/").toString())
+            val request = PutioClient(config).files.buildDownloadRequest(10)
+
+            okhttp3
+                .OkHttpClient()
+                .newCall(
+                    okhttp3.Request
+                        .Builder()
+                        .url(request.url)
+                        .apply { request.headers.forEach { (name, value) -> header(name, value) } }
+                        .build(),
+                ).execute()
+                .use { assertEquals("bytes", it.body.string()) }
+
+            val recorded = assertNotNull(server.takeRequest(5, TimeUnit.SECONDS))
+            assertEquals("/v2/files/10/download", recorded.url.encodedPath)
+            assertEquals(null, recorded.url.query)
+            assertEquals("Token access", recorded.headers["Authorization"])
+        }
 
     private fun withServer(block: (MockWebServer) -> Unit) {
         MockWebServer().use { server ->

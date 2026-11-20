@@ -334,7 +334,7 @@ internal class PutioTransport(
         return builder.build()
     }
 
-    private fun resolveAuthorization(auth: PutioAuth): String? =
+    internal fun resolveAuthorization(auth: PutioAuth): String? =
         when (auth) {
             PutioAuth.None -> {
                 null

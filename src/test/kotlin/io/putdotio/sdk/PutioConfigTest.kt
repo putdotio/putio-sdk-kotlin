@@ -11,10 +11,13 @@ import okhttp3.Response
 import okhttp3.ResponseBody.Companion.toResponseBody
 import java.lang.reflect.Modifier
 import java.util.concurrent.CountDownLatch
+import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicInteger
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
+import kotlin.test.assertNull
 import kotlin.test.assertSame
 import kotlin.test.assertTrue
 
@@ -36,6 +39,47 @@ class PutioConfigTest {
 
             client.clearAccessToken()
             assertEquals(null, config.accessToken)
+        }
+    }
+
+    @Test
+    fun `compareAndSetAccessToken leaves a token it did not expect`() {
+        PutioClient(config = PutioConfig(accessToken = "rejected"), okHttpClient = OkHttpClient()).use { client ->
+            client.setAccessToken("fresh")
+
+            assertFalse(client.compareAndSetAccessToken(expected = "rejected", token = null))
+            assertEquals("fresh", client.config.accessToken)
+
+            assertTrue(client.compareAndSetAccessToken(expected = "fresh", token = null))
+            assertNull(client.config.accessToken)
+        }
+    }
+
+    @Test
+    fun `concurrent compareAndSetAccessToken lets exactly one writer win`() {
+        val writers = 64
+        val config = PutioConfig()
+        val pool = Executors.newFixedThreadPool(writers)
+
+        try {
+            repeat(ROUNDS) {
+                config.accessToken = null
+                val start = CountDownLatch(1)
+                val wins =
+                    (0 until writers)
+                        .map { index ->
+                            pool.submit<String?> {
+                                start.await()
+                                "token-$index".takeIf { config.compareAndSetAccessToken(expected = null, token = it) }
+                            }
+                        }.also { start.countDown() }
+                        .mapNotNull { it.get(5, TimeUnit.SECONDS) }
+
+                assertEquals(1, wins.size)
+                assertEquals(wins.single(), config.accessToken)
+            }
+        } finally {
+            pool.shutdownNow()
         }
     }
 
@@ -97,5 +141,9 @@ class PutioConfigTest {
             httpClient.dispatcher.executorService.shutdown()
             httpClient.connectionPool.evictAll()
         }
+    }
+
+    private companion object {
+        const val ROUNDS = 200
     }
 }

@@ -47,6 +47,16 @@ class PutioClient(
         config.accessToken = null
     }
 
+    /**
+     * Replaces the access token with [token] only while it still equals [expected], in one
+     * atomic step, and returns whether it did. Pass a `null` [token] to clear, so a sign-out
+     * for a rejected token cannot wipe the one a concurrent sign-in just set.
+     */
+    fun compareAndSetAccessToken(
+        expected: String?,
+        token: String?,
+    ): Boolean = config.compareAndSetAccessToken(expected, token)
+
     override fun close() {
         if (!ownsHttpClient) {
             return

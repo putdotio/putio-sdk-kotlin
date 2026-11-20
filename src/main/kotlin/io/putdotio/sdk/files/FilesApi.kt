@@ -2,6 +2,7 @@ package io.putdotio.sdk.files
 
 import io.putdotio.sdk.OkResponse
 import io.putdotio.sdk.account.AccountDownloadToken
+import io.putdotio.sdk.core.PutioAuth
 import io.putdotio.sdk.core.PutioMultipartFile
 import io.putdotio.sdk.core.PutioTransport
 import io.putdotio.sdk.errors.PutioApiException
@@ -435,14 +436,43 @@ class FilesApi internal constructor(
         maxSubtitleCount: Int? = null,
     ): String = hlsUrl(fileId, downloadToken.value, subtitleLanguages, maxSubtitleCount)
 
+    /**
+     * The original file over [PutioMediaRequest]'s token-free URL, for a client that sends
+     * headers and must not persist a credential in the URL (a download cache, a share export).
+     */
+    fun buildDownloadRequest(fileId: Long): PutioMediaRequest = mediaRequest(mediaUrl("/files/$fileId/download", null))
+
+    /** The original file as put.io stores it, for players that decode it themselves; see [buildDownloadRequest]. */
+    fun buildOriginalStreamRequest(fileId: Long): PutioMediaRequest = mediaRequest(mediaUrl("/files/$fileId/stream", null))
+
+    /** put.io's converted MP4; see [buildDownloadRequest]. */
+    fun buildMp4StreamRequest(fileId: Long): PutioMediaRequest = mediaRequest(mediaUrl("/files/$fileId/mp4/stream", null))
+
+    /**
+     * The HLS master; [original] asks for the original file over HLS. [maxSubtitleCount] works as in
+     * [buildHlsStreamUrl]. See [buildDownloadRequest].
+     */
+    fun buildHlsStreamRequest(
+        fileId: Long,
+        subtitleLanguages: List<String> = emptyList(),
+        maxSubtitleCount: Int? = null,
+        original: Boolean = false,
+    ): PutioMediaRequest = mediaRequest(hlsUrl(fileId, null, subtitleLanguages, maxSubtitleCount, original))
+
+    private fun mediaRequest(url: String): PutioMediaRequest =
+        PutioMediaRequest(
+            url = url,
+            headers = mapOf("Authorization" to checkNotNull(transport.resolveAuthorization(PutioAuth.ConfigToken))),
+        )
+
     internal fun mediaUrl(
         path: String,
-        token: String,
-    ): String = transport.buildUrl(path = path, query = mapOf("oauth_token" to token))
+        token: String?,
+    ): String = transport.buildUrl(path = path, query = token?.let { mapOf("oauth_token" to it) } ?: emptyMap())
 
     internal fun hlsUrl(
         fileId: Long,
-        token: String,
+        token: String?,
         subtitleLanguages: List<String>,
         maxSubtitleCount: Int?,
         original: Boolean = false,
@@ -452,7 +482,7 @@ class FilesApi internal constructor(
             path = "/files/$fileId/hls/media.m3u8",
             query =
                 buildMap {
-                    put("oauth_token", token)
+                    if (token != null) put("oauth_token", token)
                     put("subtitle_key", "all")
                     if (subtitleLanguages.isNotEmpty()) {
                         put("subtitle_languages", subtitleLanguages.joinToString(","))

@@ -205,6 +205,22 @@ class PutioCredentialUrl internal constructor(
     }
 }
 
+/**
+ * A media request that authenticates in [headers], so [url] carries no token and is safe to
+ * persist or log. [headers] hold the access token as read when the request was built; rebuild
+ * the request after the token changes.
+ */
+class PutioMediaRequest internal constructor(
+    val url: String,
+    val headers: Map<String, String>,
+) {
+    override fun equals(other: Any?): Boolean = other is PutioMediaRequest && url == other.url && headers == other.headers
+
+    override fun hashCode(): Int = 31 * url.hashCode() + headers.hashCode()
+
+    override fun toString(): String = "PutioMediaRequest(url=$url, headers=<redacted>)"
+}
+
 @Serializable
 internal data class PlaybackFileEnvelope(
     val file: PlaybackFile,
