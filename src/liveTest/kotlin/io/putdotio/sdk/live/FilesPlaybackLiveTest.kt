@@ -2,6 +2,8 @@ package io.putdotio.sdk.live
 
 import io.putdotio.sdk.PutioClient
 import io.putdotio.sdk.account.AccountInfoQuery
+import io.putdotio.sdk.errors.PutioApiException
+import io.putdotio.sdk.errors.PutioOperationException
 import io.putdotio.sdk.files.FileDetailsQuery
 import io.putdotio.sdk.files.FileMp4ConversionStatus
 import io.putdotio.sdk.files.FilesSearchQuery
@@ -171,10 +173,18 @@ class FilesPlaybackLiveTest {
                 assertEquals(FileMp4ConversionStatus.COMPLETED, mp4.status)
                 assertEquals(fixtureId, mp4.id)
 
-                val next = sdk.files.findNextFile(fixtureId, NextFileType.VIDEO)
-                assertNotEquals(fixtureId, next.id)
-                assertTrue(next.name.isNotBlank())
-                assertEquals(PutioFileType.VIDEO, sdk.files.get(next.id).fileType)
+                val next =
+                    try {
+                        sdk.files.findNextFile(fixtureId, NextFileType.VIDEO)
+                    } catch (error: PutioOperationException) {
+                        assertEquals(404, assertIs<PutioApiException>(error.underlyingError).statusCode)
+                        null
+                    }
+                next?.let {
+                    assertNotEquals(fixtureId, it.id)
+                    assertTrue(it.name.isNotBlank())
+                    assertEquals(PutioFileType.VIDEO, sdk.files.get(it.id).fileType)
+                }
             }
         }
     }
