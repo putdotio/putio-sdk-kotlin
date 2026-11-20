@@ -42,6 +42,7 @@ class FilesPlaybackLiveTest {
                             ),
                     )
                 assertEquals(PutioFileType.VIDEO, candidate.fileType)
+                assertTrue(assertNotNull(candidate.contentType).startsWith("video/"))
                 assertEquals(false, candidate.isShared)
                 assertEquals(true, candidate.isMp4Available)
                 val account = sdk.account.getInfo(AccountInfoQuery(downloadToken = true))

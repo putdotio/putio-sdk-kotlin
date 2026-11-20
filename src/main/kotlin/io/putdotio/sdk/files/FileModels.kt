@@ -193,6 +193,8 @@ data class PutioFile(
     val screenshot: String? = null,
     @SerialName("video_metadata") val videoMetadata: PutioVideoMetadata? = null,
     @SerialName("media_info") val mediaInfo: PutioMediaInfo? = null,
+    /** The MIME type put.io detected, such as `video/mp4`; folders report `application/x-directory`. */
+    @SerialName("content_type") val contentType: String? = null,
 )
 
 @Serializable

@@ -396,6 +396,70 @@ class FilesApiTest {
         }
 
     @Test
+    fun `list decodes each file's content type and keeps it null when absent or null`() =
+        withServer { server ->
+            server.enqueue(
+                MockResponse
+                    .Builder()
+                    .body(
+                        """
+                        {
+                          "status": "OK",
+                          "parent": null,
+                          "files": [
+                            {
+                              "id": 1,
+                              "name": "Clips",
+                              "created_at": "2026-04-20T10:00:00Z",
+                              "file_type": "FOLDER",
+                              "content_type": "application/x-directory"
+                            },
+                            {
+                              "id": 2,
+                              "name": "Movie.mkv",
+                              "created_at": "2026-04-20T10:00:00Z",
+                              "file_type": "VIDEO",
+                              "content_type": "video/x-matroska"
+                            },
+                            {
+                              "id": 3,
+                              "name": "Unknown",
+                              "created_at": "2026-04-20T10:00:00Z",
+                              "file_type": "FILE",
+                              "content_type": null
+                            },
+                            {
+                              "id": 4,
+                              "name": "Legacy",
+                              "created_at": "2026-04-20T10:00:00Z",
+                              "file_type": "FILE"
+                            }
+                          ],
+                          "cursor": null
+                        }
+                        """.trimIndent(),
+                    ).build(),
+            )
+
+            runBlocking {
+                PutioClient(
+                    PutioConfig(
+                        accessToken = "token",
+                        baseUrl = server.url("/v2/").toString(),
+                    ),
+                ).use { sdk ->
+                    assertEquals(
+                        listOf("application/x-directory", "video/x-matroska", null, null),
+                        sdk.files
+                            .list(parentId = 0)
+                            .files
+                            .map { it.contentType },
+                    )
+                }
+            }
+        }
+
+    @Test
     fun `delete returns typed result envelope`() =
         withServer { server ->
             server.enqueue(
