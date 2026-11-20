@@ -307,6 +307,10 @@ data class FileSubtitle(
     val url: String,
 )
 
+/**
+ * [defaultKey] decodes `default`: the [FileSubtitle.key] put.io names as the list's default, or null
+ * when the list is empty.
+ */
 @Serializable
 data class FileSubtitlesResponse(
     @SerialName("default") val defaultKey: String? = null,

@@ -193,6 +193,50 @@ class FilesPlaybackApiTest {
         }
 
     @Test
+    fun `resolvePlayback carries the subtitle list's default key on sidecars`() {
+        val cases = mapOf("pt-key" to "pt-key", "gone-key" to null, null to null)
+        cases.forEach { (listedDefault, expectedDefault) ->
+            withServer { server ->
+                server.enqueue(playbackFileResponse(needConvert = true))
+                server.enqueue(
+                    MockResponse
+                        .Builder()
+                        .body(
+                            """
+                            {"status":"OK","default":${listedDefault?.let { "\"$it\"" } ?: "null"},"subtitles":[
+                              {"format":"srt","key":"ru-key","language":"Undetermined","language_code":"und",
+                               "name":"Sintel.ru.srt","source":"folder",
+                               "url":"https://media.example/ru.srt?oauth_token=subtitle-secret"},
+                              {"format":"srt","key":"pt-key","language":"Undetermined","language_code":"und",
+                               "name":"Sintel.pt.srt","source":"folder",
+                               "url":"https://media.example/pt.srt?oauth_token=subtitle-secret"}
+                            ]}
+                            """.trimIndent(),
+                        ).build(),
+                )
+
+                val subtitles =
+                    assertIs<PlaybackSubtitles.Sidecar>(
+                        assertIs<PlaybackResolution.Ready>(
+                            server.resolvePlayback(
+                                PlaybackRequest(
+                                    fileId = 42,
+                                    mediaCredential = PlaybackMediaCredential.downloadToken("download-secret"),
+                                    preference = PlaybackPreference.MP4,
+                                    useStartFrom = false,
+                                    capabilities = PlaybackCapabilities(originalVideoPlayable = true),
+                                ),
+                            ),
+                        ).source.subtitles,
+                    )
+
+                assertEquals(listOf("ru-key", "pt-key"), subtitles.tracks.map { it.key })
+                assertEquals(expectedDefault, subtitles.defaultKey, "listed default $listedDefault")
+            }
+        }
+    }
+
+    @Test
     fun `resolvePlayback covers the valid video selection matrix`() {
         val cases =
             listOf(

@@ -178,6 +178,10 @@ An accepted original follows the preference: HLS plays
 MP4 never falls back to HLS: a video with no accepted original, no converted
 MP4 and nothing to convert resolves as `Unsupported`.
 
+Progressive sources carry sidecar subtitles as `PlaybackSubtitles.Sidecar`.
+Mark the track whose `key` matches `defaultKey` as the default. When
+`defaultKey` is `null`, put.io named no default, so mark none.
+
 ## Device-Code Linking (TV)
 
 ```kotlin
