@@ -17,11 +17,7 @@ class DeviceLinkLiveTest {
             val appId = clientId.toLong()
             LiveSupport.newAuthedClient(clientId = clientId).use { sdk ->
                 val grantedBefore = sdk.isGranted(appId)
-                val clientsBefore =
-                    sdk.grants
-                        .clients()
-                        .map { it.id }
-                        .toSet()
+                var linkedClientId: Long? = null
                 val code = sdk.auth.getCode().code
                 assertNull(sdk.auth.checkCodeMatch(code))
 
@@ -32,19 +28,19 @@ class DeviceLinkLiveTest {
                     val token = assertNotNull(sdk.auth.checkCodeMatch(code))
                     val validation = sdk.auth.validateToken(token)
                     assertTrue(validation.result)
-                    val linkedClientId = LiveSupport.recordFixture("client", assertNotNull(validation.tokenId))
+                    val linkedId = LiveSupport.recordFixture("client", assertNotNull(validation.tokenId))
+                    linkedClientId = linkedId
 
-                    val session = assertNotNull(sdk.grants.clients().find { it.id == linkedClientId })
+                    val session = assertNotNull(sdk.grants.clients().find { it.id == linkedId })
                     assertEquals(appId, session.appId)
 
-                    sdk.grants.revokeClient(linkedClientId)
-                    assertTrue(sdk.grants.clients().none { it.id == linkedClientId })
+                    sdk.grants.revokeClient(linkedId)
+                    assertTrue(sdk.grants.clients().none { it.id == linkedId })
                     assertFalse(runCatching { sdk.auth.validateToken(token).result }.getOrDefault(false))
                 } finally {
-                    sdk.grants
-                        .clients()
-                        .filter { it.appId == appId && it.id !in clientsBefore }
-                        .forEach { sdk.grants.revokeClient(LiveSupport.recordFixture("client", it.id)) }
+                    linkedClientId
+                        ?.takeIf { id -> sdk.grants.clients().any { it.id == id } }
+                        ?.let { sdk.grants.revokeClient(it) }
                 }
                 assertEquals(grantedBefore, sdk.isGranted(appId))
             }
