@@ -39,8 +39,10 @@ class RoutesApiTest {
                     ),
                 ).use { sdk ->
                     val routes = sdk.routes.list()
-                    assertEquals("EU", routes.first().name)
-                    assertEquals(listOf("eu1.put.io", "eu2.put.io"), routes.first().hosts)
+                    assertEquals(
+                        listOf(TunnelRoute(name = "EU", description = "Europe route", hosts = listOf("eu1.put.io", "eu2.put.io"))),
+                        routes,
+                    )
                 }
             }
 

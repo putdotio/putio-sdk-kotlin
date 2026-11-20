@@ -369,6 +369,20 @@ class AuthApiTest {
         }
 
     @Test
+    fun `getCode requires clientId before any request`() =
+        withServer { server ->
+            val sdk = PutioClient(PutioConfig(baseUrl = server.url("/v2/").toString()))
+
+            val error =
+                assertFailsWith<PutioConfigurationException> {
+                    runBlocking { sdk.auth.getCode() }
+                }
+
+            assertEquals("PutioConfig.clientId is required to request an auth code", error.message)
+            assertEquals(0, server.requestCount)
+        }
+
+    @Test
     fun `buildLoginUrl requires clientId`() {
         val sdk = PutioClient(PutioConfig())
 

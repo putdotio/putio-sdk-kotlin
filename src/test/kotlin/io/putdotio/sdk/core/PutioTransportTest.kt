@@ -6,6 +6,7 @@ import io.putdotio.sdk.errors.PutioApiException
 import io.putdotio.sdk.errors.PutioConfigurationException
 import io.putdotio.sdk.errors.PutioSerializationException
 import io.putdotio.sdk.errors.PutioTransportException
+import io.putdotio.sdk.errors.PutioTransportFailureKind
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.asCoroutineDispatcher
 import kotlinx.coroutines.launch
@@ -33,6 +34,8 @@ import okio.Source
 import okio.Timeout
 import okio.buffer
 import java.io.IOException
+import java.net.ConnectException
+import java.net.SocketTimeoutException
 import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
 import kotlin.coroutines.cancellation.CancellationException
@@ -107,6 +110,73 @@ class PutioTransportTest {
 
             assertEquals("GET", error.request.method)
             assertEquals("""{"status":"OK","unexpected":true}""", error.responseBody)
+        }
+
+    @Test
+    fun `transport wraps malformed success bodies as serialization errors`() =
+        listOf("", "not json", """{"status":"OK"""", """["OK"]""").forEach { body ->
+            withServer { server ->
+                server.enqueue(MockResponse.Builder().body(body).build())
+
+                val transport = newTransport(server, accessToken = "secret-token")
+
+                val error =
+                    assertFailsWith<PutioSerializationException>("body: $body") {
+                        runBlocking { transport.get(path = "/files/list", serializer = OkResponse.serializer()) }
+                    }
+
+                assertNotNull(error.cause)
+                assertEquals("GET", error.request.method)
+            }
+        }
+
+    @Test
+    fun `transport wraps a refused connection as a transport error`() {
+        val baseUrl =
+            MockWebServer().use { server ->
+                server.start()
+                server.url("/v2/").toString()
+            }
+        val transport =
+            PutioTransport(
+                config = PutioConfig(baseUrl = baseUrl, accessToken = "secret-token"),
+                httpClient = OkHttpClient(),
+                json = PutioTransport.defaultJson,
+            )
+
+        val error =
+            assertFailsWith<PutioTransportException> {
+                runBlocking { transport.get(path = "/files/list", serializer = OkResponse.serializer()) }
+            }
+
+        assertEquals("${baseUrl}files/list", error.request.url)
+        assertEquals(PutioTransportFailureKind.CONNECTION, error.failureKind)
+        assertIs<ConnectException>(error.cause)
+    }
+
+    @Test
+    fun `transport wraps a read timeout as a transport error`() =
+        withServer { server ->
+            server.enqueue(
+                MockResponse
+                    .Builder()
+                    .onResponseStart(SocketEffect.Stall)
+                    .build(),
+            )
+            val httpClient =
+                OkHttpClient
+                    .Builder()
+                    .readTimeout(200, TimeUnit.MILLISECONDS)
+                    .build()
+            val transport = newTransport(server, accessToken = "secret-token", httpClient = httpClient)
+
+            val error =
+                assertFailsWith<PutioTransportException> {
+                    runBlocking { transport.get(path = "/files/list", serializer = OkResponse.serializer()) }
+                }
+
+            assertEquals(PutioTransportFailureKind.TIMEOUT, error.failureKind)
+            assertIs<SocketTimeoutException>(error.cause)
         }
 
     @Test
