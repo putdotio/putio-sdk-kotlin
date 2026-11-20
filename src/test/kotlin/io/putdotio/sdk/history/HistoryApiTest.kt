@@ -50,9 +50,19 @@ class HistoryApiTest {
                 ).use { sdk ->
                     val response = sdk.history.list(HistoryListQuery(perPage = 25, before = 100))
                     assertEquals(true, response.hasMore)
-                    assertEquals(1, response.events.size)
-                    assertEquals(HistoryEventType.TRANSFER_COMPLETED, response.events.first().type)
-                    assertEquals(99L, response.events.first().fileId)
+                    assertEquals(
+                        listOf(
+                            HistoryEvent(
+                                id = 1,
+                                userId = 42,
+                                createdAt = "2026-04-20T10:00:00Z",
+                                type = HistoryEventType.TRANSFER_COMPLETED,
+                                fileId = 99,
+                                fileName = "Movie.mkv",
+                            ),
+                        ),
+                        response.events,
+                    )
                 }
             }
 

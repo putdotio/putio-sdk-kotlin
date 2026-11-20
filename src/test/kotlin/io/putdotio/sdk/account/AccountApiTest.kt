@@ -77,7 +77,20 @@ class AccountApiTest {
                     assertEquals("altay", account.username)
                     assertEquals("active", account.accountStatus)
                     assertEquals(true, account.accountActive)
-                    assertEquals(90L, account.disk.available)
+                    assertEquals("altay@put.io", account.mail)
+                    assertEquals("https://static.put.io/avatar.png", account.avatarUrl)
+                    assertEquals("2026-04-20T10:00:00Z", account.passwordLastChangedAt)
+                    assertEquals(AccountDisk(available = 90, size = 100, used = 10), account.disk)
+                    assertEquals(
+                        AccountSettings(
+                            sortBy = "NAME_ASC",
+                            nextEpisode = true,
+                            useStartFrom = true,
+                            historyEnabled = true,
+                            trashEnabled = true,
+                        ),
+                        account.settings,
+                    )
                     assertEquals("download-token", account.downloadToken?.value)
                     assertEquals("<redacted download token>", account.downloadToken.toString())
                     assertFalse(account.toString().contains("download-token"))

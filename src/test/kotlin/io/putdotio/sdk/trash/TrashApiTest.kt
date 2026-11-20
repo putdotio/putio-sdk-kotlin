@@ -5,6 +5,9 @@ import io.putdotio.sdk.PutioConfig
 import io.putdotio.sdk.errors.PutioApiException
 import io.putdotio.sdk.errors.PutioOperationErrorReason
 import io.putdotio.sdk.errors.PutioOperationException
+import io.putdotio.sdk.files.PutioFileType
+import io.putdotio.sdk.files.PutioFolderType
+import io.putdotio.sdk.files.PutioVideoMetadata
 import kotlinx.coroutines.runBlocking
 import mockwebserver3.MockResponse
 import mockwebserver3.MockWebServer
@@ -69,13 +72,25 @@ class TrashApiTest {
                     assertEquals(1, response.total)
                     assertEquals(123L, response.trashSize)
                     val file = response.files.single()
-                    assertEquals(2L, file.parentId)
-                    assertEquals("BOOK", file.fileType.raw)
+                    assertEquals(
+                        TrashFile(
+                            id = 10,
+                            name = "Old Movie",
+                            icon = "video",
+                            parentId = 2,
+                            size = 99,
+                            createdAt = "2026-04-20T10:00:00Z",
+                            fileType = PutioFileType("BOOK"),
+                            folderType = PutioFolderType("MAGIC_SHELF"),
+                            deletedAt = "2026-04-21T10:00:00Z",
+                            expirationDate = "2026-05-01T10:00:00Z",
+                            videoMetadata =
+                                PutioVideoMetadata(height = 1080, width = 1920, codec = "h264", duration = 61.5, aspectRatio = 1.78),
+                        ),
+                        file,
+                    )
                     assertFalse(file.fileType.isKnown)
-                    assertEquals("MAGIC_SHELF", file.folderType.raw)
                     assertFalse(file.folderType.isKnown)
-                    assertEquals(1080, file.videoMetadata?.height)
-                    assertEquals("2026-05-01T10:00:00Z", file.expirationDate)
                 }
             }
         }

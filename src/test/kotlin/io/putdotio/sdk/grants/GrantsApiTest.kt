@@ -41,9 +41,18 @@ class GrantsApiTest {
                     ),
                 ).use { sdk ->
                     val grants = sdk.grants.list()
-                    assertEquals(7L, grants.first().id)
-                    assertEquals("Android TV", grants.first().name)
-                    assertEquals(true, grants.first().hasIcon)
+                    assertEquals(
+                        listOf(
+                            OAuthGrant(
+                                id = 7,
+                                name = "Android TV",
+                                description = "put.io TV app",
+                                website = "https://put.io",
+                                hasIcon = true,
+                            ),
+                        ),
+                        grants,
+                    )
                 }
             }
 

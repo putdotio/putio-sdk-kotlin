@@ -688,32 +688,81 @@ class FilesApiTest {
                         {
                           "status": "OK",
                           "file": {
-                            "id": 9,
-                            "name": "Movie.mkv",
-                            "size": 123,
-                            "created_at": "2026-04-20T10:00:00Z",
-                            "updated_at": "2026-04-20T10:00:00Z",
+                            "content_type": "video/mp4",
+                            "created_at": "2026-08-25T14:39:02",
+                            "crc32": "acf38fcd",
+                            "extension": "mp4",
                             "file_type": "VIDEO",
-                            "folder_type": "REGULAR"
+                            "first_accessed_at": "2026-08-25T14:39:03",
+                            "folder_type": "REGULAR",
+                            "icon": "https://api.put.io/thumbnails/icon.jpg",
+                            "id": 9,
+                            "is_hidden": false,
+                            "is_mp4_available": true,
+                            "is_shared": false,
+                            "name": "Big_Buck_Bunny_1080_10s_30MB.mp4",
+                            "opensubtitles_hash": "7db7252b3d4dd30d",
+                            "parent_id": 0,
+                            "screenshot": "https://api.put.io/screenshots/shot.jpg",
+                            "sha1": "",
+                            "size": 30704510,
+                            "start_from": 0,
+                            "updated_at": "2026-09-30T15:41:33",
+                            "mp4_size": 14670540,
+                            "mp4_stream_url": "https://s110-cdn77.put.io/stream/9.mp4?u=signed&stream=1&oauth_token=redacted",
+                            "need_convert": false,
+                            "stream_url": "https://s89-cdn77.put.io/stream/9?u=signed&stream=1&oauth_token=redacted",
+                            "video_metadata": {
+                              "aspect_ratio": 1.7777777777777777,
+                              "codec": "h264",
+                              "duration": 10,
+                              "height": 1080,
+                              "width": 1920
+                            }
                           }
                         }
                         """.trimIndent(),
                     ).build(),
             )
 
-            runBlocking {
-                PutioClient(
-                    PutioConfig(
-                        accessToken = "token",
-                        baseUrl = server.url("/v2/").toString(),
-                    ),
-                ).use { sdk ->
-                    sdk.files.get(fileId = 9)
+            val file =
+                runBlocking {
+                    PutioClient(
+                        PutioConfig(
+                            accessToken = "token",
+                            baseUrl = server.url("/v2/").toString(),
+                        ),
+                    ).use { sdk ->
+                        sdk.files.get(fileId = 9)
+                    }
                 }
-            }
 
             val request = server.takeRequest()
             assertEquals("/v2/files/9?mp4_size=1&start_from=1&stream_url=1&mp4_stream_url=1", request.target)
+            assertEquals(
+                PutioFile(
+                    id = 9,
+                    name = "Big_Buck_Bunny_1080_10s_30MB.mp4",
+                    icon = "https://api.put.io/thumbnails/icon.jpg",
+                    parentId = 0,
+                    size = 30704510,
+                    createdAt = "2026-08-25T14:39:02",
+                    updatedAt = "2026-09-30T15:41:33",
+                    fileType = PutioFileType.VIDEO,
+                    folderType = PutioFolderType.REGULAR,
+                    isShared = false,
+                    isMp4Available = true,
+                    needConvert = false,
+                    startFrom = 0.0,
+                    streamUrl = "https://s89-cdn77.put.io/stream/9?u=signed&stream=1&oauth_token=redacted",
+                    mp4StreamUrl = "https://s110-cdn77.put.io/stream/9.mp4?u=signed&stream=1&oauth_token=redacted",
+                    mp4Size = 14670540,
+                    screenshot = "https://api.put.io/screenshots/shot.jpg",
+                    videoMetadata =
+                        PutioVideoMetadata(height = 1080, width = 1920, codec = "h264", duration = 10.0, aspectRatio = 1.7777777777777777),
+                ),
+                file,
+            )
         }
 
     @Test
@@ -1102,6 +1151,26 @@ class FilesApiTest {
             assertEquals(null, recorded.url.query)
             assertEquals("Token access", recorded.headers["Authorization"])
         }
+
+    @Test
+    fun `next-file stream urls follow file_type and stay null without a playable one`() {
+        val sdk = PutioClient()
+
+        assertEquals(
+            "https://api.put.io/v2/files/12/hls/media.m3u8?oauth_token=abc&subtitle_key=all",
+            sdk.files.buildStreamUrl(
+                nextFile = NextFile(id = 12, name = "Next.mkv", fileType = NextFileType.VIDEO),
+                downloadToken = DOWNLOAD_TOKEN,
+            ),
+        )
+        assertNull(sdk.files.buildStreamUrl(nextFile = NextFile(id = 12, name = "Next"), downloadToken = DOWNLOAD_TOKEN))
+        assertNull(
+            sdk.files.buildStreamUrl(
+                nextFile = NextFile(id = 12, name = "Next.pdf", fileType = NextFileType.fromRaw("PDF")),
+                downloadToken = DOWNLOAD_TOKEN,
+            ),
+        )
+    }
 
     private fun withServer(block: (MockWebServer) -> Unit) {
         MockWebServer().use { server ->

@@ -15,7 +15,7 @@ import kotlinx.coroutines.withTimeout
 import kotlinx.coroutines.yield
 import mockwebserver3.MockResponse
 import mockwebserver3.MockWebServer
-import mockwebserver3.SocketEffect
+import java.io.IOException
 import java.util.concurrent.TimeUnit
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -228,16 +228,18 @@ class DeviceCodeAuthTest {
     fun `transport failures while polling are retried until the budget ends`() =
         withServer { server ->
             server.enqueue(json(CODE_ENVELOPE))
-            server.enqueue(MockResponse.Builder().onResponseStart(SocketEffect.CloseSocket()).build())
             server.enqueue(json("""{"status":"OK","oauth_token":"tok-9"}"""))
             server.enqueue(json("""{"status":"OK","result":true,"user_id":7}"""))
             server.enqueue(json(ACCOUNT_ENVELOPE))
 
-            val (orchestrator, _) = orchestrator(server)
+            var calls = 0
+            val (orchestrator, sleeps) =
+                orchestrator(server, beforeRequest = { if (++calls == 2) throw IOException("network unreachable") })
             val states = runBlocking { orchestrator.link(fastOptions).toList() }
 
             assertIs<DeviceCodeAuthState.Linked>(states.last())
-            assertEquals(5, server.requestCount)
+            assertEquals(2, sleeps.size)
+            assertEquals(4, server.requestCount)
         }
 
     @Test
