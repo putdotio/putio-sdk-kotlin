@@ -824,6 +824,7 @@ class FilesApiTest {
                     screenshot = "https://api.put.io/screenshots/shot.jpg",
                     videoMetadata =
                         PutioVideoMetadata(height = 1080, width = 1920, codec = "h264", duration = 10.0, aspectRatio = 1.7777777777777777),
+                    contentType = "video/mp4",
                 ),
                 file,
             )
