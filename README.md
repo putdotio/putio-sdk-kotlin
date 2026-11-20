@@ -92,6 +92,12 @@ val sdk = PutioClient(
 `PutioClient.close()` does not close an injected client's cache, dispatcher,
 or connection pool. It closes only a client it created.
 
+## File Types
+
+`PutioFile.contentType` is the MIME type put.io detected, such as
+`video/x-matroska`; folders report `application/x-directory`. It is `null`
+when the API sends none, so keep a fallback such as the file extension.
+
 ## Media URLs
 
 Download and stream URL builders take the account download token, never the
