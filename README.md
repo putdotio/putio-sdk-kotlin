@@ -182,6 +182,20 @@ Progressive sources carry sidecar subtitles as `PlaybackSubtitles.Sidecar`.
 Mark the track whose `key` matches `defaultKey` as the default. When
 `defaultKey` is `null`, put.io named no default, so mark none.
 
+## Watch Status
+
+`files.setWatchStatus` marks a selection watched or unwatched in one request:
+file ids, or a list or search cursor (first page included) minus `excludeIds`.
+
+```kotlin
+sdk.files.setWatchStatus(FilesWatchStatusInput(watched = true, ids = listOf(11, 12)))
+sdk.files.setWatchStatus(FilesWatchStatusInput(watched = false, cursor = cursor, excludeIds = listOf(11)))
+```
+
+Watched keeps a saved resume position, and unwatched clears it. put.io skips
+non-media files and answers `FEATURE_DISABLED` while the account's resume
+setting is off.
+
 ## Device-Code Linking (TV)
 
 ```kotlin
