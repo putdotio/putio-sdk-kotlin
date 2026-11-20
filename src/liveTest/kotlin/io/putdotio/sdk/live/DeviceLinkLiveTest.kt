@@ -1,8 +1,10 @@
 package io.putdotio.sdk.live
 
+import io.putdotio.sdk.PutioClient
 import kotlinx.coroutines.runBlocking
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
 import kotlin.test.assertNotNull
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
@@ -12,45 +14,42 @@ class DeviceLinkLiveTest {
     fun `a linked device code issues a token that revoking its client invalidates`() {
         runBlocking {
             val clientId = LiveSupport.requireClientId()
+            val appId = clientId.toLong()
             LiveSupport.newAuthedClient(clientId = clientId).use { sdk ->
-                val grantedBefore =
+                val grantedBefore = sdk.isGranted(appId)
+                val clientsBefore =
                     sdk.grants
-                        .list()
+                        .clients()
                         .map { it.id }
                         .toSet()
                 val code = sdk.auth.getCode().code
                 assertNull(sdk.auth.checkCodeMatch(code))
 
-                var linkedAppId: Long? = null
-                var linkedClientId: Long? = null
                 try {
                     val app = sdk.grants.linkDevice(code)
-                    linkedAppId = LiveSupport.recordFixture("grant", app.id)
-                    assertEquals(clientId.toLong(), app.id)
+                    assertEquals(appId, app.id)
 
                     val token = assertNotNull(sdk.auth.checkCodeMatch(code))
                     val validation = sdk.auth.validateToken(token)
                     assertTrue(validation.result)
-                    linkedClientId = LiveSupport.recordFixture("client", assertNotNull(validation.tokenId))
+                    val linkedClientId = LiveSupport.recordFixture("client", assertNotNull(validation.tokenId))
 
                     val session = assertNotNull(sdk.grants.clients().find { it.id == linkedClientId })
-                    assertEquals(app.id, session.appId)
+                    assertEquals(appId, session.appId)
 
                     sdk.grants.revokeClient(linkedClientId)
-                    linkedClientId = null
-                    assertTrue(sdk.grants.clients().none { it.id == validation.tokenId && it.active })
+                    assertTrue(sdk.grants.clients().none { it.id == linkedClientId })
+                    assertFalse(runCatching { sdk.auth.validateToken(token).result }.getOrDefault(false))
                 } finally {
-                    linkedClientId?.let { sdk.grants.revokeClient(it) }
-                    linkedAppId?.takeIf { it !in grantedBefore }?.let { sdk.grants.revoke(it) }
-                }
-                assertEquals(
-                    grantedBefore,
                     sdk.grants
-                        .list()
-                        .map { it.id }
-                        .toSet(),
-                )
+                        .clients()
+                        .filter { it.appId == appId && it.id !in clientsBefore }
+                        .forEach { sdk.grants.revokeClient(LiveSupport.recordFixture("client", it.id)) }
+                }
+                assertEquals(grantedBefore, sdk.isGranted(appId))
             }
         }
     }
+
+    private suspend fun PutioClient.isGranted(appId: Long): Boolean = grants.list().any { it.id == appId }
 }

@@ -64,6 +64,8 @@ class ConfigGrantsRoutesLiveTest {
                 assumeTrue(grant != null, "No granted app with an icon for icon live coverage")
                 val iconUrl = sdk.grants.buildIconUrl(assertNotNull(grant).id, LiveSupport.requireAccessToken())
                 val connection = URI(iconUrl.value).toURL().openConnection() as HttpURLConnection
+                connection.connectTimeout = ICON_TIMEOUT_MS
+                connection.readTimeout = ICON_TIMEOUT_MS
                 try {
                     assertEquals(200, connection.responseCode)
                     assertTrue(connection.contentType.orEmpty().startsWith("image/"))
@@ -72,5 +74,9 @@ class ConfigGrantsRoutesLiveTest {
                 }
             }
         }
+    }
+
+    private companion object {
+        const val ICON_TIMEOUT_MS = 30_000
     }
 }
