@@ -16,6 +16,9 @@ import io.putdotio.sdk.files.PutioFile
 import io.putdotio.sdk.files.PutioFileType
 import io.putdotio.sdk.files.PutioMediaInfo
 import kotlinx.coroutines.runBlocking
+import okhttp3.HttpUrl.Companion.toHttpUrl
+import okhttp3.OkHttpClient
+import okhttp3.Request
 import org.junit.jupiter.api.Assumptions.assumeTrue
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -147,6 +150,28 @@ class FilesPlaybackLiveTest {
     }
 
     @Test
+    fun `media requests authenticate by header on download, stream, mp4 and hls`() {
+        runBlocking {
+            LiveSupport.newAuthedClient().use { sdk ->
+                val fileId = LiveSupport.requirePlaybackFixtureId()
+                val http = OkHttpClient()
+                val requests =
+                    listOf(
+                        sdk.files.buildDownloadRequest(fileId),
+                        sdk.files.buildOriginalStreamRequest(fileId),
+                        sdk.files.buildMp4StreamRequest(fileId),
+                        sdk.files.buildHlsStreamRequest(fileId),
+                    )
+
+                for (request in requests) {
+                    assertTrue(request.url.toHttpUrl().queryParameter("oauth_token") == null)
+                    assertEquals(200 to 401, http.statusOf(request.url, request.headers) to http.statusOf(request.url, emptyMap()))
+                }
+            }
+        }
+    }
+
+    @Test
     fun `download url is issued for the playback fixture`() {
         runBlocking {
             LiveSupport.newAuthedClient().use { sdk ->
@@ -224,4 +249,18 @@ class FilesPlaybackLiveTest {
     private companion object {
         const val MEDIA_INFO_SAMPLE_SIZE = 260
     }
+
+    private fun OkHttpClient.statusOf(
+        url: String,
+        headers: Map<String, String>,
+    ): Int =
+        newCall(
+            Request
+                .Builder()
+                .url(url)
+                .header("Range", "bytes=0-0")
+                .apply { headers.forEach { (name, value) -> header(name, value) } }
+                .build(),
+        ).execute()
+            .use { if (it.code == 206) 200 else it.code }
 }

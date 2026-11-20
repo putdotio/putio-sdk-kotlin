@@ -105,6 +105,25 @@ val url = sdk.files.buildHlsStreamUrl(fileId = file.id, downloadToken = download
 
 Treat the returned URL as a credential: do not log it or attach it to errors.
 
+A client that sends headers, such as a download cache that persists its URLs,
+can keep the token out of the URL. The `*Request` builders return a token-free
+URL on `PutioConfig.baseUrl` and the access token as an `Authorization` header:
+
+```kotlin
+val request = sdk.files.buildHlsStreamRequest(fileId = file.id, original = true)
+dataSource.setDefaultRequestProperties(request.headers)
+player.setMediaItem(MediaItem.fromUri(request.url))
+```
+
+The header holds the token current when the request was built; rebuild it after
+`setAccessToken`.
+
+## Access Token
+
+`setAccessToken`, `clearAccessToken` and `compareAndSetAccessToken` are atomic.
+Use `compareAndSetAccessToken(expected = rejected, token = null)` to sign out
+after a 401 without clearing a token a concurrent sign-in just set.
+
 ## Logged-in Apps
 
 `grants.list()` returns the apps signed in to the account; `grants.clients()`
