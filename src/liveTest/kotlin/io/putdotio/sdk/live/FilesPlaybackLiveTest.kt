@@ -25,9 +25,33 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertIs
 import kotlin.test.assertNotNull
+import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 class FilesPlaybackLiveTest {
+    @Test
+    fun `file details sign stream URLs only when asked`() {
+        runBlocking {
+            LiveSupport.newAuthedClient().use { sdk ->
+                val fileId = LiveSupport.requirePlaybackFixtureId()
+
+                val unsigned = sdk.files.get(fileId)
+                assertNull(unsigned.streamUrl)
+                assertNull(unsigned.mp4StreamUrl)
+                assertNull(unsigned.mp4Size)
+
+                val signed =
+                    sdk.files.get(
+                        fileId = fileId,
+                        query = FileDetailsQuery(mp4Size = true, streamUrl = true, mp4StreamUrl = true),
+                    )
+                assertTrue(assertNotNull(signed.streamUrl).startsWith("https://"))
+                assertTrue(assertNotNull(signed.mp4StreamUrl).startsWith("https://"))
+                assertTrue(assertNotNull(signed.mp4Size) > 0)
+            }
+        }
+    }
+
     @Test
     fun `playback source resolves for an owned video candidate`() {
         runBlocking {

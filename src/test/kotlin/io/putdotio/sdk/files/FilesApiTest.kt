@@ -806,7 +806,48 @@ class FilesApiTest {
         }
 
     @Test
-    fun `get sends file detail flags by default`() =
+    fun `get leaves stream URLs unsigned by default`() =
+        withServer { server ->
+            server.enqueue(
+                MockResponse
+                    .Builder()
+                    .body(
+                        """
+                        {
+                          "status": "OK",
+                          "file": {
+                            "id": 9,
+                            "name": "Big_Buck_Bunny_1080_10s_30MB.mp4",
+                            "size": 30704510,
+                            "created_at": "2026-08-25T14:39:02",
+                            "file_type": "VIDEO",
+                            "start_from": 0
+                          }
+                        }
+                        """.trimIndent(),
+                    ).build(),
+            )
+
+            val file =
+                runBlocking {
+                    PutioClient(
+                        PutioConfig(
+                            accessToken = "token",
+                            baseUrl = server.url("/v2/").toString(),
+                        ),
+                    ).use { sdk ->
+                        sdk.files.get(fileId = 9)
+                    }
+                }
+
+            assertEquals("/v2/files/9?start_from=1", server.takeRequest().target)
+            assertEquals(null, file.streamUrl)
+            assertEquals(null, file.mp4StreamUrl)
+            assertEquals(null, file.mp4Size)
+        }
+
+    @Test
+    fun `get signs stream URLs when the query asks for them`() =
         withServer { server ->
             server.enqueue(
                 MockResponse
@@ -861,7 +902,10 @@ class FilesApiTest {
                             baseUrl = server.url("/v2/").toString(),
                         ),
                     ).use { sdk ->
-                        sdk.files.get(fileId = 9)
+                        sdk.files.get(
+                            fileId = 9,
+                            query = FileDetailsQuery(mp4Size = true, streamUrl = true, mp4StreamUrl = true),
+                        )
                     }
                 }
 
