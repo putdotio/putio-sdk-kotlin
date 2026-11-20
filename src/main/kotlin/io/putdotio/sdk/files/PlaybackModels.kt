@@ -121,8 +121,9 @@ sealed interface PlaybackSubtitles {
     data object Embedded : PlaybackSubtitles
 
     /**
-     * [defaultKey] is the [PlaybackSubtitle.key] of the track put.io names as the list's default,
-     * the one the account's subtitle languages rank first; null when the list names none of [tracks].
+     * [defaultKey] is the [PlaybackSubtitle.key] of the track put.io names as the list's default: the
+     * first track as ranked by [PlaybackRequest.subtitleLanguages], or by the account's subtitle
+     * languages when none are passed; null when the list names none of [tracks].
      */
     data class Sidecar(
         val tracks: List<PlaybackSubtitle>,

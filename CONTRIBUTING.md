@@ -23,8 +23,8 @@ The live suite reads the variables in [.env.example](./.env.example) from the
 environment first, then `.env.local` and `.env`; aliases and the optional
 `PUTIO_BASE_URL` are in
 [LiveSupport.kt](./src/liveTest/kotlin/io/putdotio/sdk/live/LiveSupport.kt).
-`PUTIO_PLAYBACK_FIXTURE_ID` must be an owned, converted video in the dedicated
-profile.
+`PUTIO_PLAYBACK_FIXTURE_ID` must be an owned, converted video with sidecar
+subtitles in the dedicated profile.
 
 Copy `.env.example` to `.env.local` to use your own credentials. Maintainers
 point `PUTIO_SDK_KOTLIN_SOPS_FILE` at the SOPS ciphertext and run
