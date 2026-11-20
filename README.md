@@ -111,6 +111,13 @@ val url = sdk.files.buildHlsStreamUrl(fileId = file.id, downloadToken = download
 
 Treat the returned URL as a credential: do not log it or attach it to errors.
 
+`files.get` leaves `streamUrl`, `mp4StreamUrl`, and `mp4Size` `null` by
+default, so the API signs no URLs the caller does not read. Opt in per call:
+
+```kotlin
+sdk.files.get(fileId, FileDetailsQuery(mp4Size = true, streamUrl = true, mp4StreamUrl = true))
+```
+
 A client that sends headers, such as a download cache that persists its URLs,
 can keep the token out of the URL. The `*Request` builders return a token-free
 URL on `PutioConfig.baseUrl` and the access token as an `Authorization` header:
