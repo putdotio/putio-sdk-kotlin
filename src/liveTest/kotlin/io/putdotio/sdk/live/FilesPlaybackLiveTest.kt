@@ -3,7 +3,9 @@ package io.putdotio.sdk.live
 import io.putdotio.sdk.PutioClient
 import io.putdotio.sdk.account.AccountInfoQuery
 import io.putdotio.sdk.files.FileDetailsQuery
+import io.putdotio.sdk.files.FileMp4ConversionStatus
 import io.putdotio.sdk.files.FilesSearchQuery
+import io.putdotio.sdk.files.NextFileType
 import io.putdotio.sdk.files.OriginalVideoDecision
 import io.putdotio.sdk.files.PlaybackCapabilities
 import io.putdotio.sdk.files.PlaybackMediaCredential
@@ -20,6 +22,7 @@ import org.junit.jupiter.api.Assumptions.assumeTrue
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertIs
+import kotlin.test.assertNotEquals
 import kotlin.test.assertNotNull
 import kotlin.test.assertTrue
 
@@ -154,6 +157,24 @@ class FilesPlaybackLiveTest {
 
                 assertTrue(url.encodedPath.isNotBlank())
                 assertEquals("<redacted credential URL>", url.toString())
+            }
+        }
+    }
+
+    @Test
+    fun `mp4 status and next video read for the playback fixture`() {
+        runBlocking {
+            LiveSupport.newAuthedClient().use { sdk ->
+                val fixtureId = LiveSupport.requirePlaybackFixtureId()
+
+                val mp4 = sdk.files.getMp4ConversionStatus(fixtureId)
+                assertEquals(FileMp4ConversionStatus.COMPLETED, mp4.status)
+                assertEquals(fixtureId, mp4.id)
+
+                val next = sdk.files.findNextFile(fixtureId, NextFileType.VIDEO)
+                assertNotEquals(fixtureId, next.id)
+                assertTrue(next.name.isNotBlank())
+                assertEquals(PutioFileType.VIDEO, sdk.files.get(next.id).fileType)
             }
         }
     }

@@ -73,10 +73,12 @@ internal object LiveSupport {
         return value ?: error("unreachable")
     }
 
+    fun requireAccessToken(): String = requiredEnv("PUTIO_TOKEN_FIRST_PARTY", "PUTIO_ACCESS_TOKEN", "PUTIO_TOKEN")
+
     fun newAuthedClient(clientId: String? = runtimeValue("PUTIO_CLIENT_ID")): PutioClient =
         PutioClient(
             PutioConfig(
-                accessToken = requiredEnv("PUTIO_TOKEN_FIRST_PARTY", "PUTIO_ACCESS_TOKEN", "PUTIO_TOKEN"),
+                accessToken = requireAccessToken(),
                 clientId = clientId,
                 clientName = "putio-sdk-kotlin live",
                 baseUrl = env("PUTIO_BASE_URL") ?: "https://api.put.io/v2/",
@@ -88,6 +90,11 @@ internal object LiveSupport {
     fun requirePlaybackFixtureId(): Long =
         requiredEnv("PUTIO_PLAYBACK_FIXTURE_ID").toLongOrNull()?.takeIf { it > 0 }
             ?: error("PUTIO_PLAYBACK_FIXTURE_ID must be a positive integer")
+
+    fun <T> recordFixture(
+        kind: String,
+        id: T,
+    ): T = id.also { println("live fixture $kind $it") }
 
     fun uniqueName(prefix: String): String = "$prefix-${UUID.randomUUID().toString().take(12)}"
 }
