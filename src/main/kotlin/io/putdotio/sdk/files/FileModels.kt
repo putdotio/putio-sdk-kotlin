@@ -303,10 +303,10 @@ internal fun FilesListQuery.toQueryMap(parentId: Long): Map<String, String> =
     }
 
 data class FileDetailsQuery(
-    val mp4Size: Boolean = true,
+    val mp4Size: Boolean = false,
     val startFrom: Boolean = true,
-    val streamUrl: Boolean = true,
-    val mp4StreamUrl: Boolean = true,
+    val streamUrl: Boolean = false,
+    val mp4StreamUrl: Boolean = false,
     val mp4Status: Boolean = false,
     val mediaInfo: Boolean = false,
 )
