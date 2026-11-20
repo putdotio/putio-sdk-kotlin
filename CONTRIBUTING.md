@@ -39,6 +39,8 @@ The live account is shared and real. Live tests in
 - run read-only probes
 - mutate settings reversibly, with cleanup
 - create disposable files and trash entries, with cleanup
+- add disposable transfers, app config keys, and device-linked OAuth tokens,
+  then remove exactly the ones they created
 
 They must never:
 
