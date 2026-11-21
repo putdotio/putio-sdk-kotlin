@@ -187,7 +187,9 @@ MP4 and nothing to convert resolves as `Unsupported`.
 
 Progressive sources carry sidecar subtitles as `PlaybackSubtitles.Sidecar`.
 Mark the track whose `key` matches `defaultKey` as the default. When
-`defaultKey` is `null`, put.io named no default, so mark none.
+`defaultKey` is `null`, put.io named no default, so mark none. put.io ranks
+subtitles found beside the file (source `folder`) first, so the default can be
+a track outside the requested languages.
 
 ## Watch Status
 
