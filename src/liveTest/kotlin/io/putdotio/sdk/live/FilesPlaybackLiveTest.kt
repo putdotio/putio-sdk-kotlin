@@ -181,17 +181,18 @@ class FilesPlaybackLiveTest {
     }
 
     @Test
-    fun `media requests authenticate by header on download, stream, mp4 and hls`() {
+    fun `media requests authenticate by download token header on download, stream, mp4 and hls`() {
         runBlocking {
             LiveSupport.newAuthedClient().use { sdk ->
                 val fileId = LiveSupport.requirePlaybackFixtureId()
                 val http = OkHttpClient()
+                val downloadToken = assertNotNull(sdk.account.getInfo(AccountInfoQuery(downloadToken = true)).downloadToken)
                 val requests =
                     listOf(
-                        sdk.files.buildDownloadRequest(fileId),
-                        sdk.files.buildOriginalStreamRequest(fileId),
-                        sdk.files.buildMp4StreamRequest(fileId),
-                        sdk.files.buildHlsStreamRequest(fileId),
+                        sdk.files.buildDownloadRequest(fileId, downloadToken),
+                        sdk.files.buildOriginalStreamRequest(fileId, downloadToken),
+                        sdk.files.buildMp4StreamRequest(fileId, downloadToken),
+                        sdk.files.buildHlsStreamRequest(fileId, downloadToken),
                     )
 
                 for (request in requests) {

@@ -120,16 +120,16 @@ sdk.files.get(fileId, FileDetailsQuery(mp4Size = true, streamUrl = true, mp4Stre
 
 A client that sends headers, such as a download cache that persists its URLs,
 can keep the token out of the URL. The `*Request` builders return a token-free
-URL on `PutioConfig.baseUrl` and the access token as an `Authorization` header:
+URL on `PutioConfig.baseUrl` and the download token as an `Authorization` header:
 
 ```kotlin
-val request = sdk.files.buildHlsStreamRequest(fileId = file.id, original = true)
+val request = sdk.files.buildHlsStreamRequest(fileId = file.id, downloadToken = downloadToken, original = true)
 dataSource.setDefaultRequestProperties(request.headers)
 player.setMediaItem(MediaItem.fromUri(request.url))
 ```
 
-The header holds the token current when the request was built; rebuild it after
-`setAccessToken`.
+Persist only `request.url`. Redirect targets and HLS child playlist URLs carry
+the token.
 
 ## Access Token
 

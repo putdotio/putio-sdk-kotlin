@@ -213,8 +213,8 @@ class PutioCredentialUrl internal constructor(
 
 /**
  * A media request that authenticates in [headers], so [url] carries no token and is safe to
- * persist or log. [headers] hold the access token as read when the request was built; rebuild
- * the request after the token changes.
+ * persist or log. Redirect targets and HLS child playlist URLs carry the token, so persist only
+ * [url]. [headers] hold the token the request was built with.
  */
 class PutioMediaRequest internal constructor(
     val url: String,
