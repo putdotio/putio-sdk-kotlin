@@ -461,7 +461,10 @@ class FilesApi internal constructor(
      * The original file over [PutioMediaRequest]'s token-free URL, for a client that sends
      * headers and must not persist a credential in the URL (a download cache, a share export).
      */
-    @Deprecated("Media requests carry the account download token. Pass downloadToken.")
+    @Deprecated(
+        "Media requests carry the account download token. Pass downloadToken.",
+        ReplaceWith("buildDownloadRequest(fileId, downloadToken)"),
+    )
     fun buildDownloadRequest(fileId: Long): PutioMediaRequest = mediaRequest(mediaUrl("/files/$fileId/download", null))
 
     fun buildDownloadRequest(
@@ -470,7 +473,10 @@ class FilesApi internal constructor(
     ): PutioMediaRequest = mediaRequest(mediaUrl("/files/$fileId/download", null), downloadToken)
 
     /** The original file as put.io stores it, for players that decode it themselves; see [buildDownloadRequest]. */
-    @Deprecated("Media requests carry the account download token. Pass downloadToken.")
+    @Deprecated(
+        "Media requests carry the account download token. Pass downloadToken.",
+        ReplaceWith("buildOriginalStreamRequest(fileId, downloadToken)"),
+    )
     fun buildOriginalStreamRequest(fileId: Long): PutioMediaRequest = mediaRequest(mediaUrl("/files/$fileId/stream", null))
 
     fun buildOriginalStreamRequest(
@@ -479,7 +485,10 @@ class FilesApi internal constructor(
     ): PutioMediaRequest = mediaRequest(mediaUrl("/files/$fileId/stream", null), downloadToken)
 
     /** put.io's converted MP4; see [buildDownloadRequest]. */
-    @Deprecated("Media requests carry the account download token. Pass downloadToken.")
+    @Deprecated(
+        "Media requests carry the account download token. Pass downloadToken.",
+        ReplaceWith("buildMp4StreamRequest(fileId, downloadToken)"),
+    )
     fun buildMp4StreamRequest(fileId: Long): PutioMediaRequest = mediaRequest(mediaUrl("/files/$fileId/mp4/stream", null))
 
     fun buildMp4StreamRequest(
@@ -491,7 +500,10 @@ class FilesApi internal constructor(
      * The HLS master; [original] asks for the original file over HLS. [maxSubtitleCount] works as in
      * [buildHlsStreamUrl]. See [buildDownloadRequest].
      */
-    @Deprecated("Media requests carry the account download token. Pass downloadToken.")
+    @Deprecated(
+        "Media requests carry the account download token. Pass downloadToken.",
+        ReplaceWith("buildHlsStreamRequest(fileId, downloadToken, subtitleLanguages, maxSubtitleCount, original)"),
+    )
     fun buildHlsStreamRequest(
         fileId: Long,
         subtitleLanguages: List<String> = emptyList(),

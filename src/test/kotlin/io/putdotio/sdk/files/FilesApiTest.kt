@@ -1302,6 +1302,24 @@ class FilesApiTest {
     }
 
     @Test
+    fun `download-token media requests carry the download token, never the access token`() {
+        val sdk = PutioClient(PutioConfig(accessToken = "access", baseUrl = "https://example.test/v2/"))
+        val header = mapOf("Authorization" to "Token ${DOWNLOAD_TOKEN.value}")
+        val requests =
+            listOf(
+                sdk.files.buildDownloadRequest(10, DOWNLOAD_TOKEN),
+                sdk.files.buildOriginalStreamRequest(10, DOWNLOAD_TOKEN),
+                sdk.files.buildMp4StreamRequest(10, DOWNLOAD_TOKEN),
+                sdk.files.buildHlsStreamRequest(10, DOWNLOAD_TOKEN, original = true),
+            )
+
+        for (request in requests) {
+            assertEquals(header, request.headers)
+            assertFalse(request.url.contains("oauth_token"))
+        }
+    }
+
+    @Test
     fun `a media request authenticates against the server by header`() =
         withServer { server ->
             server.enqueue(MockResponse(code = 200, body = "bytes"))
