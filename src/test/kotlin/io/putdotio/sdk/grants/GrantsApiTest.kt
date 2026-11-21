@@ -2,11 +2,14 @@ package io.putdotio.sdk.grants
 
 import io.putdotio.sdk.PutioClient
 import io.putdotio.sdk.PutioConfig
+import io.putdotio.sdk.errors.PutioConfigurationException
 import kotlinx.coroutines.runBlocking
 import mockwebserver3.MockResponse
 import mockwebserver3.MockWebServer
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFailsWith
+import kotlin.test.assertFalse
 
 class GrantsApiTest {
     @Test
@@ -173,11 +176,18 @@ class GrantsApiTest {
         }
 
     @Test
-    fun `buildIconUrl points at the app icon and prints redacted`() {
-        PutioClient(PutioConfig(accessToken = "token")).use { sdk ->
-            val url = sdk.grants.buildIconUrl(appId = 7, accessToken = "secret-token")
-            assertEquals("https://api.put.io/v2/oauth/apps/7/icon?oauth_token=secret-token", url.value)
-            assertEquals(false, url.toString().contains("secret-token"))
+    fun `buildIconRequest sends the current access token as a header on a token-free url`() {
+        PutioClient(PutioConfig(accessToken = "access", baseUrl = "https://example.test/v2/")).use { sdk ->
+            val request = sdk.grants.buildIconRequest(appId = 7)
+            assertEquals("https://example.test/v2/oauth/apps/7/icon", request.url)
+            assertEquals(mapOf("Authorization" to "Token access"), request.headers)
+            assertFalse(request.toString().contains("access"))
+
+            sdk.setAccessToken("rotated")
+            assertEquals(mapOf("Authorization" to "Token rotated"), sdk.grants.buildIconRequest(7).headers)
+
+            sdk.clearAccessToken()
+            assertFailsWith<PutioConfigurationException> { sdk.grants.buildIconRequest(7) }
         }
     }
 

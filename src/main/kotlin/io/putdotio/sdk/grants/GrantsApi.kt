@@ -1,11 +1,13 @@
 package io.putdotio.sdk.grants
 
 import io.putdotio.sdk.OkResponse
+import io.putdotio.sdk.core.PutioAuth
 import io.putdotio.sdk.core.PutioTransport
 import io.putdotio.sdk.errors.PutioKnownErrorContract
 import io.putdotio.sdk.errors.PutioOperationErrorSpec
 import io.putdotio.sdk.errors.putioOperation
 import io.putdotio.sdk.files.PutioCredentialUrl
+import io.putdotio.sdk.files.PutioMediaRequest
 
 class GrantsApi internal constructor(
     private val transport: PutioTransport,
@@ -45,9 +47,20 @@ class GrantsApi internal constructor(
         }
 
     /**
-     * The icon put.io stores for app [appId], when its grant reports `has_icon`. The URL carries
-     * [accessToken], so it prints redacted.
+     * The icon put.io stores for app [appId], when its grant reports `has_icon`. The icon endpoint
+     * takes the access token, not the download token: [PutioMediaRequest.headers] carry
+     * [io.putdotio.sdk.PutioConfig.accessToken] as it is when called, and the URL carries none.
      */
+    fun buildIconRequest(appId: Long): PutioMediaRequest =
+        PutioMediaRequest(
+            url = transport.buildUrl(path = "/oauth/apps/$appId/icon"),
+            headers = mapOf("Authorization" to checkNotNull(transport.resolveAuthorization(PutioAuth.ConfigToken))),
+        )
+
+    @Deprecated(
+        "The URL carries the access token. Send it in a header instead.",
+        ReplaceWith("buildIconRequest(appId)"),
+    )
     fun buildIconUrl(
         appId: Long,
         accessToken: String,

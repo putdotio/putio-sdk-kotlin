@@ -62,17 +62,28 @@ class ConfigGrantsRoutesLiveTest {
 
                 val grant = sdk.grants.list().firstOrNull { it.hasIcon == true }
                 assumeTrue(grant != null, "No granted app with an icon for icon live coverage")
-                val iconUrl = sdk.grants.buildIconUrl(assertNotNull(grant).id, LiveSupport.requireAccessToken())
-                val connection = URI(iconUrl.value).toURL().openConnection() as HttpURLConnection
-                connection.connectTimeout = ICON_TIMEOUT_MS
-                connection.readTimeout = ICON_TIMEOUT_MS
-                try {
-                    assertEquals(200, connection.responseCode)
-                    assertTrue(connection.contentType.orEmpty().startsWith("image/"))
-                } finally {
-                    connection.disconnect()
-                }
+                val request = sdk.grants.buildIconRequest(assertNotNull(grant).id)
+                assertFalse(request.url.contains("oauth_token"))
+                assertEquals(200, iconStatus(request.url, request.headers))
+                assertEquals(401, iconStatus(request.url, emptyMap()))
             }
+        }
+    }
+
+    private fun iconStatus(
+        url: String,
+        headers: Map<String, String>,
+    ): Int {
+        val connection = URI(url).toURL().openConnection() as HttpURLConnection
+        connection.connectTimeout = ICON_TIMEOUT_MS
+        connection.readTimeout = ICON_TIMEOUT_MS
+        headers.forEach(connection::setRequestProperty)
+        return try {
+            connection.responseCode.also { status ->
+                if (status == 200) assertTrue(connection.contentType.orEmpty().startsWith("image/"))
+            }
+        } finally {
+            connection.disconnect()
         }
     }
 
