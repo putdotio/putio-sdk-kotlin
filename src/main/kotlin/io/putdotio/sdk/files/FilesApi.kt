@@ -465,36 +465,36 @@ class FilesApi internal constructor(
         "Media requests carry the account download token. Pass downloadToken.",
         ReplaceWith("buildDownloadRequest(fileId, downloadToken)"),
     )
-    fun buildDownloadRequest(fileId: Long): PutioMediaRequest = mediaRequest(mediaUrl("/files/$fileId/download", null))
+    fun buildDownloadRequest(fileId: Long): PutioMediaRequest = mediaRequest(buildDownloadRequestUrl(fileId))
 
     fun buildDownloadRequest(
         fileId: Long,
         downloadToken: AccountDownloadToken,
-    ): PutioMediaRequest = mediaRequest(mediaUrl("/files/$fileId/download", null), downloadToken)
+    ): PutioMediaRequest = mediaRequest(buildDownloadRequestUrl(fileId), downloadToken)
 
     /** The original file as put.io stores it, for players that decode it themselves; see [buildDownloadRequest]. */
     @Deprecated(
         "Media requests carry the account download token. Pass downloadToken.",
         ReplaceWith("buildOriginalStreamRequest(fileId, downloadToken)"),
     )
-    fun buildOriginalStreamRequest(fileId: Long): PutioMediaRequest = mediaRequest(mediaUrl("/files/$fileId/stream", null))
+    fun buildOriginalStreamRequest(fileId: Long): PutioMediaRequest = mediaRequest(buildOriginalStreamRequestUrl(fileId))
 
     fun buildOriginalStreamRequest(
         fileId: Long,
         downloadToken: AccountDownloadToken,
-    ): PutioMediaRequest = mediaRequest(mediaUrl("/files/$fileId/stream", null), downloadToken)
+    ): PutioMediaRequest = mediaRequest(buildOriginalStreamRequestUrl(fileId), downloadToken)
 
     /** put.io's converted MP4; see [buildDownloadRequest]. */
     @Deprecated(
         "Media requests carry the account download token. Pass downloadToken.",
         ReplaceWith("buildMp4StreamRequest(fileId, downloadToken)"),
     )
-    fun buildMp4StreamRequest(fileId: Long): PutioMediaRequest = mediaRequest(mediaUrl("/files/$fileId/mp4/stream", null))
+    fun buildMp4StreamRequest(fileId: Long): PutioMediaRequest = mediaRequest(buildMp4StreamRequestUrl(fileId))
 
     fun buildMp4StreamRequest(
         fileId: Long,
         downloadToken: AccountDownloadToken,
-    ): PutioMediaRequest = mediaRequest(mediaUrl("/files/$fileId/mp4/stream", null), downloadToken)
+    ): PutioMediaRequest = mediaRequest(buildMp4StreamRequestUrl(fileId), downloadToken)
 
     /**
      * The HLS master; [original] asks for the original file over HLS. [maxSubtitleCount] works as in
@@ -509,7 +509,7 @@ class FilesApi internal constructor(
         subtitleLanguages: List<String> = emptyList(),
         maxSubtitleCount: Int? = null,
         original: Boolean = false,
-    ): PutioMediaRequest = mediaRequest(hlsUrl(fileId, null, subtitleLanguages, maxSubtitleCount, original))
+    ): PutioMediaRequest = mediaRequest(buildHlsStreamRequestUrl(fileId, subtitleLanguages, maxSubtitleCount, original))
 
     fun buildHlsStreamRequest(
         fileId: Long,
@@ -517,7 +517,27 @@ class FilesApi internal constructor(
         subtitleLanguages: List<String> = emptyList(),
         maxSubtitleCount: Int? = null,
         original: Boolean = false,
-    ): PutioMediaRequest = mediaRequest(hlsUrl(fileId, null, subtitleLanguages, maxSubtitleCount, original), downloadToken)
+    ): PutioMediaRequest = mediaRequest(buildHlsStreamRequestUrl(fileId, subtitleLanguages, maxSubtitleCount, original), downloadToken)
+
+    /**
+     * The URL [buildDownloadRequest] fetches, with no credential in it, for a caller that stores
+     * the URL before a download token is loaded and adds the token per fetch.
+     */
+    fun buildDownloadRequestUrl(fileId: Long): String = mediaUrl("/files/$fileId/download", null)
+
+    /** The URL [buildOriginalStreamRequest] fetches; see [buildDownloadRequestUrl]. */
+    fun buildOriginalStreamRequestUrl(fileId: Long): String = mediaUrl("/files/$fileId/stream", null)
+
+    /** The URL [buildMp4StreamRequest] fetches; see [buildDownloadRequestUrl]. */
+    fun buildMp4StreamRequestUrl(fileId: Long): String = mediaUrl("/files/$fileId/mp4/stream", null)
+
+    /** The URL [buildHlsStreamRequest] fetches; see [buildDownloadRequestUrl]. */
+    fun buildHlsStreamRequestUrl(
+        fileId: Long,
+        subtitleLanguages: List<String> = emptyList(),
+        maxSubtitleCount: Int? = null,
+        original: Boolean = false,
+    ): String = hlsUrl(fileId, null, subtitleLanguages, maxSubtitleCount, original)
 
     private fun mediaRequest(url: String): PutioMediaRequest =
         PutioMediaRequest(

@@ -1320,6 +1320,39 @@ class FilesApiTest {
     }
 
     @Test
+    fun `token-free media urls are the urls the download-token requests fetch`() {
+        val files = PutioClient(PutioConfig(baseUrl = "https://example.test/v2/")).files
+
+        assertEquals("https://example.test/v2/files/10/download", files.buildDownloadRequestUrl(10))
+        assertEquals("https://example.test/v2/files/10/stream", files.buildOriginalStreamRequestUrl(10))
+        assertEquals("https://example.test/v2/files/10/mp4/stream", files.buildMp4StreamRequestUrl(10))
+        assertEquals("https://example.test/v2/files/10/hls/media.m3u8?subtitle_key=all", files.buildHlsStreamRequestUrl(10))
+        assertEquals(
+            "https://example.test/v2/files/10/hls/media.m3u8?subtitle_key=all&subtitle_languages=en%2Ctr&max_subtitle_count=-1&original=1",
+            files.buildHlsStreamRequestUrl(
+                fileId = 10,
+                subtitleLanguages = listOf("en", "tr"),
+                maxSubtitleCount = HLS_ALL_SUBTITLES,
+                original = true,
+            ),
+        )
+
+        assertEquals(files.buildDownloadRequest(10, DOWNLOAD_TOKEN).url, files.buildDownloadRequestUrl(10))
+        assertEquals(files.buildOriginalStreamRequest(10, DOWNLOAD_TOKEN).url, files.buildOriginalStreamRequestUrl(10))
+        assertEquals(files.buildMp4StreamRequest(10, DOWNLOAD_TOKEN).url, files.buildMp4StreamRequestUrl(10))
+        for (subtitleLanguages in listOf(emptyList(), listOf("en"), listOf("en", "tr"))) {
+            for (maxSubtitleCount in listOf(null, HLS_ALL_SUBTITLES, 0, 3)) {
+                for (original in listOf(false, true)) {
+                    assertEquals(
+                        files.buildHlsStreamRequest(10, DOWNLOAD_TOKEN, subtitleLanguages, maxSubtitleCount, original).url,
+                        files.buildHlsStreamRequestUrl(10, subtitleLanguages, maxSubtitleCount, original),
+                    )
+                }
+            }
+        }
+    }
+
+    @Test
     fun `a media request authenticates against the server by header`() =
         withServer { server ->
             server.enqueue(MockResponse(code = 200, body = "bytes"))

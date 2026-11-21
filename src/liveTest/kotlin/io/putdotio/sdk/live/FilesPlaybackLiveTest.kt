@@ -7,6 +7,7 @@ import io.putdotio.sdk.errors.PutioOperationException
 import io.putdotio.sdk.files.FileDetailsQuery
 import io.putdotio.sdk.files.FileMp4ConversionStatus
 import io.putdotio.sdk.files.FilesSearchQuery
+import io.putdotio.sdk.files.HLS_ALL_SUBTITLES
 import io.putdotio.sdk.files.NextFileType
 import io.putdotio.sdk.files.OriginalVideoDecision
 import io.putdotio.sdk.files.PlaybackCapabilities
@@ -198,6 +199,31 @@ class FilesPlaybackLiveTest {
                 for (request in requests) {
                     assertTrue(request.url.toHttpUrl().queryParameter("oauth_token") == null)
                     assertEquals(200 to 401, http.statusOf(request.url, request.headers) to http.statusOf(request.url, emptyMap()))
+                }
+            }
+        }
+    }
+
+    @Test
+    fun `token-free media urls authenticate once the caller adds the download token header`() {
+        runBlocking {
+            LiveSupport.newAuthedClient().use { sdk ->
+                val fileId = LiveSupport.requirePlaybackFixtureId()
+                val http = OkHttpClient()
+                val downloadToken = assertNotNull(sdk.account.getInfo(AccountInfoQuery(downloadToken = true)).downloadToken)
+                val header = mapOf("Authorization" to "Token ${downloadToken.value}")
+                val urls =
+                    listOf(
+                        sdk.files.buildDownloadRequestUrl(fileId),
+                        sdk.files.buildOriginalStreamRequestUrl(fileId),
+                        sdk.files.buildMp4StreamRequestUrl(fileId),
+                        sdk.files.buildHlsStreamRequestUrl(fileId),
+                        sdk.files.buildHlsStreamRequestUrl(fileId, listOf("en"), HLS_ALL_SUBTITLES, original = true),
+                    )
+
+                for (url in urls) {
+                    assertTrue(url.toHttpUrl().queryParameter("oauth_token") == null)
+                    assertEquals(200 to 401, http.statusOf(url, header) to http.statusOf(url, emptyMap()))
                 }
             }
         }

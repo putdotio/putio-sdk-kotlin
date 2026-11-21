@@ -131,6 +131,14 @@ player.setMediaItem(MediaItem.fromUri(request.url))
 Persist only `request.url`. Redirect targets and HLS child playlist URLs carry
 the token.
 
+A caller that stores the URL before a download token is loaded uses the
+matching `*RequestUrl` builder, which returns the same URL, and sends
+`Authorization: Token <download token>` on each fetch:
+
+```kotlin
+val url = sdk.files.buildDownloadRequestUrl(fileId = file.id)
+```
+
 ## Access Token
 
 `setAccessToken`, `clearAccessToken` and `compareAndSetAccessToken` are atomic.
