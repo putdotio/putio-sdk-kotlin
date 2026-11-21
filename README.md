@@ -128,6 +128,9 @@ dataSource.setDefaultRequestProperties(request.headers)
 player.setMediaItem(MediaItem.fromUri(request.url))
 ```
 
+Persist only `request.url`. Redirect targets and HLS child playlist URLs carry
+the token.
+
 ## Access Token
 
 `setAccessToken`, `clearAccessToken` and `compareAndSetAccessToken` are atomic.
