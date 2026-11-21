@@ -144,14 +144,14 @@ returns each session, with its `appId`, `lastUsedAt` and whether it is the
 calling one (`active`). `grants.revoke(appId)` ends every session of that app;
 `grants.revokeClient(id)` ends one session.
 
-An app's icon URL takes the access token, not the download token; put.io
-serves it only when its grant reports `hasIcon`:
+An app's icon takes the access token, not the download token; put.io serves
+it only when its grant reports `hasIcon`. The request sends the token in its
+headers, so its URL is token-free:
 
 ```kotlin
-val icon = sdk.grants.buildIconUrl(appId = grant.id, accessToken = accessToken)
+val icon = sdk.grants.buildIconRequest(appId = grant.id)
+// icon.url, icon.headers
 ```
-
-Treat it as a credential too: it prints redacted.
 
 ## Original Video
 
