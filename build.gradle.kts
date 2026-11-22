@@ -13,7 +13,7 @@ plugins {
     kotlin("plugin.serialization") version "2.4.21"
     `java-library`
     jacoco
-    id("com.diffplug.spotless") version "8.11.0"
+    id("com.diffplug.spotless") version "8.12.0"
     id("com.vanniktech.maven.publish") version "0.37.0"
 }
 
