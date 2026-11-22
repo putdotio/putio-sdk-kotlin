@@ -8,20 +8,16 @@
 
 ## Commands
 
-- `./gradlew verify`: the local and CI gate; task graph in [build.gradle.kts](./build.gradle.kts)
-- `./gradlew test`: unit suite only
-- `./gradlew liveTest`: opt-in live suite; credentials in [CONTRIBUTING.md](./CONTRIBUTING.md#live-environment)
-- `./gradlew spotlessApply`: fix ktlint findings
-- `./gradlew markdownCheck`: oxfmt Markdown check, part of `verify`; needs Node. `npx --yes oxfmt@<version> '**/*.md'` fixes findings, with the version pinned in [package.json](./package.json)
+- `./gradlew verify` is the local and CI gate; [CONTRIBUTING.md](./CONTRIBUTING.md#checks) lists the other check and fix commands.
+- `./gradlew markdownCheck`: oxfmt Markdown check, part of `verify`; needs Node.
 - `./gradlew publishToMavenLocal -Pversion=X.Y.Z`: local publish dry run
-- `make secrets-setup` / `make secrets-clean`: write or remove the ignored live-test `.env.local` from `PUTIO_SDK_KOTLIN_SOPS_FILE`. Run setup when it is missing or stale; clean before removing a worktree.
+- `make secrets-setup` writes the ignored live-test `.env.local` when it is missing or stale ([setup](./CONTRIBUTING.md#live-environment)); run `make secrets-clean` before removing a worktree.
 
 ## Rules
 
 - Keep the public surface close to [putio-sdk-typescript](https://github.com/putdotio/putio-sdk-typescript).
 - Keep Android UI and app lifecycle types out of the SDK.
 - `files.copy` wraps `/files/copy-to-disk`, kept for an older client; point new callers at `sharing.cloneSharedFiles`.
-- Update README or CONTRIBUTING when the public surface, verification flow, or publishing changes.
 
 ## Proof
 
