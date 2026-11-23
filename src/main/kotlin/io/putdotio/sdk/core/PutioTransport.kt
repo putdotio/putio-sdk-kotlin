@@ -54,6 +54,7 @@ internal class PutioTransport(
             Json {
                 ignoreUnknownKeys = true
                 explicitNulls = false
+                coerceInputValues = true
             }
     }
 

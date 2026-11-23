@@ -1,12 +1,17 @@
 package io.putdotio.sdk.core
 
 import io.putdotio.sdk.OkResponse
+import io.putdotio.sdk.PutioClient
 import io.putdotio.sdk.PutioConfig
 import io.putdotio.sdk.errors.PutioApiException
 import io.putdotio.sdk.errors.PutioConfigurationException
+import io.putdotio.sdk.errors.PutioOperationException
 import io.putdotio.sdk.errors.PutioSerializationException
 import io.putdotio.sdk.errors.PutioTransportException
 import io.putdotio.sdk.errors.PutioTransportFailureKind
+import io.putdotio.sdk.files.PutioFolderType
+import io.putdotio.sdk.transfers.TransferStatus
+import io.putdotio.sdk.transfers.TransferType
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.asCoroutineDispatcher
 import kotlinx.coroutines.launch
@@ -132,6 +137,106 @@ class PutioTransportTest {
 
             assertEquals("GET", error.request.method)
             assertEquals("""{"status":"OK","unexpected":true}""", error.responseBody)
+        }
+
+    @Test
+    fun `default json coerces explicit nulls on defaulted fields and keeps required fields strict`() =
+        withServer { server ->
+            server.enqueue(
+                MockResponse
+                    .Builder()
+                    .body(
+                        """
+                        {
+                          "transfers": [
+                            {
+                              "id": 1,
+                              "name": "x",
+                              "type": null,
+                              "status": null,
+                              "save_parent_id": null,
+                              "source": null,
+                              "links": null,
+                              "is_private": null,
+                              "created_at": null
+                            }
+                          ],
+                          "status": "OK"
+                        }
+                        """.trimIndent(),
+                    ).build(),
+            )
+            server.enqueue(
+                MockResponse
+                    .Builder()
+                    .body(
+                        """
+                        {
+                          "file": {
+                            "id": 9,
+                            "name": "Folder",
+                            "size": null,
+                            "created_at": "2026-09-06",
+                            "file_type": "FOLDER",
+                            "folder_type": null,
+                            "is_shared": null
+                          },
+                          "status": "OK"
+                        }
+                        """.trimIndent(),
+                    ).build(),
+            )
+            server.enqueue(
+                MockResponse
+                    .Builder()
+                    .body("""{"transfers":[{"id":1,"name":null,"status":"COMPLETED"}],"status":"OK"}""")
+                    .build(),
+            )
+            server.enqueue(
+                MockResponse
+                    .Builder()
+                    .body("""{"transfers":[],"status":null}""")
+                    .build(),
+            )
+
+            runBlocking {
+                PutioClient(
+                    PutioConfig(
+                        accessToken = "secret-token",
+                        baseUrl = server.url("/v2/").toString(),
+                    ),
+                ).use { sdk ->
+                    val transfer =
+                        sdk.transfers
+                            .list()
+                            .transfers
+                            .single()
+                    assertEquals(TransferType.NOT_AVAILABLE, transfer.type)
+                    assertEquals(TransferStatus.WAITING, transfer.status)
+                    assertEquals(0L, transfer.saveParentId)
+                    assertEquals("", transfer.source)
+                    assertEquals(emptyList(), transfer.links)
+                    assertEquals(false, transfer.isPrivate)
+                    assertEquals("", transfer.createdAt)
+
+                    val file = sdk.files.get(9)
+                    assertEquals(0L, file.size)
+                    assertEquals(PutioFolderType.REGULAR, file.folderType)
+                    assertEquals(false, file.isShared)
+
+                    val missingTransferName =
+                        assertFailsWith<PutioOperationException> {
+                            sdk.transfers.list()
+                        }
+                    assertIs<PutioSerializationException>(missingTransferName.underlyingError)
+
+                    val missingStatus =
+                        assertFailsWith<PutioOperationException> {
+                            sdk.transfers.list()
+                        }
+                    assertIs<PutioSerializationException>(missingStatus.underlyingError)
+                }
+            }
         }
 
     @Test
