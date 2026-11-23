@@ -34,7 +34,9 @@ data class ValidateTokenResult(
 data class TwoFactorRecoveryCode(
     val code: String,
     @SerialName("used_at") val usedAt: String? = null,
-)
+) {
+    override fun toString(): String = "TwoFactorRecoveryCode(code=<redacted>, usedAt=$usedAt)"
+}
 
 @Serializable
 data class TwoFactorRecoveryCodes(
@@ -55,7 +57,9 @@ data class GenerateTotpResult(
     val recoveryCodes: TwoFactorRecoveryCodes,
     val secret: String,
     val uri: String,
-)
+) {
+    override fun toString(): String = "GenerateTotpResult(recoveryCodes=<redacted>, secret=<redacted>, uri=<redacted>)"
+}
 
 @Serializable
 internal data class VerifyTotpEnvelope(
@@ -68,7 +72,9 @@ internal data class VerifyTotpEnvelope(
 data class VerifyTotpResult(
     val token: String,
     val userId: Long,
-)
+) {
+    override fun toString(): String = "VerifyTotpResult(token=<redacted>, userId=$userId)"
+}
 
 @Serializable
 internal data class RecoveryCodesEnvelope(
