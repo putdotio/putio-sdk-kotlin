@@ -49,11 +49,25 @@ internal class PutioMultipartFile(
 
 internal class PutioTransport(
     internal val config: PutioConfig,
-    private val httpClient: OkHttpClient,
+    private val httpClientProvider: () -> OkHttpClient,
     private val json: Json,
     private val exemptMultipartCallTimeout: Boolean = false,
     private val clockMillis: () -> Long = System::currentTimeMillis,
 ) {
+    internal constructor(
+        config: PutioConfig,
+        httpClient: OkHttpClient,
+        json: Json,
+        exemptMultipartCallTimeout: Boolean = false,
+        clockMillis: () -> Long = System::currentTimeMillis,
+    ) : this(
+        config = config,
+        httpClientProvider = { httpClient },
+        json = json,
+        exemptMultipartCallTimeout = exemptMultipartCallTimeout,
+        clockMillis = clockMillis,
+    )
+
     companion object {
         val defaultJson =
             Json {
@@ -131,6 +145,11 @@ internal class PutioTransport(
             auth = auth,
         )
 
+    fun <T> encodeJson(
+        serializer: KSerializer<T>,
+        value: T,
+    ): String = json.encodeToString(serializer, value)
+
     suspend fun <T, TBody> postJson(
         path: String,
         serializer: KSerializer<T>,
@@ -144,7 +163,7 @@ internal class PutioTransport(
             path = path,
             serializer = serializer,
             query = query,
-            jsonBody = json.encodeToString(bodySerializer, body),
+            jsonBody = encodeJson(bodySerializer, body),
             auth = auth,
         )
 
@@ -161,7 +180,7 @@ internal class PutioTransport(
             path = path,
             serializer = serializer,
             query = query,
-            jsonBody = json.encodeToString(bodySerializer, body),
+            jsonBody = encodeJson(bodySerializer, body),
             auth = auth,
         )
 
@@ -176,7 +195,7 @@ internal class PutioTransport(
             method = "PUT",
             pathSegments = pathSegments,
             serializer = serializer,
-            jsonBody = json.encodeToString(bodySerializer, body),
+            jsonBody = encodeJson(bodySerializer, body),
             auth = auth,
         )
 
@@ -301,7 +320,7 @@ internal class PutioTransport(
             buildRequest(method = method, url = url, form = form, jsonBody = jsonBody, auth = auth, body = body)
         val response =
             try {
-                val call = httpClient.newCall(request)
+                val call = httpClientProvider().newCall(request)
                 if (exemptCallTimeout) {
                     call.timeout().clearTimeout()
                 }

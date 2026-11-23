@@ -40,6 +40,7 @@ spotless {
 }
 
 kotlin {
+    explicitApi()
     jvmToolchain(21)
 
     compilerOptions {
@@ -63,8 +64,9 @@ configurations[liveTestSourceSet.implementationConfigurationName].extendsFrom(co
 configurations[liveTestSourceSet.runtimeOnlyConfigurationName].extendsFrom(configurations.testRuntimeOnly.get())
 
 dependencies {
-    implementation(platform("com.squareup.okhttp3:okhttp-bom:5.5.1"))
-    implementation("com.squareup.okhttp3:okhttp")
+    // `api`: OkHttpClient is exposed in PutioClient's constructor.
+    api(platform("com.squareup.okhttp3:okhttp-bom:5.5.1"))
+    api("com.squareup.okhttp3:okhttp")
     // `api`: Flow is part of the public surface (DeviceCodeAuth.link) and suspend functions need it on consumers.
     api("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.11.0")
     api("org.jetbrains.kotlinx:kotlinx-serialization-json:1.13.0")

@@ -22,42 +22,42 @@ import javax.net.ssl.SSLException
 import javax.net.ssl.SSLHandshakeException
 import javax.net.ssl.SSLPeerUnverifiedException
 
-data class PutioRequestData(
-    val method: String,
-    val url: String,
+public data class PutioRequestData(
+    public val method: String,
+    public val url: String,
 )
 
-data class PutioKnownErrorContract(
-    val errorType: String? = null,
-    val statusCode: Int? = null,
+public data class PutioKnownErrorContract(
+    public val errorType: String? = null,
+    public val statusCode: Int? = null,
 )
 
-data class PutioOperationErrorSpec(
-    val domain: String,
-    val operation: String,
-    val knownErrors: List<PutioKnownErrorContract> = emptyList(),
+public data class PutioOperationErrorSpec(
+    public val domain: String,
+    public val operation: String,
+    public val knownErrors: List<PutioKnownErrorContract> = emptyList(),
 )
 
 @Serializable
-data class PutioApiErrorEnvelope(
-    val message: String? = null,
-    val status: String? = null,
-    @SerialName("status_code") val statusCode: Int? = null,
-    @SerialName("error_type") val errorType: String? = null,
-    val details: JsonElement? = null,
-    @SerialName("error_message") val errorMessage: String? = null,
+public data class PutioApiErrorEnvelope(
+    public val message: String? = null,
+    public val status: String? = null,
+    @SerialName("status_code") public val statusCode: Int? = null,
+    @SerialName("error_type") public val errorType: String? = null,
+    public val details: JsonElement? = null,
+    @SerialName("error_message") public val errorMessage: String? = null,
 )
 
-sealed class PutioException(
+public sealed class PutioException(
     message: String,
     cause: Throwable? = null,
 ) : Exception(message, cause)
 
-class PutioConfigurationException(
+public class PutioConfigurationException(
     message: String,
 ) : PutioException(message)
 
-enum class PutioTransportFailureKind {
+public enum class PutioTransportFailureKind {
     TIMEOUT,
     INTERRUPTED,
     DNS,
@@ -68,18 +68,18 @@ enum class PutioTransportFailureKind {
     UNEXPECTED,
 }
 
-class PutioTransportException(
+public class PutioTransportException(
     request: PutioRequestData,
     cause: Throwable,
 ) : PutioException(
         "Transport failure for ${request.method} ${request.redacted().url}",
         cause.redactedTransportCause(),
     ) {
-    val request: PutioRequestData = request.redacted()
-    val failureKind: PutioTransportFailureKind = cause.toTransportFailureKind()
+    public val request: PutioRequestData = request.redacted()
+    public val failureKind: PutioTransportFailureKind = cause.toTransportFailureKind()
 }
 
-class PutioSerializationException(
+public class PutioSerializationException(
     request: PutioRequestData,
     responseBody: String,
     cause: Throwable,
@@ -87,53 +87,53 @@ class PutioSerializationException(
         "Failed to parse response for ${request.method} ${request.redacted().url}",
         cause.redactedSerializationCause(),
     ) {
-    val request: PutioRequestData = request.redacted()
-    val responseBody: String = redactSensitiveResponseBody(responseBody)
+    public val request: PutioRequestData = request.redacted()
+    public val responseBody: String = redactSensitiveResponseBody(responseBody)
 }
 
-class PutioApiException(
+public class PutioApiException(
     request: PutioRequestData,
     private val resolvedStatusCode: Int,
-    val httpStatusCode: Int = resolvedStatusCode,
+    public val httpStatusCode: Int = resolvedStatusCode,
     resolvedErrorType: String?,
     envelope: PutioApiErrorEnvelope,
     responseBody: String,
     message: String,
     /** Parsed `Retry-After` delay in whole seconds (delta-seconds or HTTP-date); null when absent or invalid. */
-    val retryAfterSeconds: Long? = null,
+    public val retryAfterSeconds: Long? = null,
 ) : PutioException(redactSensitiveUrlsInText(message)) {
-    val request: PutioRequestData = request.redacted()
-    val envelope: PutioApiErrorEnvelope = envelope.redacted()
-    val responseBody: String = redactSensitiveResponseBody(responseBody)
+    public val request: PutioRequestData = request.redacted()
+    public val envelope: PutioApiErrorEnvelope = envelope.redacted()
+    public val responseBody: String = redactSensitiveResponseBody(responseBody)
     private val resolvedErrorType: String? = resolvedErrorType?.let(::redactSensitiveUrlsInText)
 
-    val statusCode: Int
+    public val statusCode: Int
         get() = envelope.statusCode ?: resolvedStatusCode
 
-    val errorType: String?
+    public val errorType: String?
         get() = envelope.errorType ?: resolvedErrorType
 
     /** put.io's own explanation of the failure (`error_message`), redacted; null when the response has none. */
-    val errorMessage: String?
+    public val errorMessage: String?
         get() = envelope.errorMessage ?: envelope.message
 }
 
-sealed interface PutioOperationErrorReason {
-    data class ErrorType(
-        val errorType: String,
+public sealed interface PutioOperationErrorReason {
+    public data class ErrorType(
+        public val errorType: String,
     ) : PutioOperationErrorReason
 
-    data class StatusCode(
-        val statusCode: Int,
+    public data class StatusCode(
+        public val statusCode: Int,
     ) : PutioOperationErrorReason
 }
 
-class PutioOperationException(
-    val domain: String,
-    val operation: String,
-    val contract: PutioKnownErrorContract?,
-    val reason: PutioOperationErrorReason?,
-    val underlyingError: PutioException,
+public class PutioOperationException(
+    public val domain: String,
+    public val operation: String,
+    public val contract: PutioKnownErrorContract?,
+    public val reason: PutioOperationErrorReason?,
+    public val underlyingError: PutioException,
 ) : PutioException("put.io $domain.$operation failed", underlyingError)
 
 internal suspend fun <T> putioOperation(

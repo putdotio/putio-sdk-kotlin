@@ -6,10 +6,10 @@ import io.putdotio.sdk.errors.PutioKnownErrorContract
 import io.putdotio.sdk.errors.PutioOperationErrorSpec
 import io.putdotio.sdk.errors.putioOperation
 
-class TrashApi internal constructor(
+public class TrashApi internal constructor(
     private val transport: PutioTransport,
 ) {
-    suspend fun list(query: TrashListQuery = TrashListQuery()): TrashListResponse =
+    public suspend fun list(query: TrashListQuery = TrashListQuery()): TrashListResponse =
         putioOperation(LIST_TRASH_ERROR_SPEC) {
             transport
                 .get(
@@ -19,7 +19,7 @@ class TrashApi internal constructor(
                 ).toResponse()
         }
 
-    suspend fun continueList(
+    public suspend fun continueList(
         cursor: String,
         query: TrashContinueQuery = TrashContinueQuery(),
     ): TrashListResponse =
@@ -33,7 +33,7 @@ class TrashApi internal constructor(
                 ).toResponse()
         }
 
-    suspend fun restore(input: TrashBulkInput): OkResponse =
+    public suspend fun restore(input: TrashBulkInput): OkResponse =
         putioOperation(RESTORE_TRASH_ERROR_SPEC) {
             transport.post(
                 path = "/trash/restore",
@@ -42,7 +42,7 @@ class TrashApi internal constructor(
             )
         }
 
-    suspend fun delete(input: TrashBulkInput): OkResponse =
+    public suspend fun delete(input: TrashBulkInput): OkResponse =
         putioOperation(DELETE_TRASH_ERROR_SPEC) {
             transport.post(
                 path = "/trash/delete",
@@ -51,7 +51,7 @@ class TrashApi internal constructor(
             )
         }
 
-    suspend fun empty(): OkResponse =
+    public suspend fun empty(): OkResponse =
         putioOperation(EMPTY_TRASH_ERROR_SPEC) {
             transport.post(
                 path = "/trash/empty",

@@ -17,31 +17,31 @@ internal data class CodeMatchEnvelope(
 )
 
 @Serializable
-data class AuthorizationCode(
-    val code: String,
-    val qrCodeUrl: String,
+public data class AuthorizationCode(
+    public val code: String,
+    public val qrCodeUrl: String,
 )
 
 @Serializable
-data class ValidateTokenResult(
-    val result: Boolean,
-    @SerialName("token_id") val tokenId: Long? = null,
-    @SerialName("token_scope") val tokenScope: String? = null,
-    @SerialName("user_id") val userId: Long? = null,
+public data class ValidateTokenResult(
+    public val result: Boolean,
+    @SerialName("token_id") public val tokenId: Long? = null,
+    @SerialName("token_scope") public val tokenScope: String? = null,
+    @SerialName("user_id") public val userId: Long? = null,
 )
 
 @Serializable
-data class TwoFactorRecoveryCode(
-    val code: String,
-    @SerialName("used_at") val usedAt: String? = null,
+public data class TwoFactorRecoveryCode(
+    public val code: String,
+    @SerialName("used_at") public val usedAt: String? = null,
 ) {
-    override fun toString(): String = "TwoFactorRecoveryCode(code=<redacted>, usedAt=$usedAt)"
+    public override fun toString(): String = "TwoFactorRecoveryCode(code=<redacted>, usedAt=$usedAt)"
 }
 
 @Serializable
-data class TwoFactorRecoveryCodes(
-    val codes: List<TwoFactorRecoveryCode> = emptyList(),
-    @SerialName("created_at") val createdAt: String,
+public data class TwoFactorRecoveryCodes(
+    public val codes: List<TwoFactorRecoveryCode> = emptyList(),
+    @SerialName("created_at") public val createdAt: String,
 )
 
 @Serializable
@@ -53,12 +53,12 @@ internal data class GenerateTotpEnvelope(
 )
 
 @Serializable
-data class GenerateTotpResult(
-    val recoveryCodes: TwoFactorRecoveryCodes,
-    val secret: String,
-    val uri: String,
+public data class GenerateTotpResult(
+    public val recoveryCodes: TwoFactorRecoveryCodes,
+    public val secret: String,
+    public val uri: String,
 ) {
-    override fun toString(): String = "GenerateTotpResult(recoveryCodes=<redacted>, secret=<redacted>, uri=<redacted>)"
+    public override fun toString(): String = "GenerateTotpResult(recoveryCodes=<redacted>, secret=<redacted>, uri=<redacted>)"
 }
 
 @Serializable
@@ -69,11 +69,11 @@ internal data class VerifyTotpEnvelope(
 )
 
 @Serializable
-data class VerifyTotpResult(
-    val token: String,
-    val userId: Long,
+public data class VerifyTotpResult(
+    public val token: String,
+    public val userId: Long,
 ) {
-    override fun toString(): String = "VerifyTotpResult(token=<redacted>, userId=$userId)"
+    public override fun toString(): String = "VerifyTotpResult(token=<redacted>, userId=$userId)"
 }
 
 @Serializable

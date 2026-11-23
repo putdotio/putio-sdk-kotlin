@@ -19,44 +19,44 @@ import kotlin.time.TimeSource
  * Observable states of one device-code linking attempt. Terminal states are
  * [Linked], [Expired], and [Failed]; the flow completes after emitting one.
  */
-sealed interface DeviceCodeAuthState {
-    data object Requesting : DeviceCodeAuthState
+public sealed interface DeviceCodeAuthState {
+    public data object Requesting : DeviceCodeAuthState
 
     /** Show [code] and point the user to put.io/link; polling runs until [budget] elapses. */
-    data class AwaitingLink(
-        val code: String,
-        val qrCodeUrl: String,
-        val budget: Duration,
+    public data class AwaitingLink(
+        public val code: String,
+        public val qrCodeUrl: String,
+        public val budget: Duration,
     ) : DeviceCodeAuthState
 
-    data object Validating : DeviceCodeAuthState
+    public data object Validating : DeviceCodeAuthState
 
     /** Linked. The token is unredacted here and only here; store it, do not log it. */
-    data class Linked(
-        val accessToken: String,
-        val account: AccountInfo,
+    public data class Linked(
+        public val accessToken: String,
+        public val account: AccountInfo,
     ) : DeviceCodeAuthState {
-        override fun toString(): String = "Linked(account=${account.username})"
+        public override fun toString(): String = "Linked(account=${account.username})"
     }
 
     /** The code was never approved within the budget, or put.io rejected it as unknown. Start again. */
-    data class Expired(
-        val reason: Reason,
+    public data class Expired(
+        public val reason: Reason,
     ) : DeviceCodeAuthState {
-        enum class Reason { BUDGET_ELAPSED, CODE_REJECTED }
+        public enum class Reason { BUDGET_ELAPSED, CODE_REJECTED }
     }
 
     /** A non-recoverable error. [error] is a typed SDK exception; localize it for the user. */
-    data class Failed(
-        val error: PutioException,
+    public data class Failed(
+        public val error: PutioException,
     ) : DeviceCodeAuthState
 }
 
-data class DeviceCodeAuthOptions(
+public data class DeviceCodeAuthOptions(
     /** Interval between code-match polls. put.io's own TV app polls every three seconds. */
-    val pollInterval: Duration = 3.seconds,
+    public val pollInterval: Duration = 3.seconds,
     /** How long one code is polled before the attempt reports [DeviceCodeAuthState.Expired]. */
-    val budget: Duration = 5.minutes,
+    public val budget: Duration = 5.minutes,
 ) {
     init {
         require(pollInterval.isPositive()) { "pollInterval must be positive" }
@@ -70,13 +70,13 @@ data class DeviceCodeAuthOptions(
  * account. Each collection is one attempt; collect again to get a new code.
  * Cancelling the collector stops polling immediately.
  */
-class DeviceCodeAuth internal constructor(
+public class DeviceCodeAuth internal constructor(
     private val auth: AuthApi,
     private val account: AccountApi,
     private val timeSource: TimeSource = TimeSource.Monotonic,
     private val sleep: suspend (Duration) -> Unit = { delay(it) },
 ) {
-    fun link(options: DeviceCodeAuthOptions = DeviceCodeAuthOptions()): Flow<DeviceCodeAuthState> =
+    public fun link(options: DeviceCodeAuthOptions = DeviceCodeAuthOptions()): Flow<DeviceCodeAuthState> =
         flow {
             emit(DeviceCodeAuthState.Requesting)
             val issued =

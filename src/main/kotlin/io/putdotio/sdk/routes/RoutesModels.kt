@@ -3,10 +3,10 @@ package io.putdotio.sdk.routes
 import kotlinx.serialization.Serializable
 
 @Serializable
-data class TunnelRoute(
-    val name: String = "",
-    val description: String = "",
-    val hosts: List<String> = emptyList(),
+public data class TunnelRoute(
+    public val name: String = "",
+    public val description: String = "",
+    public val hosts: List<String> = emptyList(),
 )
 
 @Serializable

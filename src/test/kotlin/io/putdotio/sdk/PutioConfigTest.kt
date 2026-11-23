@@ -1,9 +1,12 @@
 package io.putdotio.sdk
 
+import io.putdotio.sdk.core.PutioTransport
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.async
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withTimeout
+import mockwebserver3.MockResponse
+import mockwebserver3.MockWebServer
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
 import okhttp3.Protocol
@@ -25,9 +28,20 @@ class PutioConfigTest {
     @Test
     fun `access token keeps the public data class API with volatile visibility`() {
         val config = PutioConfig(accessToken = "initial-token")
-        val accessTokenField = PutioConfig::class.java.getDeclaredField("accessToken")
-
-        assertTrue(Modifier.isVolatile(accessTokenField.modifiers))
+        val mutableFields =
+            listOf(
+                "accessToken",
+                "clientId",
+                "clientName",
+                "baseUrl",
+                "webAppUrl",
+                "userAgent",
+                "uploadBaseUrl",
+            )
+        mutableFields.forEach { fieldName ->
+            val field = PutioConfig::class.java.getDeclaredField(fieldName)
+            assertTrue(Modifier.isVolatile(field.modifiers), "$fieldName must be @Volatile")
+        }
         assertEquals("initial-token", config.component1())
         assertEquals("copied-token", config.copy(accessToken = "copied-token").accessToken)
 
@@ -140,6 +154,70 @@ class PutioConfigTest {
             releaseFirstRequest.countDown()
             httpClient.dispatcher.executorService.shutdown()
             httpClient.connectionPool.evictAll()
+        }
+    }
+
+    @Test
+    fun `default okHttpClient is allocated lazily on the first HTTP call`() {
+        val allocations = AtomicInteger(0)
+        val builtClients = mutableListOf<OkHttpClient>()
+        val factory = {
+            allocations.incrementAndGet()
+            defaultOkHttpClient().also { builtClients += it }
+        }
+
+        PutioClient(
+            config = PutioConfig(accessToken = "token", clientId = "android-app"),
+            okHttpClient = null,
+            json = PutioTransport.defaultJson,
+            defaultHttpClientFactory = factory,
+        ).use { urlOnlyClient ->
+            assertEquals("https://api.put.io/v2/files/7/download", urlOnlyClient.files.buildDownloadRequestUrl(7))
+            urlOnlyClient.auth.buildLoginUrl(redirectUri = "putio://cb", state = "s")
+            urlOnlyClient.grants.buildIconRequest(7)
+            assertEquals(0, allocations.get())
+        }
+        assertEquals(0, allocations.get())
+
+        MockWebServer().use { server ->
+            server.start()
+            server.enqueue(MockResponse.Builder().body("""{"result":true}""").build())
+            server.enqueue(MockResponse.Builder().body("""{"result":true}""").build())
+
+            PutioClient(
+                config = PutioConfig(accessToken = "token", baseUrl = server.url("/v2/").toString()),
+                okHttpClient = null,
+                json = PutioTransport.defaultJson,
+                defaultHttpClientFactory = factory,
+            ).use { activeClient ->
+                assertEquals(0, allocations.get())
+                val validation = runBlocking { activeClient.auth.validateToken() }
+                assertTrue(validation.result)
+                assertEquals(1, allocations.get())
+            }
+            assertTrue(
+                builtClients
+                    .single()
+                    .dispatcher.executorService.isShutdown,
+            )
+
+            val callerClient = OkHttpClient()
+            try {
+                PutioClient(
+                    config = PutioConfig(accessToken = "token", baseUrl = server.url("/v2/").toString()),
+                    okHttpClient = callerClient,
+                    json = PutioTransport.defaultJson,
+                    defaultHttpClientFactory = factory,
+                ).use { borrowedClient ->
+                    val validation = runBlocking { borrowedClient.auth.validateToken() }
+                    assertTrue(validation.result)
+                }
+                assertEquals(1, allocations.get())
+                assertFalse(callerClient.dispatcher.executorService.isShutdown)
+            } finally {
+                callerClient.dispatcher.executorService.shutdown()
+                callerClient.connectionPool.evictAll()
+            }
         }
     }
 

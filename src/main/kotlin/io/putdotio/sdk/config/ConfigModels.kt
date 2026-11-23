@@ -3,15 +3,15 @@ package io.putdotio.sdk.config
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.JsonElement
 
-data class AppConfig(
-    val values: Map<String, JsonElement>,
+public data class AppConfig(
+    public val values: Map<String, JsonElement>,
 ) {
-    operator fun get(key: String): JsonElement? = values[key]
+    public operator fun get(key: String): JsonElement? = values[key]
 }
 
-data class AppConfigUpdate(
-    val key: String,
-    val value: JsonElement,
+public data class AppConfigUpdate(
+    public val key: String,
+    public val value: JsonElement,
 ) {
     init {
         requireConfigKey(key)

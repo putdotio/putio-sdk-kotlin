@@ -9,10 +9,10 @@ import io.putdotio.sdk.errors.putioOperation
 import io.putdotio.sdk.files.PutioCredentialUrl
 import io.putdotio.sdk.files.PutioMediaRequest
 
-class GrantsApi internal constructor(
+public class GrantsApi internal constructor(
     private val transport: PutioTransport,
 ) {
-    suspend fun list(): List<OAuthGrant> =
+    public suspend fun list(): List<OAuthGrant> =
         putioOperation(LIST_GRANTS_ERROR_SPEC) {
             transport
                 .get(
@@ -21,7 +21,7 @@ class GrantsApi internal constructor(
                 ).apps
         }
 
-    suspend fun revoke(id: Long): OkResponse =
+    public suspend fun revoke(id: Long): OkResponse =
         putioOperation(REVOKE_GRANT_ERROR_SPEC) {
             transport.post(
                 path = "/oauth/grants/$id/delete",
@@ -29,7 +29,7 @@ class GrantsApi internal constructor(
             )
         }
 
-    suspend fun clients(): List<OAuthClient> =
+    public suspend fun clients(): List<OAuthClient> =
         putioOperation(LIST_CLIENTS_ERROR_SPEC) {
             transport
                 .get(
@@ -38,7 +38,7 @@ class GrantsApi internal constructor(
                 ).clients
         }
 
-    suspend fun revokeClient(id: Long): OkResponse =
+    public suspend fun revokeClient(id: Long): OkResponse =
         putioOperation(REVOKE_CLIENT_ERROR_SPEC) {
             transport.post(
                 path = "/oauth/clients/$id/delete",
@@ -51,7 +51,7 @@ class GrantsApi internal constructor(
      * takes the access token, not the download token: [PutioMediaRequest.headers] carry
      * [io.putdotio.sdk.PutioConfig.accessToken] as it is when called, and the URL carries none.
      */
-    fun buildIconRequest(appId: Long): PutioMediaRequest =
+    public fun buildIconRequest(appId: Long): PutioMediaRequest =
         PutioMediaRequest(
             url = transport.buildUrl(path = "/oauth/apps/$appId/icon"),
             headers = mapOf("Authorization" to checkNotNull(transport.resolveAuthorization(PutioAuth.ConfigToken))),
@@ -61,7 +61,7 @@ class GrantsApi internal constructor(
         "The URL carries the access token. Send it in a header instead.",
         ReplaceWith("buildIconRequest(appId)"),
     )
-    fun buildIconUrl(
+    public fun buildIconUrl(
         appId: Long,
         accessToken: String,
     ): PutioCredentialUrl =
@@ -72,7 +72,7 @@ class GrantsApi internal constructor(
             ),
         )
 
-    suspend fun linkDevice(code: String): OAuthGrant =
+    public suspend fun linkDevice(code: String): OAuthGrant =
         putioOperation(LINK_DEVICE_ERROR_SPEC) {
             transport
                 .post(

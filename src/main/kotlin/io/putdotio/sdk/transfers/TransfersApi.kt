@@ -6,12 +6,11 @@ import io.putdotio.sdk.errors.PutioKnownErrorContract
 import io.putdotio.sdk.errors.PutioOperationErrorSpec
 import io.putdotio.sdk.errors.putioOperation
 import kotlinx.serialization.builtins.ListSerializer
-import kotlinx.serialization.encodeToString
 
-class TransfersApi internal constructor(
+public class TransfersApi internal constructor(
     private val transport: PutioTransport,
 ) {
-    suspend fun list(query: TransfersListQuery = TransfersListQuery()): TransfersListResponse =
+    public suspend fun list(query: TransfersListQuery = TransfersListQuery()): TransfersListResponse =
         putioOperation(LIST_TRANSFERS_ERROR_SPEC) {
             transport.get(
                 path = "/transfers/list",
@@ -20,7 +19,7 @@ class TransfersApi internal constructor(
             )
         }
 
-    suspend fun continueList(
+    public suspend fun continueList(
         cursor: String,
         query: TransfersListQuery = TransfersListQuery(),
     ): TransfersListResponse =
@@ -33,7 +32,7 @@ class TransfersApi internal constructor(
             )
         }
 
-    suspend fun get(id: Long): Transfer =
+    public suspend fun get(id: Long): Transfer =
         putioOperation(GET_TRANSFER_ERROR_SPEC) {
             transport
                 .get(
@@ -42,7 +41,7 @@ class TransfersApi internal constructor(
                 ).transfer
         }
 
-    suspend fun count(): Int =
+    public suspend fun count(): Int =
         putioOperation(COUNT_TRANSFERS_ERROR_SPEC) {
             transport
                 .get(
@@ -51,7 +50,7 @@ class TransfersApi internal constructor(
                 ).count
         }
 
-    suspend fun info(urls: List<String>): TransferInfoResponse =
+    public suspend fun info(urls: List<String>): TransferInfoResponse =
         putioOperation(INFO_TRANSFERS_ERROR_SPEC) {
             transport.post(
                 path = "/transfers/info",
@@ -60,7 +59,7 @@ class TransfersApi internal constructor(
             )
         }
 
-    suspend fun add(input: TransferAddInput): Transfer =
+    public suspend fun add(input: TransferAddInput): Transfer =
         putioOperation(ADD_TRANSFER_ERROR_SPEC) {
             transport
                 .post(
@@ -70,10 +69,10 @@ class TransfersApi internal constructor(
                 ).transfer
         }
 
-    suspend fun addMany(inputs: List<TransferAddInput>): TransfersAddManyResponse =
+    public suspend fun addMany(inputs: List<TransferAddInput>): TransfersAddManyResponse =
         putioOperation(ADD_MANY_TRANSFERS_ERROR_SPEC) {
             val urls =
-                PutioTransport.defaultJson.encodeToString(
+                transport.encodeJson(
                     ListSerializer(TransferAddInput.serializer()),
                     inputs,
                 )
@@ -85,7 +84,7 @@ class TransfersApi internal constructor(
             )
         }
 
-    suspend fun cancel(ids: List<Long>): OkResponse =
+    public suspend fun cancel(ids: List<Long>): OkResponse =
         putioOperation(CANCEL_TRANSFERS_ERROR_SPEC) {
             transport.post(
                 path = "/transfers/cancel",
@@ -94,7 +93,7 @@ class TransfersApi internal constructor(
             )
         }
 
-    suspend fun clean(ids: List<Long> = emptyList()): TransfersCleanResponse =
+    public suspend fun clean(ids: List<Long> = emptyList()): TransfersCleanResponse =
         putioOperation(CLEAN_TRANSFERS_ERROR_SPEC) {
             transport.post(
                 path = "/transfers/clean",
@@ -105,7 +104,7 @@ class TransfersApi internal constructor(
             )
         }
 
-    suspend fun retry(id: Long): Transfer =
+    public suspend fun retry(id: Long): Transfer =
         putioOperation(RETRY_TRANSFER_ERROR_SPEC) {
             transport
                 .post(
