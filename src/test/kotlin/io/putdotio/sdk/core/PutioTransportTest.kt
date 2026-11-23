@@ -50,6 +50,28 @@ import kotlin.test.assertNull
 
 class PutioTransportTest {
     @Test
+    fun `get with pathSegments encodes literal segments and appends query`() =
+        withServer { server ->
+            server.enqueue(MockResponse.Builder().body("""{"status":"OK"}""").build())
+
+            val transport = newTransport(server, accessToken = "secret-token")
+            val response =
+                runBlocking {
+                    transport.get(
+                        pathSegments = listOf("oauth2", "oob", "code", "../escape"),
+                        serializer = OkResponse.serializer(),
+                        query = mapOf("k" to "v"),
+                        auth = PutioAuth.None,
+                    )
+                }
+
+            assertEquals("OK", response.status)
+            val request = server.takeRequest()
+            assertEquals("/v2/oauth2/oob/code/..%2Fescape?k=v", request.target)
+            assertNull(request.headers["Authorization"])
+        }
+
+    @Test
     fun `get with auth none omits authorization header`() =
         withServer { server ->
             server.enqueue(MockResponse.Builder().body("""{"status":"OK"}""").build())
