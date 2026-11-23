@@ -228,7 +228,8 @@ sdk.deviceCodeAuth.link().collect { state ->
 ```
 
 One collection is one attempt; collect again for a new code. The SDK owns polling,
-timeout, and token validation.
+timeout, transient `429` and `5xx` retries (honoring `Retry-After`), and token
+validation; API errors expose `PutioApiException.retryAfterSeconds`.
 
 ## Authentication URL Example
 

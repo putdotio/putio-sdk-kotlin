@@ -27,6 +27,7 @@ import mockwebserver3.MockWebServer
 import mockwebserver3.SocketEffect
 import okhttp3.Call
 import okhttp3.EventListener
+import okhttp3.Headers.Companion.headersOf
 import okhttp3.HttpUrl
 import okhttp3.HttpUrl.Companion.toHttpUrl
 import okhttp3.MediaType
@@ -42,6 +43,7 @@ import okio.buffer
 import java.io.IOException
 import java.net.ConnectException
 import java.net.SocketTimeoutException
+import java.time.Instant
 import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
 import kotlin.coroutines.cancellation.CancellationException
@@ -710,6 +712,87 @@ class PutioTransportTest {
         assertEquals("Bad next https://example.test/cb?oauth_token=REDACTED", error.errorMessage)
         assertEquals(error.errorMessage, error.message)
     }
+
+    @Test
+    fun `parseRetryAfterSeconds parses delta-seconds and HTTP-dates and ignores invalid values`() {
+        val nowMillis = Instant.parse("2026-03-17T00:00:00Z").toEpochMilli()
+
+        assertEquals(0L, parseRetryAfterSeconds(headersOf("Retry-After", "0"), nowMillis))
+        assertEquals(120L, parseRetryAfterSeconds(headersOf("Retry-After", " 120 "), nowMillis))
+        assertEquals(
+            90L,
+            parseRetryAfterSeconds(headersOf("Retry-After", "Tue, 17 Mar 2026 00:01:30 GMT"), nowMillis),
+        )
+        assertEquals(
+            1L,
+            parseRetryAfterSeconds(
+                headersOf("Retry-After", "Tue, 17 Mar 2026 00:00:01 GMT"),
+                Instant.parse("2026-03-17T00:00:00.999Z").toEpochMilli(),
+            ),
+        )
+        assertEquals(
+            0L,
+            parseRetryAfterSeconds(headersOf("Retry-After", "Mon, 16 Mar 2026 23:59:00 GMT"), nowMillis),
+        )
+        assertNull(parseRetryAfterSeconds(headersOf(), nowMillis))
+        listOf("", "   ", "-5", "+5", "1.5", "retry in 5", "999999999999999999999999").forEach { raw ->
+            assertNull(parseRetryAfterSeconds(headersOf("Retry-After", raw), nowMillis), "raw=$raw")
+        }
+    }
+
+    @Test
+    fun `api errors expose parsed Retry-After seconds from response headers`() =
+        withServer { server ->
+            val nowMillis = Instant.parse("2026-03-17T00:00:00Z").toEpochMilli()
+            server.enqueue(
+                MockResponse
+                    .Builder()
+                    .code(429)
+                    .addHeader("Retry-After", "12")
+                    .body("""{"status":"ERROR","status_code":429,"error_type":"RATE_LIMITED"}""")
+                    .build(),
+            )
+            server.enqueue(
+                MockResponse
+                    .Builder()
+                    .code(503)
+                    .addHeader("Retry-After", "Tue, 17 Mar 2026 00:01:30 GMT")
+                    .body("unavailable")
+                    .build(),
+            )
+            server.enqueue(
+                MockResponse
+                    .Builder()
+                    .code(500)
+                    .body("""{"status":"ERROR","status_code":500}""")
+                    .build(),
+            )
+
+            val transport =
+                PutioTransport(
+                    config = PutioConfig(baseUrl = server.url("/v2/").toString(), accessToken = "secret-token"),
+                    httpClient = OkHttpClient(),
+                    json = PutioTransport.defaultJson,
+                    clockMillis = { nowMillis },
+                )
+
+            val rateLimited =
+                assertFailsWith<PutioApiException> {
+                    runBlocking { transport.get(path = "/files/list", serializer = OkResponse.serializer()) }
+                }
+            val unavailable =
+                assertFailsWith<PutioApiException> {
+                    runBlocking { transport.get(path = "/files/list", serializer = OkResponse.serializer()) }
+                }
+            val serverError =
+                assertFailsWith<PutioApiException> {
+                    runBlocking { transport.get(path = "/files/list", serializer = OkResponse.serializer()) }
+                }
+
+            assertEquals(12L, rateLimited.retryAfterSeconds)
+            assertEquals(90L, unavailable.retryAfterSeconds)
+            assertNull(serverError.retryAfterSeconds)
+        }
 
     private fun failWith(
         status: Int,
