@@ -14,6 +14,7 @@ import kotlinx.serialization.KSerializer
 import kotlinx.serialization.json.Json
 import okhttp3.FormBody
 import okhttp3.HttpUrl.Companion.toHttpUrl
+import okhttp3.MediaType
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.MultipartBody
 import okhttp3.OkHttpClient
@@ -21,6 +22,7 @@ import okhttp3.Request
 import okhttp3.RequestBody
 import okhttp3.RequestBody.Companion.toRequestBody
 import okhttp3.Response
+import okio.BufferedSink
 import java.io.IOException
 import java.util.concurrent.atomic.AtomicBoolean
 import kotlin.coroutines.cancellation.CancellationException
@@ -48,6 +50,7 @@ internal class PutioTransport(
     internal val config: PutioConfig,
     private val httpClient: OkHttpClient,
     private val json: Json,
+    private val exemptMultipartCallTimeout: Boolean = false,
 ) {
     companion object {
         val defaultJson =
@@ -199,6 +202,7 @@ internal class PutioTransport(
             serializer = serializer,
             auth = auth,
             body = body,
+            exemptCallTimeout = exemptMultipartCallTimeout,
         )
     }
 
@@ -288,13 +292,18 @@ internal class PutioTransport(
         jsonBody: String? = null,
         auth: PutioAuth = PutioAuth.ConfigToken,
         body: RequestBody? = null,
+        exemptCallTimeout: Boolean = false,
     ): T {
         val requestData = PutioRequestData(method = method, url = url)
         val request =
             buildRequest(method = method, url = url, form = form, jsonBody = jsonBody, auth = auth, body = body)
         val response =
             try {
-                httpClient.newCall(request).awaitResponseBody()
+                val call = httpClient.newCall(request)
+                if (exemptCallTimeout) {
+                    call.timeout().clearTimeout()
+                }
+                call.awaitResponseBody()
             } catch (cancellation: CancellationException) {
                 throw cancellation
             } catch (cause: Exception) {
@@ -333,7 +342,7 @@ internal class PutioTransport(
 
         return when (method) {
             "GET" -> builder.get().build()
-            "POST" -> builder.post(body ?: jsonBody?.toRequestBody(JSON_MEDIA_TYPE) ?: buildFormBody(form)).build()
+            "POST" -> builder.post(OneShotRequestBody(body ?: jsonBody?.toRequestBody(JSON_MEDIA_TYPE) ?: buildFormBody(form))).build()
             "PUT" -> builder.put(jsonBody?.toRequestBody(JSON_MEDIA_TYPE) ?: buildFormBody(form)).build()
             "DELETE" -> builder.delete().build()
             else -> error("Unsupported method $method")
@@ -404,6 +413,20 @@ private fun okhttp3.HttpUrl.Builder.addLiteralPathSegment(segment: String): okht
 }
 
 private val JSON_MEDIA_TYPE = "application/json; charset=utf-8".toMediaType()
+
+private class OneShotRequestBody(
+    private val delegate: RequestBody,
+) : RequestBody() {
+    override fun contentType(): MediaType? = delegate.contentType()
+
+    override fun contentLength(): Long = delegate.contentLength()
+
+    override fun isOneShot(): Boolean = true
+
+    override fun writeTo(sink: BufferedSink) {
+        delegate.writeTo(sink)
+    }
+}
 
 private data class PutioHttpResponse(
     val statusCode: Int,

@@ -16,6 +16,7 @@ import io.putdotio.sdk.trash.TrashApi
 import kotlinx.serialization.json.Json
 import okhttp3.OkHttpClient
 import java.io.Closeable
+import java.util.concurrent.TimeUnit
 
 class PutioClient(
     val config: PutioConfig = PutioConfig(),
@@ -23,8 +24,17 @@ class PutioClient(
     json: Json = PutioTransport.defaultJson,
 ) : Closeable {
     private val ownsHttpClient = okHttpClient == null
-    private val httpClient = okHttpClient ?: OkHttpClient.Builder().build()
-    private val transport = PutioTransport(config = config, httpClient = httpClient, json = json)
+    private val httpClient = okHttpClient ?: defaultOkHttpClient()
+    private val transport =
+        PutioTransport(
+            config = config,
+            httpClient = httpClient,
+            json = json,
+            exemptMultipartCallTimeout = ownsHttpClient,
+        )
+
+    internal val defaultCallTimeoutMillis: Int
+        get() = httpClient.callTimeoutMillis
 
     val account = AccountApi(transport)
     val auth = AuthApi(transport)
@@ -67,3 +77,9 @@ class PutioClient(
         httpClient.cache?.close()
     }
 }
+
+internal fun defaultOkHttpClient(): OkHttpClient =
+    OkHttpClient
+        .Builder()
+        .callTimeout(DEFAULT_CALL_TIMEOUT_SECONDS, TimeUnit.SECONDS)
+        .build()
