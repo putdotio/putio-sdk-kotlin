@@ -1,27 +1,27 @@
 package io.putdotio.sdk.errors
 
-sealed interface PutioRecoverySuggestion {
-    val description: String
+public sealed interface PutioRecoverySuggestion {
+    public val description: String
 
-    data class Instruction(
-        override val description: String,
+    public data class Instruction(
+        public override val description: String,
     ) : PutioRecoverySuggestion
 
-    data class Captcha(
-        override val description: String,
+    public data class Captcha(
+        public override val description: String,
     ) : PutioRecoverySuggestion
 }
 
-data class PutioLocalizedError(
-    val message: String,
-    val failureReason: String,
-    val recoverySuggestion: PutioRecoverySuggestion,
-    val underlyingError: Throwable,
-    val meta: Map<String, String> = emptyMap(),
+public data class PutioLocalizedError(
+    public val message: String,
+    public val failureReason: String,
+    public val recoverySuggestion: PutioRecoverySuggestion,
+    public val underlyingError: Throwable,
+    public val meta: Map<String, String> = emptyMap(),
 )
 
-object PutioErrorLocalizer {
-    fun localize(error: Throwable): PutioLocalizedError =
+public object PutioErrorLocalizer {
+    public fun localize(error: Throwable): PutioLocalizedError =
         when (error) {
             is PutioOperationException -> {
                 localizeOperation(error)

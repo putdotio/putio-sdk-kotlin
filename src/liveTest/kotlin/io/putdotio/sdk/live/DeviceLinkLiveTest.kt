@@ -52,5 +52,41 @@ class DeviceLinkLiveTest {
         }
     }
 
+    @Test
+    fun `logout with an explicit token revokes only the disposable linked token`() {
+        runBlocking {
+            val clientId = LiveSupport.requireClientId()
+            val appId = clientId.toLong()
+            LiveSupport.newAuthedClient(clientId = clientId).use { sdk ->
+                val grantedBefore = sdk.isGranted(appId)
+                var token: String? = null
+                var linkedClientId: Long? = null
+                val code = sdk.auth.getCode().code
+
+                try {
+                    sdk.grants.linkDevice(code)
+                    val issued = assertNotNull(sdk.auth.checkCodeMatch(code))
+                    token = issued
+                    val validation = sdk.auth.validateToken(issued)
+                    assertTrue(validation.result)
+                    linkedClientId = LiveSupport.recordFixture("client", assertNotNull(validation.tokenId))
+
+                    assertEquals("OK", sdk.auth.logout(token = issued).status)
+                    assertFalse(runCatching { sdk.auth.validateToken(issued).result }.getOrDefault(false))
+                    assertTrue(sdk.auth.validateToken().result)
+                } finally {
+                    val issued = token ?: runCatching { sdk.auth.checkCodeMatch(code) }.getOrNull()
+                    val linkedId =
+                        linkedClientId
+                            ?: issued?.let { runCatching { sdk.auth.validateToken(it).tokenId }.getOrNull() }
+                    linkedId
+                        ?.takeIf { id -> sdk.grants.clients().any { it.id == id && it.appId == appId } }
+                        ?.let { sdk.grants.revokeClient(it) }
+                }
+                assertEquals(grantedBefore, sdk.isGranted(appId))
+            }
+        }
+    }
+
     private suspend fun PutioClient.isGranted(appId: Long): Boolean = grants.list().any { it.id == appId }
 }

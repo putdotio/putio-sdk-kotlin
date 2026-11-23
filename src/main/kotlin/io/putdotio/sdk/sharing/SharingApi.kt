@@ -6,12 +6,12 @@ import io.putdotio.sdk.errors.PutioKnownErrorContract
 import io.putdotio.sdk.errors.PutioOperationErrorSpec
 import io.putdotio.sdk.errors.putioOperation
 
-class SharingApi internal constructor(
+public class SharingApi internal constructor(
     private val transport: PutioTransport,
 ) {
-    val publicShares = PublicSharesApi(transport)
+    public val publicShares: PublicSharesApi = PublicSharesApi(transport)
 
-    suspend fun shareFiles(input: ShareFilesInput): OkResponse =
+    public suspend fun shareFiles(input: ShareFilesInput): OkResponse =
         putioOperation(SHARE_FILES_ERROR_SPEC) {
             transport.post(
                 path = "/files/share",
@@ -20,7 +20,7 @@ class SharingApi internal constructor(
             )
         }
 
-    suspend fun listSharedFiles(): List<SharedFile> =
+    public suspend fun listSharedFiles(): List<SharedFile> =
         putioOperation(LIST_SHARED_FILES_ERROR_SPEC) {
             transport
                 .get(
@@ -29,7 +29,7 @@ class SharingApi internal constructor(
                 ).shared
         }
 
-    suspend fun getSharedWith(fileId: Long): SharedWith =
+    public suspend fun getSharedWith(fileId: Long): SharedWith =
         putioOperation(GET_SHARED_WITH_ERROR_SPEC) {
             transport
                 .get(
@@ -43,7 +43,7 @@ class SharingApi internal constructor(
      * for [getCloneInfo]. put.io checks the selection and quotas when the copy runs, so a started
      * copy can still end in [SharedFileCloneStatus.ERROR].
      */
-    suspend fun cloneSharedFiles(input: CloneSharedFilesInput): Long =
+    public suspend fun cloneSharedFiles(input: CloneSharedFilesInput): Long =
         putioOperation(CLONE_SHARED_FILES_ERROR_SPEC) {
             transport
                 .post(
@@ -53,7 +53,7 @@ class SharingApi internal constructor(
                 ).id
         }
 
-    suspend fun getCloneInfo(id: Long): SharedFileCloneInfo {
+    public suspend fun getCloneInfo(id: Long): SharedFileCloneInfo {
         require(id > 0) { "Clone id must be positive" }
         return putioOperation(GET_CLONE_INFO_ERROR_SPEC) {
             transport
@@ -65,7 +65,7 @@ class SharingApi internal constructor(
     }
 
     /** Removes the given shares of [fileId]; share ids come from [getSharedWith]. */
-    suspend fun unshare(
+    public suspend fun unshare(
         fileId: Long,
         shareIds: List<Long>,
     ): OkResponse {
@@ -74,7 +74,7 @@ class SharingApi internal constructor(
     }
 
     /** Removes every share of [fileId], including an everyone share. */
-    suspend fun unshareAll(fileId: Long): OkResponse = postUnshare(fileId, "everyone")
+    public suspend fun unshareAll(fileId: Long): OkResponse = postUnshare(fileId, "everyone")
 
     private suspend fun postUnshare(
         fileId: Long,
@@ -89,10 +89,10 @@ class SharingApi internal constructor(
         }
 }
 
-class PublicSharesApi internal constructor(
+public class PublicSharesApi internal constructor(
     private val transport: PutioTransport,
 ) {
-    suspend fun create(fileId: Long): PublicShare =
+    public suspend fun create(fileId: Long): PublicShare =
         putioOperation(CREATE_PUBLIC_SHARE_ERROR_SPEC) {
             transport
                 .post(
@@ -101,7 +101,7 @@ class PublicSharesApi internal constructor(
                 ).publicShare
         }
 
-    suspend fun list(): List<PublicShare> =
+    public suspend fun list(): List<PublicShare> =
         putioOperation(LIST_PUBLIC_SHARES_ERROR_SPEC) {
             transport
                 .get(
@@ -110,7 +110,7 @@ class PublicSharesApi internal constructor(
                 ).publicShares
         }
 
-    suspend fun delete(id: Long): OkResponse =
+    public suspend fun delete(id: Long): OkResponse =
         putioOperation(DELETE_PUBLIC_SHARE_ERROR_SPEC) {
             transport.delete(
                 path = "/public_share/$id",

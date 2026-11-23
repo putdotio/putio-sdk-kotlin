@@ -6,10 +6,10 @@ import io.putdotio.sdk.errors.PutioKnownErrorContract
 import io.putdotio.sdk.errors.PutioOperationErrorSpec
 import io.putdotio.sdk.errors.putioOperation
 
-class IftttApi internal constructor(
+public class IftttApi internal constructor(
     private val transport: PutioTransport,
 ) {
-    suspend fun sendPlaybackEvent(input: IftttPlaybackEventInput): OkResponse =
+    public suspend fun sendPlaybackEvent(input: IftttPlaybackEventInput): OkResponse =
         putioOperation(SEND_PLAYBACK_EVENT_ERROR_SPEC) {
             transport.postJson(
                 path = "/ifttt-client/event",

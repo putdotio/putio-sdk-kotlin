@@ -6,34 +6,34 @@ import kotlinx.serialization.Serializable
 
 @Serializable(with = HistoryEventType.Serializer::class)
 @JvmInline
-value class HistoryEventType(
-    val raw: String,
+public value class HistoryEventType(
+    public val raw: String,
 ) {
-    val isKnown: Boolean
+    public val isKnown: Boolean
         get() = raw in knownValues
 
-    override fun toString(): String = raw
+    public override fun toString(): String = raw
 
-    companion object {
+    public companion object {
         // Wire values as the API sends them, lowercase; see putio-sdk-typescript events.ts.
-        val UPLOAD = HistoryEventType("upload")
-        val FILE_SHARED = HistoryEventType("file_shared")
-        val TRANSFER_COMPLETED = HistoryEventType("transfer_completed")
-        val TRANSFER_ERROR = HistoryEventType("transfer_error")
-        val FILE_FROM_RSS_DELETED_FOR_SPACE = HistoryEventType("file_from_rss_deleted_for_space")
-        val RSS_FILTER_PAUSED = HistoryEventType("rss_filter_paused")
-        val TRANSFER_FROM_RSS_ERROR = HistoryEventType("transfer_from_rss_error")
-        val TRANSFER_CALLBACK_ERROR = HistoryEventType("transfer_callback_error")
-        val PRIVATE_TORRENT_PIN = HistoryEventType("private_torrent_pin")
-        val VOUCHER = HistoryEventType("voucher")
-        val ZIP_CREATED = HistoryEventType("zip_created")
-        val OTHER = HistoryEventType("other")
+        public val UPLOAD: HistoryEventType = HistoryEventType("upload")
+        public val FILE_SHARED: HistoryEventType = HistoryEventType("file_shared")
+        public val TRANSFER_COMPLETED: HistoryEventType = HistoryEventType("transfer_completed")
+        public val TRANSFER_ERROR: HistoryEventType = HistoryEventType("transfer_error")
+        public val FILE_FROM_RSS_DELETED_FOR_SPACE: HistoryEventType = HistoryEventType("file_from_rss_deleted_for_space")
+        public val RSS_FILTER_PAUSED: HistoryEventType = HistoryEventType("rss_filter_paused")
+        public val TRANSFER_FROM_RSS_ERROR: HistoryEventType = HistoryEventType("transfer_from_rss_error")
+        public val TRANSFER_CALLBACK_ERROR: HistoryEventType = HistoryEventType("transfer_callback_error")
+        public val PRIVATE_TORRENT_PIN: HistoryEventType = HistoryEventType("private_torrent_pin")
+        public val VOUCHER: HistoryEventType = HistoryEventType("voucher")
+        public val ZIP_CREATED: HistoryEventType = HistoryEventType("zip_created")
+        public val OTHER: HistoryEventType = HistoryEventType("other")
 
         @Deprecated(
             "The API sends file_from_rss_deleted_for_space; this name never matched an event.",
             ReplaceWith("FILE_FROM_RSS_DELETED_FOR_SPACE"),
         )
-        val FILE_FROM_RSS_DELETED_ERROR: HistoryEventType
+        public val FILE_FROM_RSS_DELETED_ERROR: HistoryEventType
             get() = FILE_FROM_RSS_DELETED_FOR_SPACE
 
         private val knownValues =
@@ -53,10 +53,10 @@ value class HistoryEventType(
             ).associateBy { it.raw }
 
         /** Known types match regardless of case and keep their canonical raw value; others keep theirs. */
-        fun fromRaw(raw: String): HistoryEventType = knownValues[raw.lowercase()] ?: HistoryEventType(raw)
+        public fun fromRaw(raw: String): HistoryEventType = knownValues[raw.lowercase()] ?: HistoryEventType(raw)
     }
 
-    object Serializer : RawStringValueSerializer<HistoryEventType>("HistoryEventType") {
+    public object Serializer : RawStringValueSerializer<HistoryEventType>("HistoryEventType") {
         override fun fromRaw(raw: String): HistoryEventType = Companion.fromRaw(raw)
 
         override fun toRaw(value: HistoryEventType): String = value.raw
@@ -64,36 +64,36 @@ value class HistoryEventType(
 }
 
 @Serializable
-data class HistoryEvent(
-    val id: Long,
-    @SerialName("user_id") val userId: Long,
-    @SerialName("created_at") val createdAt: String,
-    val type: HistoryEventType = HistoryEventType.OTHER,
-    @SerialName("file_id") val fileId: Long? = null,
-    @SerialName("file_name") val fileName: String? = null,
-    @SerialName("transfer_id") val transferId: Long? = null,
-    @SerialName("transfer_name") val transferName: String? = null,
-    @SerialName("rss_filter_title") val rssFilterTitle: String? = null,
-    @SerialName("zip_id") val zipId: Long? = null,
-    val icon: String? = null,
+public data class HistoryEvent(
+    public val id: Long,
+    @SerialName("user_id") public val userId: Long,
+    @SerialName("created_at") public val createdAt: String,
+    public val type: HistoryEventType = HistoryEventType.OTHER,
+    @SerialName("file_id") public val fileId: Long? = null,
+    @SerialName("file_name") public val fileName: String? = null,
+    @SerialName("transfer_id") public val transferId: Long? = null,
+    @SerialName("transfer_name") public val transferName: String? = null,
+    @SerialName("rss_filter_title") public val rssFilterTitle: String? = null,
+    @SerialName("zip_id") public val zipId: Long? = null,
+    public val icon: String? = null,
     /** Size in bytes of the file the event names, sent on `upload`, `file_shared` and `file_from_rss_deleted_for_space`. */
-    @SerialName("file_size") val fileSize: Long? = null,
+    @SerialName("file_size") public val fileSize: Long? = null,
     /** Name of the user who shared the file, sent on `file_shared`. */
-    @SerialName("sharing_user_name") val sharingUserName: String? = null,
+    @SerialName("sharing_user_name") public val sharingUserName: String? = null,
     /** Total size in bytes of the completed transfer, sent on `transfer_completed`. */
-    @SerialName("transfer_size") val transferSize: Long? = null,
+    @SerialName("transfer_size") public val transferSize: Long? = null,
 )
 
 @Serializable
-data class HistoryListResponse(
-    val events: List<HistoryEvent>,
-    @SerialName("has_more") val hasMore: Boolean,
-    val status: String,
+public data class HistoryListResponse(
+    public val events: List<HistoryEvent>,
+    @SerialName("has_more") public val hasMore: Boolean,
+    public val status: String,
 )
 
-data class HistoryListQuery(
-    val perPage: Int? = null,
-    val before: Long? = null,
+public data class HistoryListQuery(
+    public val perPage: Int? = null,
+    public val before: Long? = null,
 )
 
 internal fun HistoryListQuery.toQueryMap(): Map<String, String> =

@@ -18,42 +18,55 @@ import okhttp3.OkHttpClient
 import java.io.Closeable
 import java.util.concurrent.TimeUnit
 
-class PutioClient(
-    val config: PutioConfig = PutioConfig(),
-    okHttpClient: OkHttpClient? = null,
-    json: Json = PutioTransport.defaultJson,
+public class PutioClient internal constructor(
+    public val config: PutioConfig,
+    okHttpClient: OkHttpClient?,
+    json: Json,
+    defaultHttpClientFactory: () -> OkHttpClient,
 ) : Closeable {
+    public constructor(
+        config: PutioConfig = PutioConfig(),
+        okHttpClient: OkHttpClient? = null,
+        json: Json = PutioTransport.defaultJson,
+    ) : this(
+        config = config,
+        okHttpClient = okHttpClient,
+        json = json,
+        defaultHttpClientFactory = ::defaultOkHttpClient,
+    )
+
     private val ownsHttpClient = okHttpClient == null
-    private val httpClient = okHttpClient ?: defaultOkHttpClient()
+    private val httpClientDelegate: Lazy<OkHttpClient> =
+        if (okHttpClient != null) lazyOf(okHttpClient) else lazy(defaultHttpClientFactory)
     private val transport =
         PutioTransport(
             config = config,
-            httpClient = httpClient,
+            httpClientProvider = httpClientDelegate::value,
             json = json,
             exemptMultipartCallTimeout = ownsHttpClient,
         )
 
     internal val defaultCallTimeoutMillis: Int
-        get() = httpClient.callTimeoutMillis
+        get() = httpClientDelegate.value.callTimeoutMillis
 
-    val account = AccountApi(transport)
-    val auth = AuthApi(transport)
-    val deviceCodeAuth = DeviceCodeAuth(auth, account)
-    val appConfig = ConfigApi(transport)
-    val files = FilesApi(transport)
-    val grants = GrantsApi(transport)
-    val history = HistoryApi(transport)
-    val ifttt = IftttApi(transport)
-    val routes = RoutesApi(transport)
-    val sharing = SharingApi(transport)
-    val trash = TrashApi(transport)
-    val transfers = TransfersApi(transport)
+    public val account: AccountApi = AccountApi(transport)
+    public val auth: AuthApi = AuthApi(transport)
+    public val deviceCodeAuth: DeviceCodeAuth = DeviceCodeAuth(auth, account)
+    public val appConfig: ConfigApi = ConfigApi(transport)
+    public val files: FilesApi = FilesApi(transport)
+    public val grants: GrantsApi = GrantsApi(transport)
+    public val history: HistoryApi = HistoryApi(transport)
+    public val ifttt: IftttApi = IftttApi(transport)
+    public val routes: RoutesApi = RoutesApi(transport)
+    public val sharing: SharingApi = SharingApi(transport)
+    public val trash: TrashApi = TrashApi(transport)
+    public val transfers: TransfersApi = TransfersApi(transport)
 
-    fun setAccessToken(token: String) {
+    public fun setAccessToken(token: String) {
         config.accessToken = token
     }
 
-    fun clearAccessToken() {
+    public fun clearAccessToken() {
         config.accessToken = null
     }
 
@@ -62,16 +75,17 @@ class PutioClient(
      * atomic step, and returns whether it did. Pass a `null` [token] to clear, so a sign-out
      * for a rejected token cannot wipe the one a concurrent sign-in just set.
      */
-    fun compareAndSetAccessToken(
+    public fun compareAndSetAccessToken(
         expected: String?,
         token: String?,
     ): Boolean = config.compareAndSetAccessToken(expected, token)
 
-    override fun close() {
-        if (!ownsHttpClient) {
+    public override fun close() {
+        if (!ownsHttpClient || !httpClientDelegate.isInitialized()) {
             return
         }
 
+        val httpClient = httpClientDelegate.value
         httpClient.dispatcher.executorService.shutdown()
         httpClient.connectionPool.evictAll()
         httpClient.cache?.close()

@@ -6,6 +6,7 @@ import io.putdotio.sdk.errors.PutioApiException
 import io.putdotio.sdk.errors.PutioOperationErrorReason
 import io.putdotio.sdk.errors.PutioOperationException
 import kotlinx.coroutines.runBlocking
+import kotlinx.serialization.json.Json
 import mockwebserver3.MockResponse
 import mockwebserver3.MockWebServer
 import java.net.URLDecoder
@@ -368,6 +369,42 @@ class TransfersApiTest {
             assertEquals("add", error.operation)
             val underlying = assertIs<PutioApiException>(error.underlyingError)
             assertEquals("EMPTY_URL", underlying.errorType)
+        }
+
+    @Test
+    fun `addMany encodes inputs with the client configured Json`() =
+        withServer { server ->
+            server.enqueue(
+                MockResponse
+                    .Builder()
+                    .body("""{"errors":[],"transfers":[],"status":"OK"}""")
+                    .build(),
+            )
+
+            runBlocking {
+                PutioClient(
+                    config =
+                        PutioConfig(
+                            accessToken = "token",
+                            baseUrl = server.url("/v2/").toString(),
+                        ),
+                    json =
+                        Json {
+                            ignoreUnknownKeys = true
+                            encodeDefaults = true
+                            explicitNulls = true
+                        },
+                ).use { sdk ->
+                    sdk.transfers.addMany(listOf(TransferAddInput(url = "https://example.com/one")))
+                }
+            }
+
+            val request = server.takeRequest()
+            assertEquals("/v2/transfers/add-multi", request.target)
+            assertEquals(
+                """[{"url":"https://example.com/one","save_parent_id":null,"callback_url":null}]""",
+                formValues(request.body!!.utf8())["urls"],
+            )
         }
 
     private fun formValues(body: String): Map<String, String> {

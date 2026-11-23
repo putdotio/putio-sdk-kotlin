@@ -4,23 +4,23 @@ import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 
 @Serializable
-data class OAuthGrant(
-    val id: Long,
-    val name: String = "",
-    val description: String = "",
-    val website: String? = null,
-    @SerialName("has_icon") val hasIcon: Boolean? = null,
+public data class OAuthGrant(
+    public val id: Long,
+    public val name: String = "",
+    public val description: String = "",
+    public val website: String? = null,
+    @SerialName("has_icon") public val hasIcon: Boolean? = null,
 )
 
 @Serializable
-data class OAuthClient(
-    val id: Long,
-    @SerialName("app_id") val appId: Long,
-    @SerialName("app_name") val appName: String? = null,
-    @SerialName("client_name") val clientName: String = "",
-    @SerialName("created_at") val createdAt: String? = null,
-    @SerialName("last_used_at") val lastUsedAt: String? = null,
-    val active: Boolean = false,
+public data class OAuthClient(
+    public val id: Long,
+    @SerialName("app_id") public val appId: Long,
+    @SerialName("app_name") public val appName: String? = null,
+    @SerialName("client_name") public val clientName: String = "",
+    @SerialName("created_at") public val createdAt: String? = null,
+    @SerialName("last_used_at") public val lastUsedAt: String? = null,
+    public val active: Boolean = false,
 )
 
 @Serializable

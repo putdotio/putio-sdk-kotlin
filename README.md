@@ -90,7 +90,9 @@ val sdk = PutioClient(
 ```
 
 `PutioClient.close()` does not close an injected client's cache, dispatcher,
-or connection pool. It closes only a client it created.
+or connection pool. It closes only a client it created, and creates that
+default `OkHttpClient` lazily on the first HTTP request so pure URL builders
+allocate none.
 
 ## File Types
 
@@ -143,7 +145,9 @@ val url = sdk.files.buildDownloadRequestUrl(fileId = file.id)
 
 `setAccessToken`, `clearAccessToken` and `compareAndSetAccessToken` are atomic.
 Use `compareAndSetAccessToken(expected = rejected, token = null)` to sign out
-after a 401 without clearing a token a concurrent sign-in just set.
+after a 401 without clearing a token a concurrent sign-in just set. Pass a
+specific token to `auth.logout(token)` to revoke it without altering
+`PutioConfig.accessToken`; omit `token` to revoke the configured one.
 
 ## Logged-in Apps
 

@@ -6,10 +6,10 @@ import io.putdotio.sdk.errors.PutioKnownErrorContract
 import io.putdotio.sdk.errors.PutioOperationErrorSpec
 import io.putdotio.sdk.errors.putioOperation
 
-class ConfigApi internal constructor(
+public class ConfigApi internal constructor(
     private val transport: PutioTransport,
 ) {
-    suspend fun get(): AppConfig =
+    public suspend fun get(): AppConfig =
         putioOperation(GET_CONFIG_ERROR_SPEC) {
             AppConfig(
                 transport
@@ -20,7 +20,7 @@ class ConfigApi internal constructor(
             )
         }
 
-    suspend fun save(update: AppConfigUpdate): OkResponse =
+    public suspend fun save(update: AppConfigUpdate): OkResponse =
         putioOperation(SAVE_CONFIG_ERROR_SPEC) {
             transport.putJson(
                 pathSegments = listOf("config", update.key),
@@ -30,7 +30,7 @@ class ConfigApi internal constructor(
             )
         }
 
-    suspend fun delete(key: String): OkResponse {
+    public suspend fun delete(key: String): OkResponse {
         requireConfigKey(key)
         return putioOperation(DELETE_CONFIG_ERROR_SPEC) {
             transport.delete(

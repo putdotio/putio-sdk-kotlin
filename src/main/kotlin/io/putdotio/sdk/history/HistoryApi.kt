@@ -6,10 +6,10 @@ import io.putdotio.sdk.errors.PutioKnownErrorContract
 import io.putdotio.sdk.errors.PutioOperationErrorSpec
 import io.putdotio.sdk.errors.putioOperation
 
-class HistoryApi internal constructor(
+public class HistoryApi internal constructor(
     private val transport: PutioTransport,
 ) {
-    suspend fun list(query: HistoryListQuery = HistoryListQuery()): HistoryListResponse =
+    public suspend fun list(query: HistoryListQuery = HistoryListQuery()): HistoryListResponse =
         putioOperation(LIST_EVENTS_ERROR_SPEC) {
             transport.get(
                 path = "/events/list",
@@ -18,7 +18,7 @@ class HistoryApi internal constructor(
             )
         }
 
-    suspend fun delete(eventId: Long): OkResponse =
+    public suspend fun delete(eventId: Long): OkResponse =
         putioOperation(DELETE_EVENT_ERROR_SPEC) {
             transport.post(
                 path = "/events/delete/$eventId",
@@ -26,7 +26,7 @@ class HistoryApi internal constructor(
             )
         }
 
-    suspend fun clear(): OkResponse =
+    public suspend fun clear(): OkResponse =
         putioOperation(CLEAR_EVENTS_ERROR_SPEC) {
             transport.post(
                 path = "/events/delete",

@@ -13,10 +13,10 @@ import io.putdotio.sdk.errors.PutioTransportException
 import io.putdotio.sdk.errors.putioOperation
 import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
 
-class FilesApi internal constructor(
+public class FilesApi internal constructor(
     private val transport: PutioTransport,
 ) {
-    suspend fun list(
+    public suspend fun list(
         parentId: Long,
         query: FilesListQuery = FilesListQuery(),
     ): FilesListResponse =
@@ -28,7 +28,7 @@ class FilesApi internal constructor(
             )
         }
 
-    suspend fun get(
+    public suspend fun get(
         fileId: Long,
         query: FileDetailsQuery = FileDetailsQuery(),
     ): PutioFile =
@@ -41,7 +41,7 @@ class FilesApi internal constructor(
                 ).file
         }
 
-    suspend fun resolvePlayback(request: PlaybackRequest): PlaybackResolution =
+    public suspend fun resolvePlayback(request: PlaybackRequest): PlaybackResolution =
         putioOperation(RESOLVE_PLAYBACK_ERROR_SPEC) {
             val file =
                 transport
@@ -138,7 +138,7 @@ class FilesApi internal constructor(
         }
     }
 
-    suspend fun search(query: FilesSearchQuery): FileSearchResponse =
+    public suspend fun search(query: FilesSearchQuery): FileSearchResponse =
         putioOperation(SEARCH_FILES_ERROR_SPEC) {
             transport.get(
                 path = "/files/search",
@@ -147,7 +147,7 @@ class FilesApi internal constructor(
             )
         }
 
-    suspend fun continueList(
+    public suspend fun continueList(
         cursor: String,
         query: FilesContinueQuery = FilesContinueQuery(),
     ): FilesListResponse =
@@ -160,7 +160,7 @@ class FilesApi internal constructor(
             )
         }
 
-    suspend fun continueSearch(
+    public suspend fun continueSearch(
         cursor: String,
         query: FilesContinueQuery = FilesContinueQuery(),
     ): FileSearchResponse =
@@ -173,7 +173,7 @@ class FilesApi internal constructor(
             )
         }
 
-    suspend fun createFolder(
+    public suspend fun createFolder(
         name: String,
         parentId: Long,
     ): PutioFile =
@@ -191,7 +191,7 @@ class FilesApi internal constructor(
         }
 
     /** Sends [input] to put.io's upload host (`PutioConfig.uploadBaseUrl`) as multipart form data. */
-    suspend fun upload(input: FileUploadInput): FileUploadResult =
+    public suspend fun upload(input: FileUploadInput): FileUploadResult =
         putioOperation(UPLOAD_FILE_ERROR_SPEC) {
             transport
                 .postMultipart(
@@ -209,7 +209,7 @@ class FilesApi internal constructor(
                 ).toResult()
         }
 
-    suspend fun copy(fileIds: List<Long>): OkResponse =
+    public suspend fun copy(fileIds: List<Long>): OkResponse =
         putioOperation(COPY_FILES_ERROR_SPEC) {
             transport.post(
                 path = "/files/copy-to-disk",
@@ -218,7 +218,7 @@ class FilesApi internal constructor(
             )
         }
 
-    suspend fun delete(
+    public suspend fun delete(
         fileIds: List<Long>,
         skipNonexistents: Boolean = true,
         skipOwnerCheck: Boolean = false,
@@ -238,7 +238,7 @@ class FilesApi internal constructor(
             )
         }
 
-    suspend fun move(
+    public suspend fun move(
         fileIds: List<Long>,
         parentId: Long,
     ): List<FileMoveError> =
@@ -255,7 +255,7 @@ class FilesApi internal constructor(
                 ).errors
         }
 
-    suspend fun rename(
+    public suspend fun rename(
         fileId: Long,
         name: String,
     ): OkResponse =
@@ -271,7 +271,7 @@ class FilesApi internal constructor(
             )
         }
 
-    suspend fun findNextFile(
+    public suspend fun findNextFile(
         fileId: Long,
         fileType: NextFileType,
     ): NextFile =
@@ -284,7 +284,7 @@ class FilesApi internal constructor(
                 ).nextFile
         }
 
-    suspend fun setSortBy(
+    public suspend fun setSortBy(
         fileId: Long,
         sortBy: String,
     ): OkResponse =
@@ -300,7 +300,7 @@ class FilesApi internal constructor(
             )
         }
 
-    suspend fun resetFileSpecificSortSettings(): OkResponse =
+    public suspend fun resetFileSpecificSortSettings(): OkResponse =
         putioOperation(RESET_SORT_BY_ERROR_SPEC) {
             transport.post(
                 path = "/files/remove-sort-by-settings",
@@ -308,7 +308,7 @@ class FilesApi internal constructor(
             )
         }
 
-    suspend fun startMp4Conversion(fileId: Long): FileMp4Conversion =
+    public suspend fun startMp4Conversion(fileId: Long): FileMp4Conversion =
         putioOperation(MP4_CONVERSION_ERROR_SPEC) {
             transport
                 .post(
@@ -317,7 +317,7 @@ class FilesApi internal constructor(
                 ).mp4
         }
 
-    suspend fun getMp4ConversionStatus(fileId: Long): FileMp4Conversion =
+    public suspend fun getMp4ConversionStatus(fileId: Long): FileMp4Conversion =
         putioOperation(MP4_CONVERSION_ERROR_SPEC) {
             transport
                 .get(
@@ -326,7 +326,7 @@ class FilesApi internal constructor(
                 ).mp4
         }
 
-    suspend fun getStartFrom(fileId: Long): Double =
+    public suspend fun getStartFrom(fileId: Long): Double =
         putioOperation(START_FROM_ERROR_SPEC) {
             transport
                 .get(
@@ -335,7 +335,7 @@ class FilesApi internal constructor(
                 ).startFrom
         }
 
-    suspend fun setStartFrom(
+    public suspend fun setStartFrom(
         fileId: Long,
         time: Double,
     ): OkResponse =
@@ -347,7 +347,7 @@ class FilesApi internal constructor(
             )
         }
 
-    suspend fun resetStartFrom(fileId: Long): OkResponse =
+    public suspend fun resetStartFrom(fileId: Long): OkResponse =
         putioOperation(START_FROM_ERROR_SPEC) {
             transport.get(
                 path = "/files/$fileId/start-from/delete",
@@ -360,7 +360,7 @@ class FilesApi internal constructor(
      * position, and unwatched clears it. Fails with `FEATURE_DISABLED` when the account turned
      * off resume positions.
      */
-    suspend fun setWatchStatus(input: FilesWatchStatusInput): OkResponse =
+    public suspend fun setWatchStatus(input: FilesWatchStatusInput): OkResponse =
         putioOperation(WATCH_STATUS_ERROR_SPEC) {
             transport.post(
                 path = "/files/watch-status",
@@ -369,7 +369,7 @@ class FilesApi internal constructor(
             )
         }
 
-    suspend fun listSubtitles(
+    public suspend fun listSubtitles(
         fileId: Long,
         languages: List<String> = emptyList(),
     ): FileSubtitlesResponse =
@@ -388,7 +388,7 @@ class FilesApi internal constructor(
      * of this request. Hand it to an external player instead of a URL built with the
      * account token.
      */
-    suspend fun getDownloadUrl(fileId: Long): PutioCredentialUrl =
+    public suspend fun getDownloadUrl(fileId: Long): PutioCredentialUrl =
         putioOperation(GET_DOWNLOAD_URL_ERROR_SPEC) {
             PutioCredentialUrl(
                 transport
@@ -401,17 +401,17 @@ class FilesApi internal constructor(
 
     // Media URLs leave the app (players, cast receivers, caches), so they carry the
     // narrower account download token, which the API accepts only on media endpoints.
-    fun buildDownloadUrl(
+    public fun buildDownloadUrl(
         fileId: Long,
         downloadToken: AccountDownloadToken,
     ): String = mediaUrl("/files/$fileId/download", downloadToken.value)
 
-    fun buildMp4DownloadUrl(
+    public fun buildMp4DownloadUrl(
         fileId: Long,
         downloadToken: AccountDownloadToken,
     ): String = mediaUrl("/files/$fileId/mp4/download", downloadToken.value)
 
-    fun buildAudioStreamUrl(
+    public fun buildAudioStreamUrl(
         fileId: Long,
         downloadToken: AccountDownloadToken,
     ): String = buildOriginalStreamUrl(fileId = fileId, downloadToken = downloadToken)
@@ -420,12 +420,12 @@ class FilesApi internal constructor(
      * The original file as put.io stores it, for players that decode it themselves (libVLC,
      * an external player). Video callers that want put.io's transcode use [buildStreamUrl].
      */
-    fun buildOriginalStreamUrl(
+    public fun buildOriginalStreamUrl(
         fileId: Long,
         downloadToken: AccountDownloadToken,
     ): String = mediaUrl("/files/$fileId/stream", downloadToken.value)
 
-    fun buildStreamUrl(
+    public fun buildStreamUrl(
         file: PutioFile,
         downloadToken: AccountDownloadToken,
     ): String? =
@@ -435,7 +435,7 @@ class FilesApi internal constructor(
             else -> null
         }
 
-    fun buildStreamUrl(
+    public fun buildStreamUrl(
         nextFile: NextFile,
         downloadToken: AccountDownloadToken,
     ): String? =
@@ -450,7 +450,7 @@ class FilesApi internal constructor(
      * asks for every one, `0` for none. `null` leaves the account default, which is none
      * when the account hides subtitles.
      */
-    fun buildHlsStreamUrl(
+    public fun buildHlsStreamUrl(
         fileId: Long,
         downloadToken: AccountDownloadToken,
         subtitleLanguages: List<String> = emptyList(),
@@ -465,9 +465,9 @@ class FilesApi internal constructor(
         "Media requests carry the account download token. Pass downloadToken.",
         ReplaceWith("buildDownloadRequest(fileId, downloadToken)"),
     )
-    fun buildDownloadRequest(fileId: Long): PutioMediaRequest = mediaRequest(buildDownloadRequestUrl(fileId))
+    public fun buildDownloadRequest(fileId: Long): PutioMediaRequest = mediaRequest(buildDownloadRequestUrl(fileId))
 
-    fun buildDownloadRequest(
+    public fun buildDownloadRequest(
         fileId: Long,
         downloadToken: AccountDownloadToken,
     ): PutioMediaRequest = mediaRequest(buildDownloadRequestUrl(fileId), downloadToken)
@@ -477,9 +477,9 @@ class FilesApi internal constructor(
         "Media requests carry the account download token. Pass downloadToken.",
         ReplaceWith("buildOriginalStreamRequest(fileId, downloadToken)"),
     )
-    fun buildOriginalStreamRequest(fileId: Long): PutioMediaRequest = mediaRequest(buildOriginalStreamRequestUrl(fileId))
+    public fun buildOriginalStreamRequest(fileId: Long): PutioMediaRequest = mediaRequest(buildOriginalStreamRequestUrl(fileId))
 
-    fun buildOriginalStreamRequest(
+    public fun buildOriginalStreamRequest(
         fileId: Long,
         downloadToken: AccountDownloadToken,
     ): PutioMediaRequest = mediaRequest(buildOriginalStreamRequestUrl(fileId), downloadToken)
@@ -489,9 +489,9 @@ class FilesApi internal constructor(
         "Media requests carry the account download token. Pass downloadToken.",
         ReplaceWith("buildMp4StreamRequest(fileId, downloadToken)"),
     )
-    fun buildMp4StreamRequest(fileId: Long): PutioMediaRequest = mediaRequest(buildMp4StreamRequestUrl(fileId))
+    public fun buildMp4StreamRequest(fileId: Long): PutioMediaRequest = mediaRequest(buildMp4StreamRequestUrl(fileId))
 
-    fun buildMp4StreamRequest(
+    public fun buildMp4StreamRequest(
         fileId: Long,
         downloadToken: AccountDownloadToken,
     ): PutioMediaRequest = mediaRequest(buildMp4StreamRequestUrl(fileId), downloadToken)
@@ -504,14 +504,14 @@ class FilesApi internal constructor(
         "Media requests carry the account download token. Pass downloadToken.",
         ReplaceWith("buildHlsStreamRequest(fileId, downloadToken, subtitleLanguages, maxSubtitleCount, original)"),
     )
-    fun buildHlsStreamRequest(
+    public fun buildHlsStreamRequest(
         fileId: Long,
         subtitleLanguages: List<String> = emptyList(),
         maxSubtitleCount: Int? = null,
         original: Boolean = false,
     ): PutioMediaRequest = mediaRequest(buildHlsStreamRequestUrl(fileId, subtitleLanguages, maxSubtitleCount, original))
 
-    fun buildHlsStreamRequest(
+    public fun buildHlsStreamRequest(
         fileId: Long,
         downloadToken: AccountDownloadToken,
         subtitleLanguages: List<String> = emptyList(),
@@ -523,16 +523,16 @@ class FilesApi internal constructor(
      * The URL [buildDownloadRequest] fetches, with no credential in it, for a caller that stores
      * the URL before a download token is loaded and adds the token per fetch.
      */
-    fun buildDownloadRequestUrl(fileId: Long): String = mediaUrl("/files/$fileId/download", null)
+    public fun buildDownloadRequestUrl(fileId: Long): String = mediaUrl("/files/$fileId/download", null)
 
     /** The URL [buildOriginalStreamRequest] fetches; see [buildDownloadRequestUrl]. */
-    fun buildOriginalStreamRequestUrl(fileId: Long): String = mediaUrl("/files/$fileId/stream", null)
+    public fun buildOriginalStreamRequestUrl(fileId: Long): String = mediaUrl("/files/$fileId/stream", null)
 
     /** The URL [buildMp4StreamRequest] fetches; see [buildDownloadRequestUrl]. */
-    fun buildMp4StreamRequestUrl(fileId: Long): String = mediaUrl("/files/$fileId/mp4/stream", null)
+    public fun buildMp4StreamRequestUrl(fileId: Long): String = mediaUrl("/files/$fileId/mp4/stream", null)
 
     /** The URL [buildHlsStreamRequest] fetches; see [buildDownloadRequestUrl]. */
-    fun buildHlsStreamRequestUrl(
+    public fun buildHlsStreamRequestUrl(
         fileId: Long,
         subtitleLanguages: List<String> = emptyList(),
         maxSubtitleCount: Int? = null,

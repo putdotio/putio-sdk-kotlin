@@ -5,10 +5,10 @@ import io.putdotio.sdk.errors.PutioKnownErrorContract
 import io.putdotio.sdk.errors.PutioOperationErrorSpec
 import io.putdotio.sdk.errors.putioOperation
 
-class RoutesApi internal constructor(
+public class RoutesApi internal constructor(
     private val transport: PutioTransport,
 ) {
-    suspend fun list(): List<TunnelRoute> =
+    public suspend fun list(): List<TunnelRoute> =
         putioOperation(LIST_ROUTES_ERROR_SPEC) {
             transport
                 .get(

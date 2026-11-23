@@ -4,14 +4,14 @@ import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 
 @Serializable
-data class IftttPlaybackEventInput(
-    @SerialName("event_type") val eventType: String,
-    val ingredients: IftttPlaybackEventIngredients,
+public data class IftttPlaybackEventInput(
+    @SerialName("event_type") public val eventType: String,
+    public val ingredients: IftttPlaybackEventIngredients,
 )
 
 @Serializable
-data class IftttPlaybackEventIngredients(
-    @SerialName("file_id") val fileId: Long,
-    @SerialName("file_name") val fileName: String,
-    @SerialName("file_type") val fileType: String,
+public data class IftttPlaybackEventIngredients(
+    @SerialName("file_id") public val fileId: Long,
+    @SerialName("file_name") public val fileName: String,
+    @SerialName("file_type") public val fileType: String,
 )

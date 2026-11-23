@@ -7,15 +7,15 @@ import kotlinx.serialization.descriptors.SerialDescriptor
 import kotlinx.serialization.encoding.Decoder
 import kotlinx.serialization.encoding.Encoder
 
-abstract class RawStringValueSerializer<T>(
+public abstract class RawStringValueSerializer<T>(
     serialName: String,
 ) : KSerializer<T> {
-    final override val descriptor: SerialDescriptor =
+    public final override val descriptor: SerialDescriptor =
         PrimitiveSerialDescriptor(serialName, PrimitiveKind.STRING)
 
-    final override fun deserialize(decoder: Decoder): T = fromRaw(decoder.decodeString())
+    public final override fun deserialize(decoder: Decoder): T = fromRaw(decoder.decodeString())
 
-    final override fun serialize(
+    public final override fun serialize(
         encoder: Encoder,
         value: T,
     ) {

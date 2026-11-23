@@ -97,6 +97,36 @@ class AuthApiTest {
         }
 
     @Test
+    fun `logout can use an explicit token override without modifying config`() =
+        withServer { server ->
+            repeat(2) {
+                server.enqueue(MockResponse.Builder().body("""{"status":"OK"}""").build())
+            }
+
+            runBlocking {
+                val noSessionConfig = PutioConfig(accessToken = null, baseUrl = server.url("/v2/").toString())
+                PutioClient(noSessionConfig).use { sdk ->
+                    assertEquals("OK", sdk.auth.logout(token = "revoked-token").status)
+                    assertNull(noSessionConfig.accessToken)
+                }
+
+                val activeConfig = PutioConfig(accessToken = "active-token", baseUrl = server.url("/v2/").toString())
+                PutioClient(activeConfig).use { sdk ->
+                    assertEquals("OK", sdk.auth.logout(token = "other-token").status)
+                    assertEquals("active-token", activeConfig.accessToken)
+                }
+            }
+
+            val firstRequest = server.takeRequest()
+            assertEquals("/v2/oauth/grants/logout", firstRequest.target)
+            assertEquals("Token revoked-token", firstRequest.headers["Authorization"])
+
+            val secondRequest = server.takeRequest()
+            assertEquals("/v2/oauth/grants/logout", secondRequest.target)
+            assertEquals("Token other-token", secondRequest.headers["Authorization"])
+        }
+
+    @Test
     fun `generateTotp and recovery code flows decode typed envelopes`() =
         withServer { server ->
             server.enqueue(

@@ -8,10 +8,10 @@ import io.putdotio.sdk.errors.PutioKnownErrorContract
 import io.putdotio.sdk.errors.PutioOperationErrorSpec
 import io.putdotio.sdk.errors.putioOperation
 
-class AuthApi internal constructor(
+public class AuthApi internal constructor(
     private val transport: PutioTransport,
 ) {
-    fun buildLoginUrl(
+    public fun buildLoginUrl(
         redirectUri: String,
         state: String,
         responseType: String = "token",
@@ -35,7 +35,7 @@ class AuthApi internal constructor(
         )
     }
 
-    suspend fun getCode(): AuthorizationCode {
+    public suspend fun getCode(): AuthorizationCode {
         val clientId =
             transport.config.clientId
                 ?: throw PutioConfigurationException("PutioConfig.clientId is required to request an auth code")
@@ -60,7 +60,7 @@ class AuthApi internal constructor(
         )
     }
 
-    suspend fun checkCodeMatch(code: String): String? {
+    public suspend fun checkCodeMatch(code: String): String? {
         require(code.isNotBlank()) { "Device code must not be blank" }
         return putioOperation(CHECK_CODE_MATCH_ERROR_SPEC) {
             transport
@@ -72,7 +72,7 @@ class AuthApi internal constructor(
         }
     }
 
-    suspend fun validateToken(token: String? = null): ValidateTokenResult =
+    public suspend fun validateToken(token: String? = null): ValidateTokenResult =
         putioOperation(VALIDATE_TOKEN_ERROR_SPEC) {
             transport.get(
                 path = "/oauth2/validate",
@@ -81,15 +81,16 @@ class AuthApi internal constructor(
             )
         }
 
-    suspend fun logout(): OkResponse =
+    public suspend fun logout(token: String? = null): OkResponse =
         putioOperation(LOGOUT_ERROR_SPEC) {
             transport.post(
                 path = "/oauth/grants/logout",
                 serializer = OkResponse.serializer(),
+                auth = token?.let(PutioAuth::Token) ?: PutioAuth.ConfigToken,
             )
         }
 
-    suspend fun generateTotp(): GenerateTotpResult =
+    public suspend fun generateTotp(): GenerateTotpResult =
         putioOperation(GENERATE_TOTP_ERROR_SPEC) {
             val envelope =
                 transport.post(
@@ -104,7 +105,7 @@ class AuthApi internal constructor(
             )
         }
 
-    suspend fun verifyTotp(
+    public suspend fun verifyTotp(
         twoFactorScopedToken: String,
         code: String,
     ): VerifyTotpResult =
@@ -124,7 +125,7 @@ class AuthApi internal constructor(
             )
         }
 
-    suspend fun getRecoveryCodes(): TwoFactorRecoveryCodes =
+    public suspend fun getRecoveryCodes(): TwoFactorRecoveryCodes =
         putioOperation(GET_RECOVERY_CODES_ERROR_SPEC) {
             transport
                 .get(
@@ -133,7 +134,7 @@ class AuthApi internal constructor(
                 ).recoveryCodes
         }
 
-    suspend fun regenerateRecoveryCodes(): TwoFactorRecoveryCodes =
+    public suspend fun regenerateRecoveryCodes(): TwoFactorRecoveryCodes =
         putioOperation(REGENERATE_RECOVERY_CODES_ERROR_SPEC) {
             transport
                 .post(

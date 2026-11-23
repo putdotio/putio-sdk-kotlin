@@ -7,10 +7,10 @@ import io.putdotio.sdk.errors.PutioKnownErrorContract
 import io.putdotio.sdk.errors.PutioOperationErrorSpec
 import io.putdotio.sdk.errors.putioOperation
 
-class AccountApi internal constructor(
+public class AccountApi internal constructor(
     private val transport: PutioTransport,
 ) {
-    suspend fun getInfo(query: AccountInfoQuery = AccountInfoQuery()): AccountInfo = getInfo(query, PutioAuth.ConfigToken)
+    public suspend fun getInfo(query: AccountInfoQuery = AccountInfoQuery()): AccountInfo = getInfo(query, PutioAuth.ConfigToken)
 
     // Device-code linking validates a token before the caller has stored it in config.
     internal suspend fun getInfoWith(token: String): AccountInfo = getInfo(AccountInfoQuery(), PutioAuth.Token(token))
@@ -29,7 +29,7 @@ class AccountApi internal constructor(
                 ).info
         }
 
-    suspend fun getSettings(): AccountSettings =
+    public suspend fun getSettings(): AccountSettings =
         putioOperation(GET_ACCOUNT_SETTINGS_ERROR_SPEC) {
             transport
                 .get(
@@ -38,7 +38,7 @@ class AccountApi internal constructor(
                 ).settings
         }
 
-    suspend fun saveSettings(update: AccountSettingsUpdate): OkResponse =
+    public suspend fun saveSettings(update: AccountSettingsUpdate): OkResponse =
         putioOperation(SAVE_ACCOUNT_SETTINGS_ERROR_SPEC) {
             transport.postJson(
                 path = "/account/settings",
@@ -48,7 +48,7 @@ class AccountApi internal constructor(
             )
         }
 
-    suspend fun clearData(options: AccountClearOptions): OkResponse =
+    public suspend fun clearData(options: AccountClearOptions): OkResponse =
         putioOperation(CLEAR_ACCOUNT_ERROR_SPEC) {
             transport.postJson(
                 path = "/account/clear",
@@ -58,7 +58,7 @@ class AccountApi internal constructor(
             )
         }
 
-    suspend fun destroy(currentPassword: String): OkResponse =
+    public suspend fun destroy(currentPassword: String): OkResponse =
         putioOperation(DESTROY_ACCOUNT_ERROR_SPEC) {
             transport.postJson(
                 path = "/account/destroy",
