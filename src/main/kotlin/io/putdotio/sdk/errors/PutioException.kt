@@ -99,6 +99,8 @@ class PutioApiException(
     envelope: PutioApiErrorEnvelope,
     responseBody: String,
     message: String,
+    /** Parsed `Retry-After` delay in whole seconds (delta-seconds or HTTP-date); null when absent or invalid. */
+    val retryAfterSeconds: Long? = null,
 ) : PutioException(redactSensitiveUrlsInText(message)) {
     val request: PutioRequestData = request.redacted()
     val envelope: PutioApiErrorEnvelope = envelope.redacted()

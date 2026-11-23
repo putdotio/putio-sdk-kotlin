@@ -140,10 +140,12 @@ class DeviceCodeAuth internal constructor(
         options: DeviceCodeAuthOptions,
     ): PollOutcome {
         val deadline = timeSource.markNow() + options.budget
+        var nextDelay = options.pollInterval
         while (true) {
             val remaining = -deadline.elapsedNow()
             if (remaining <= Duration.ZERO) return PollOutcome.Terminal(budgetElapsed())
-            sleep(minOf(options.pollInterval, remaining))
+            sleep(minOf(nextDelay, remaining))
+            nextDelay = options.pollInterval
             val left = -deadline.elapsedNow()
             if (left <= Duration.ZERO) return PollOutcome.Terminal(budgetElapsed())
             // A stalled request must not hold AwaitingLink past the budget; the timeout
@@ -158,8 +160,18 @@ class DeviceCodeAuth internal constructor(
                     }
 
                     is SdkCall.Error -> {
-                        pollFailure(call.error)?.let { return PollOutcome.Terminal(it) }
-                        continue
+                        when (val failure = pollFailure(call.error)) {
+                            is PollFailure.Terminal -> {
+                                return PollOutcome.Terminal(failure.state)
+                            }
+
+                            is PollFailure.Retry -> {
+                                nextDelay =
+                                    failure.retryAfterSeconds?.seconds?.let { maxOf(options.pollInterval, it) }
+                                        ?: options.pollInterval
+                                continue
+                            }
+                        }
                     }
                 }
             if (deadline.hasPassedNow()) return PollOutcome.Terminal(budgetElapsed())
@@ -167,19 +179,35 @@ class DeviceCodeAuth internal constructor(
         }
     }
 
-    // Null means keep polling: flaky TV networks should not end the attempt before the budget does.
-    private fun pollFailure(error: PutioException): DeviceCodeAuthState? =
+    private sealed interface PollFailure {
+        data class Terminal(
+            val state: DeviceCodeAuthState,
+        ) : PollFailure
+
+        data class Retry(
+            val retryAfterSeconds: Long? = null,
+        ) : PollFailure
+    }
+
+    // Transient network, 429, and 5xx errors keep polling within the code's existing budget.
+    private fun pollFailure(error: PutioException): PollFailure =
         when {
             error is PutioOperationException && error.isCodeRejection() -> {
-                DeviceCodeAuthState.Expired(DeviceCodeAuthState.Expired.Reason.CODE_REJECTED)
+                PollFailure.Terminal(DeviceCodeAuthState.Expired(DeviceCodeAuthState.Expired.Reason.CODE_REJECTED))
             }
 
             error is PutioOperationException && error.underlyingError is PutioTransportException -> {
-                null
+                PollFailure.Retry()
+            }
+
+            error is PutioOperationException &&
+                error.underlyingError is PutioApiException &&
+                error.underlyingError.isTransientPollStatus() -> {
+                PollFailure.Retry(error.underlyingError.retryAfterSeconds)
             }
 
             else -> {
-                DeviceCodeAuthState.Failed(error)
+                PollFailure.Terminal(DeviceCodeAuthState.Failed(error))
             }
         }
 
@@ -207,4 +235,10 @@ private inline fun <T> sdkCall(block: () -> T): SdkCall<T> =
 
 private fun PutioOperationException.isCodeRejection(): Boolean = (underlyingError as? PutioApiException)?.statusCode == HTTP_NOT_FOUND
 
+private fun PutioApiException.isTransientPollStatus(): Boolean =
+    statusCode.isTransientPollStatusCode() || httpStatusCode.isTransientPollStatusCode()
+
+private fun Int.isTransientPollStatusCode(): Boolean = this == HTTP_TOO_MANY_REQUESTS || this in 500..599
+
 private const val HTTP_NOT_FOUND = 404
+private const val HTTP_TOO_MANY_REQUESTS = 429

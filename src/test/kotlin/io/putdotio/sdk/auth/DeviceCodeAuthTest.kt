@@ -243,10 +243,10 @@ class DeviceCodeAuthTest {
         }
 
     @Test
-    fun `non-transport api failures while polling fail the attempt`() =
+    fun `non-transport non-transient api failures while polling fail the attempt`() =
         withServer { server ->
             server.enqueue(json(CODE_ENVELOPE))
-            server.enqueue(json("""{"status":"ERROR","status_code":429,"error_type":"RATE_LIMITED"}""", 429))
+            server.enqueue(json("""{"status":"ERROR","status_code":403,"error_type":"FORBIDDEN"}""", 403))
 
             val (orchestrator, _) = orchestrator(server)
             val states = runBlocking { orchestrator.link(fastOptions).toList() }
@@ -254,6 +254,105 @@ class DeviceCodeAuthTest {
             val failed = assertIs<DeviceCodeAuthState.Failed>(states.last())
             val operation = assertIs<PutioOperationException>(failed.error)
             assertEquals("checkCodeMatch", operation.operation)
+        }
+
+    @Test
+    fun `transient 503 with Retry-After keeps polling within budget and links`() =
+        withServer { server ->
+            server.enqueue(json(CODE_ENVELOPE))
+            server.enqueue(
+                json("""{"status":"ERROR","status_code":503,"error_type":"UNAVAILABLE"}""", 503)
+                    .newBuilder()
+                    .addHeader("Retry-After", "5")
+                    .build(),
+            )
+            server.enqueue(json("""{"status":"OK","oauth_token":null}"""))
+            server.enqueue(json("""{"status":"OK","oauth_token":"tok-after-503"}"""))
+            server.enqueue(json("""{"status":"OK","result":true,"user_id":7}"""))
+            server.enqueue(json(ACCOUNT_ENVELOPE))
+
+            val time = TestTimeSource()
+            val (orchestrator, sleeps) = orchestrator(server, time) { time += it }
+            val states =
+                runBlocking {
+                    orchestrator.link(DeviceCodeAuthOptions(1.seconds, 10.seconds)).toList()
+                }
+
+            val linked = assertIs<DeviceCodeAuthState.Linked>(states.last())
+            assertEquals("tok-after-503", linked.accessToken)
+            assertEquals(listOf(1.seconds, 5.seconds, 1.seconds), sleeps)
+        }
+
+    @Test
+    fun `transient 429 and 5xx errors keep polling until linked`() =
+        withServer { server ->
+            server.enqueue(json(CODE_ENVELOPE))
+            server.enqueue(json("""{"status":"ERROR","status_code":429,"error_type":"RATE_LIMITED"}""", 429))
+            server.enqueue(json("""{"status":"ERROR","status_code":500,"error_type":"SERVER"}""", 500))
+            server.enqueue(json("bad gateway", 502))
+            server.enqueue(json("""{"status":"ERROR","status_code":503,"error_type":"UNAVAILABLE"}""", 503))
+            server.enqueue(json("""{"status":"ERROR","status_code":504,"error_type":"TIMEOUT"}""", 504))
+            server.enqueue(json("""{"status":"OK","oauth_token":"tok-recovered"}"""))
+            server.enqueue(json("""{"status":"OK","result":true,"user_id":7}"""))
+            server.enqueue(json(ACCOUNT_ENVELOPE))
+
+            val (orchestrator, sleeps) = orchestrator(server)
+            val states = runBlocking { orchestrator.link(fastOptions).toList() }
+
+            val linked = assertIs<DeviceCodeAuthState.Linked>(states.last())
+            assertEquals("tok-recovered", linked.accessToken)
+            assertEquals(6, sleeps.size)
+            assertEquals(9, server.requestCount)
+        }
+
+    @Test
+    fun `zero Retry-After keeps pollInterval and oversized Retry-After clips to remaining budget`() =
+        withServer { server ->
+            server.enqueue(json(CODE_ENVELOPE))
+            server.enqueue(
+                json("""{"status":"ERROR","status_code":429,"error_type":"RATE_LIMITED"}""", 429)
+                    .newBuilder()
+                    .addHeader("Retry-After", "0")
+                    .build(),
+            )
+            server.enqueue(
+                json("""{"status":"ERROR","status_code":503,"error_type":"UNAVAILABLE"}""", 503)
+                    .newBuilder()
+                    .addHeader("Retry-After", "60")
+                    .build(),
+            )
+
+            val time = TestTimeSource()
+            val (orchestrator, sleeps) = orchestrator(server, time) { time += it }
+            val states =
+                runBlocking {
+                    orchestrator.link(DeviceCodeAuthOptions(2.seconds, 7.seconds)).toList()
+                }
+
+            assertEquals(
+                DeviceCodeAuthState.Expired(DeviceCodeAuthState.Expired.Reason.BUDGET_ELAPSED),
+                states.last(),
+            )
+            assertEquals(listOf(2.seconds, 2.seconds, 3.seconds), sleeps)
+            assertEquals(3, server.requestCount)
+        }
+
+    @Test
+    fun `persistent 503 until budget elapses expires the attempt`() =
+        withServer { server ->
+            server.enqueue(json(CODE_ENVELOPE))
+            server.enqueue(json("""{"status":"ERROR","status_code":503,"error_type":"UNAVAILABLE"}""", 503))
+
+            val time = TestTimeSource()
+            val (orchestrator, sleeps) = orchestrator(server, time) { time += it }
+            val states = runBlocking { orchestrator.link(DeviceCodeAuthOptions(1.seconds, 2.seconds)).toList() }
+
+            assertEquals(
+                DeviceCodeAuthState.Expired(DeviceCodeAuthState.Expired.Reason.BUDGET_ELAPSED),
+                states.last(),
+            )
+            assertEquals(listOf(1.seconds, 1.seconds), sleeps)
+            assertEquals(2, server.requestCount)
         }
 
     @Test

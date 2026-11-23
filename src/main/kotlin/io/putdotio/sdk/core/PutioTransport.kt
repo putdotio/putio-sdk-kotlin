@@ -13,6 +13,7 @@ import kotlinx.coroutines.withContext
 import kotlinx.serialization.KSerializer
 import kotlinx.serialization.json.Json
 import okhttp3.FormBody
+import okhttp3.Headers
 import okhttp3.HttpUrl.Companion.toHttpUrl
 import okhttp3.MediaType
 import okhttp3.MediaType.Companion.toMediaType
@@ -51,6 +52,7 @@ internal class PutioTransport(
     private val httpClient: OkHttpClient,
     private val json: Json,
     private val exemptMultipartCallTimeout: Boolean = false,
+    private val clockMillis: () -> Long = System::currentTimeMillis,
 ) {
     companion object {
         val defaultJson =
@@ -303,7 +305,7 @@ internal class PutioTransport(
                 if (exemptCallTimeout) {
                     call.timeout().clearTimeout()
                 }
-                call.awaitResponseBody()
+                call.awaitResponseBody(clockMillis)
             } catch (cancellation: CancellationException) {
                 throw cancellation
             } catch (cause: Exception) {
@@ -312,7 +314,12 @@ internal class PutioTransport(
 
         return withContext(Dispatchers.Default) {
             if (!response.isSuccessful) {
-                throw decodeApiException(requestData, response.statusCode, response.body)
+                throw decodeApiException(
+                    request = requestData,
+                    responseStatusCode = response.statusCode,
+                    body = response.body,
+                    retryAfterSeconds = response.retryAfterSeconds,
+                )
             }
 
             try {
@@ -382,6 +389,7 @@ internal class PutioTransport(
         request: PutioRequestData,
         responseStatusCode: Int,
         body: String,
+        retryAfterSeconds: Long?,
     ): PutioApiException {
         val envelope =
             runCatching {
@@ -400,6 +408,7 @@ internal class PutioTransport(
             envelope = envelope ?: PutioApiErrorEnvelope(statusCode = statusCode, errorType = errorType),
             responseBody = body,
             message = message,
+            retryAfterSeconds = retryAfterSeconds,
         )
     }
 }
@@ -428,13 +437,27 @@ private class OneShotRequestBody(
     }
 }
 
+internal fun parseRetryAfterSeconds(
+    headers: Headers,
+    nowMillis: Long = System.currentTimeMillis(),
+): Long? {
+    val raw = headers["Retry-After"]?.trim()?.takeIf { it.isNotEmpty() } ?: return null
+    if (raw.all { it in '0'..'9' }) {
+        return raw.toLongOrNull()
+    }
+    val retryAtMillis = headers.getDate("Retry-After")?.time ?: return null
+    val deltaMillis = retryAtMillis - nowMillis
+    return if (deltaMillis <= 0L) 0L else (deltaMillis - 1L) / 1_000L + 1L
+}
+
 private data class PutioHttpResponse(
     val statusCode: Int,
     val isSuccessful: Boolean,
     val body: String,
+    val retryAfterSeconds: Long?,
 )
 
-private suspend fun okhttp3.Call.awaitResponseBody(): PutioHttpResponse =
+private suspend fun okhttp3.Call.awaitResponseBody(clockMillis: () -> Long): PutioHttpResponse =
     suspendCancellableCoroutine { continuation ->
         val completed = AtomicBoolean(false)
 
@@ -460,6 +483,12 @@ private suspend fun okhttp3.Call.awaitResponseBody(): PutioHttpResponse =
                                     statusCode = response.code,
                                     isSuccessful = response.isSuccessful,
                                     body = response.body.string(),
+                                    retryAfterSeconds =
+                                        if (response.isSuccessful) {
+                                            null
+                                        } else {
+                                            parseRetryAfterSeconds(response.headers, clockMillis())
+                                        },
                                 )
                             } catch (cause: Exception) {
                                 if (completed.compareAndSet(false, true)) {
