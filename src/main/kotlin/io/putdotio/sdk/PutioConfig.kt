@@ -11,6 +11,11 @@ data class PutioConfig(
     var userAgent: String = DEFAULT_USER_AGENT,
     var uploadBaseUrl: String = DEFAULT_UPLOAD_BASE_URL,
 ) {
+    override fun toString(): String =
+        "PutioConfig(accessToken=${if (accessToken == null) "null" else "<redacted>"}, " +
+            "clientId=$clientId, clientName=$clientName, baseUrl=$baseUrl, " +
+            "webAppUrl=$webAppUrl, userAgent=$userAgent, uploadBaseUrl=$uploadBaseUrl)"
+
     internal fun compareAndSetAccessToken(
         expected: String?,
         token: String?,

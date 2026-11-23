@@ -109,7 +109,9 @@ internal fun AccountInfoQuery.toQueryMap(): Map<String, String> =
 data class AccountTwoFactorSettings(
     val code: String,
     val enable: Boolean,
-)
+) {
+    override fun toString(): String = "AccountTwoFactorSettings(code=<redacted>, enable=$enable)"
+}
 
 @Serializable(with = AccountSettingsUpdateSerializer::class)
 sealed interface AccountSettingsUpdate
@@ -137,13 +139,17 @@ data class AccountUsernameUpdate(
 data class AccountMailUpdate(
     @SerialName("current_password") val currentPassword: String,
     val mail: String,
-) : AccountSettingsUpdate
+) : AccountSettingsUpdate {
+    override fun toString(): String = "AccountMailUpdate(currentPassword=<redacted>, mail=$mail)"
+}
 
 @Serializable
 data class AccountPasswordUpdate(
     @SerialName("current_password") val currentPassword: String,
     val password: String,
-) : AccountSettingsUpdate
+) : AccountSettingsUpdate {
+    override fun toString(): String = "AccountPasswordUpdate(currentPassword=<redacted>, password=<redacted>)"
+}
 
 @Serializable
 data class AccountTwoFactorUpdate(
