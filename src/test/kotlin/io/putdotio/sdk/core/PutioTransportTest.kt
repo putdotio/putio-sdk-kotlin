@@ -3,6 +3,7 @@ package io.putdotio.sdk.core
 import io.putdotio.sdk.OkResponse
 import io.putdotio.sdk.PutioClient
 import io.putdotio.sdk.PutioConfig
+import io.putdotio.sdk.account.AccountSettingsPatch
 import io.putdotio.sdk.errors.PutioApiException
 import io.putdotio.sdk.errors.PutioConfigurationException
 import io.putdotio.sdk.errors.PutioOperationException
@@ -304,6 +305,195 @@ class PutioTransportTest {
 
             assertEquals(PutioTransportFailureKind.TIMEOUT, error.failureKind)
             assertIs<SocketTimeoutException>(error.cause)
+        }
+
+    @Test
+    fun `form post is not retried after socket reset on response start`() =
+        withServer { server ->
+            server.enqueue(MockResponse.Builder().body("""{"status":"OK"}""").build())
+            server.enqueue(
+                MockResponse
+                    .Builder()
+                    .onResponseStart(SocketEffect.CloseSocket())
+                    .build(),
+            )
+            server.enqueue(
+                MockResponse
+                    .Builder()
+                    .body("""{"status":"OK","file":{"id":1,"name":"dup","created_at":"2026-09-06","file_type":"FOLDER"}}""")
+                    .build(),
+            )
+
+            val error =
+                assertFailsWith<PutioOperationException> {
+                    runBlocking {
+                        PutioClient(
+                            PutioConfig(
+                                accessToken = "secret-token",
+                                baseUrl = server.url("/v2/").toString(),
+                            ),
+                        ).use { sdk ->
+                            sdk.files.resetStartFrom(1)
+                            sdk.files.createFolder(name = "dup", parentId = 0)
+                        }
+                    }
+                }
+
+            assertIs<PutioTransportException>(error.underlyingError)
+            assertEquals(2, server.requestCount)
+        }
+
+    @Test
+    fun `json post is not retried after socket reset on response start`() =
+        withServer { server ->
+            server.enqueue(MockResponse.Builder().body("""{"status":"OK"}""").build())
+            server.enqueue(
+                MockResponse
+                    .Builder()
+                    .onResponseStart(SocketEffect.CloseSocket())
+                    .build(),
+            )
+            server.enqueue(MockResponse.Builder().body("""{"status":"OK"}""").build())
+
+            val error =
+                assertFailsWith<PutioOperationException> {
+                    runBlocking {
+                        PutioClient(
+                            PutioConfig(
+                                accessToken = "secret-token",
+                                baseUrl = server.url("/v2/").toString(),
+                            ),
+                        ).use { sdk ->
+                            sdk.files.resetStartFrom(1)
+                            sdk.account.saveSettings(AccountSettingsPatch(historyEnabled = false))
+                        }
+                    }
+                }
+
+            assertIs<PutioTransportException>(error.underlyingError)
+            assertEquals(2, server.requestCount)
+        }
+
+    @Test
+    fun `post is not retried on 408 or 503 with zero retry-after`() =
+        withServer { server ->
+            server.enqueue(
+                MockResponse
+                    .Builder()
+                    .code(408)
+                    .body("""{"status":"ERROR","status_code":408}""")
+                    .build(),
+            )
+            server.enqueue(
+                MockResponse
+                    .Builder()
+                    .code(503)
+                    .addHeader("Retry-After", "0")
+                    .body("""{"status":"ERROR","status_code":503}""")
+                    .build(),
+            )
+            server.enqueue(MockResponse.Builder().body("""{"status":"OK"}""").build())
+
+            runBlocking {
+                PutioClient(
+                    PutioConfig(
+                        accessToken = "secret-token",
+                        baseUrl = server.url("/v2/").toString(),
+                    ),
+                ).use { sdk ->
+                    val timeoutError =
+                        assertFailsWith<PutioOperationException> {
+                            sdk.account.saveSettings(AccountSettingsPatch(historyEnabled = false))
+                        }
+                    assertEquals(408, assertIs<PutioApiException>(timeoutError.underlyingError).statusCode)
+
+                    val unavailableError =
+                        assertFailsWith<PutioOperationException> {
+                            sdk.account.saveSettings(AccountSettingsPatch(historyEnabled = false))
+                        }
+                    assertEquals(503, assertIs<PutioApiException>(unavailableError.underlyingError).statusCode)
+                }
+            }
+
+            assertEquals(2, server.requestCount)
+        }
+
+    @Test
+    fun `idempotent get still retries after pooled socket reset`() =
+        withServer { server ->
+            server.enqueue(MockResponse.Builder().body("""{"status":"OK"}""").build())
+            server.enqueue(
+                MockResponse
+                    .Builder()
+                    .onResponseStart(SocketEffect.CloseSocket())
+                    .build(),
+            )
+            server.enqueue(MockResponse.Builder().body("""{"status":"OK"}""").build())
+
+            val result =
+                runBlocking {
+                    PutioClient(
+                        PutioConfig(
+                            accessToken = "secret-token",
+                            baseUrl = server.url("/v2/").toString(),
+                        ),
+                    ).use { sdk ->
+                        sdk.files.resetStartFrom(1)
+                        sdk.files.resetStartFrom(2)
+                    }
+                }
+
+            assertEquals("OK", result.status)
+            assertEquals(3, server.requestCount)
+        }
+
+    @Test
+    fun `default client bounds callTimeout and preserves caller okHttpClient settings`() =
+        withServer { server ->
+            PutioClient().use { defaultSdk ->
+                assertEquals(30_000, defaultSdk.defaultCallTimeoutMillis)
+            }
+            PutioClient(okHttpClient = OkHttpClient()).use { unboundedCallerSdk ->
+                assertEquals(0, unboundedCallerSdk.defaultCallTimeoutMillis)
+            }
+            val customClient =
+                OkHttpClient
+                    .Builder()
+                    .callTimeout(5, TimeUnit.SECONDS)
+                    .build()
+            try {
+                PutioClient(okHttpClient = customClient).use { customCallerSdk ->
+                    assertEquals(5_000, customCallerSdk.defaultCallTimeoutMillis)
+                }
+            } finally {
+                customClient.dispatcher.executorService.shutdown()
+                customClient.connectionPool.evictAll()
+            }
+
+            server.enqueue(
+                MockResponse
+                    .Builder()
+                    .headersDelay(500, TimeUnit.MILLISECONDS)
+                    .body("""{"status":"OK"}""")
+                    .build(),
+            )
+            val boundedClient =
+                OkHttpClient
+                    .Builder()
+                    .callTimeout(150, TimeUnit.MILLISECONDS)
+                    .readTimeout(5, TimeUnit.SECONDS)
+                    .build()
+            try {
+                val transport = newTransport(server, accessToken = "secret-token", httpClient = boundedClient)
+                val error =
+                    assertFailsWith<PutioTransportException> {
+                        runBlocking { transport.get(path = "/files/list", serializer = OkResponse.serializer()) }
+                    }
+                assertEquals(PutioTransportFailureKind.INTERRUPTED, error.failureKind)
+            } finally {
+                boundedClient.dispatcher.executorService.shutdown()
+                boundedClient.connectionPool.evictAll()
+            }
         }
 
     @Test

@@ -2,13 +2,20 @@ package io.putdotio.sdk.files
 
 import io.putdotio.sdk.PutioClient
 import io.putdotio.sdk.PutioConfig
+import io.putdotio.sdk.core.PutioMultipartFile
+import io.putdotio.sdk.core.PutioTransport
 import io.putdotio.sdk.errors.PutioApiException
 import io.putdotio.sdk.errors.PutioOperationErrorReason
 import io.putdotio.sdk.errors.PutioOperationException
 import io.putdotio.sdk.errors.PutioSerializationException
+import io.putdotio.sdk.errors.PutioTransportException
+import io.putdotio.sdk.errors.PutioTransportFailureKind
 import kotlinx.coroutines.runBlocking
 import mockwebserver3.MockResponse
 import mockwebserver3.MockWebServer
+import mockwebserver3.SocketEffect
+import okhttp3.OkHttpClient
+import java.util.concurrent.TimeUnit
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
@@ -137,6 +144,115 @@ class FilesUploadApiTest {
         assertFalse(input.toString().contains("secret"))
         assertEquals("https://upload.put.io/v2/", PutioConfig().uploadBaseUrl)
     }
+
+    @Test
+    fun `upload post is not retried after pooled socket reset`() =
+        MockWebServer().use { server ->
+            server.start()
+            server.enqueue(MockResponse.Builder().body("""{"status":"OK"}""").build())
+            server.enqueue(MockResponse.Builder().onResponseStart(SocketEffect.CloseSocket()).build())
+            server.enqueue(MockResponse.Builder().body(FILE_UPLOAD_PAYLOAD).build())
+
+            val base = server.url("/v2/").toString()
+            val error =
+                assertFailsWith<PutioOperationException> {
+                    runBlocking {
+                        PutioClient(
+                            PutioConfig(
+                                accessToken = "token",
+                                baseUrl = base,
+                                uploadBaseUrl = base,
+                            ),
+                        ).use { sdk ->
+                            sdk.files.resetStartFrom(1)
+                            sdk.files.upload(FileUploadInput(content = byteArrayOf(1), fileName = "a.txt"))
+                        }
+                    }
+                }
+
+            assertIs<PutioTransportException>(error.underlyingError)
+            assertEquals(2, server.requestCount)
+        }
+
+    @Test
+    fun `multipart upload exempts default callTimeout while caller okHttpClient timeout still applies`() =
+        withServers { api, upload ->
+            upload.enqueue(
+                MockResponse
+                    .Builder()
+                    .headersDelay(300, TimeUnit.MILLISECONDS)
+                    .body(FILE_UPLOAD_PAYLOAD)
+                    .build(),
+            )
+            upload.enqueue(
+                MockResponse
+                    .Builder()
+                    .headersDelay(300, TimeUnit.MILLISECONDS)
+                    .body(FILE_UPLOAD_PAYLOAD)
+                    .build(),
+            )
+
+            val shortTimeoutClient =
+                OkHttpClient
+                    .Builder()
+                    .callTimeout(150, TimeUnit.MILLISECONDS)
+                    .readTimeout(5, TimeUnit.SECONDS)
+                    .build()
+
+            try {
+                val callerError =
+                    assertFailsWith<PutioOperationException> {
+                        runBlocking {
+                            PutioClient(
+                                config =
+                                    PutioConfig(
+                                        accessToken = "token",
+                                        baseUrl = api.url("/v2/").toString(),
+                                        uploadBaseUrl = upload.url("/v2/").toString(),
+                                    ),
+                                okHttpClient = shortTimeoutClient,
+                            ).use { sdk ->
+                                sdk.files.upload(FileUploadInput(content = byteArrayOf(1), fileName = "a.txt"))
+                            }
+                        }
+                    }
+                val transportError = assertIs<PutioTransportException>(callerError.underlyingError)
+                assertEquals(PutioTransportFailureKind.INTERRUPTED, transportError.failureKind)
+
+                val exemptTransport =
+                    PutioTransport(
+                        config =
+                            PutioConfig(
+                                accessToken = "token",
+                                baseUrl = api.url("/v2/").toString(),
+                                uploadBaseUrl = upload.url("/v2/").toString(),
+                            ),
+                        httpClient = shortTimeoutClient,
+                        json = PutioTransport.defaultJson,
+                        exemptMultipartCallTimeout = true,
+                    )
+                val uploaded =
+                    runBlocking {
+                        exemptTransport.postMultipart(
+                            baseUrl = upload.url("/v2/").toString(),
+                            path = "/files/upload",
+                            serializer = FileUploadEnvelope.serializer(),
+                            form = mapOf("filename" to "a.txt"),
+                            file =
+                                PutioMultipartFile(
+                                    fieldName = "file",
+                                    fileName = "a.txt",
+                                    mediaType = "application/octet-stream",
+                                    content = byteArrayOf(1),
+                                ),
+                        )
+                    }
+                assertEquals("notes.txt", uploaded.toResult().let { assertIs<FileUploadResult.File>(it).file.name })
+            } finally {
+                shortTimeoutClient.dispatcher.executorService.shutdown()
+                shortTimeoutClient.connectionPool.evictAll()
+            }
+        }
 
     private fun formPart(
         name: String,
