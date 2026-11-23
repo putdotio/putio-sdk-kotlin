@@ -327,6 +327,51 @@ class AuthApiTest {
         }
 
     @Test
+    fun `checkCodeMatch encodes special characters and slashes as a literal path segment`() =
+        withServer { server ->
+            repeat(2) {
+                server.enqueue(
+                    MockResponse
+                        .Builder()
+                        .body("""{"status":"OK","oauth_token":null}""")
+                        .build(),
+                )
+            }
+
+            runBlocking {
+                PutioClient(
+                    PutioConfig(
+                        baseUrl = server.url("/v2/").toString(),
+                    ),
+                ).use { sdk ->
+                    assertNull(sdk.auth.checkCodeMatch("../../../files/list"))
+                    assertNull(sdk.auth.checkCodeMatch("a/b?x=1#frag"))
+                }
+            }
+
+            assertEquals("/v2/oauth2/oob/code/..%2F..%2F..%2Ffiles%2Flist", server.takeRequest().target)
+            assertEquals("/v2/oauth2/oob/code/a%2Fb%3Fx=1%23frag", server.takeRequest().target)
+        }
+
+    @Test
+    fun `checkCodeMatch rejects blank and dot segment codes without sending requests`() =
+        withServer { server ->
+            PutioClient(
+                PutioConfig(
+                    baseUrl = server.url("/v2/").toString(),
+                ),
+            ).use { sdk ->
+                listOf("", "   ", ".", "..").forEach { invalidCode ->
+                    assertFailsWith<IllegalArgumentException> {
+                        runBlocking { sdk.auth.checkCodeMatch(invalidCode) }
+                    }
+                }
+            }
+
+            assertEquals(0, server.requestCount)
+        }
+
+    @Test
     fun `verifyTotp wraps invalid code errors with auth operation context`() =
         withServer { server ->
             server.enqueue(

@@ -71,6 +71,20 @@ internal class PutioTransport(
             auth = auth,
         )
 
+    suspend fun <T> get(
+        pathSegments: List<String>,
+        serializer: KSerializer<T>,
+        query: Map<String, String> = emptyMap(),
+        auth: PutioAuth = PutioAuth.ConfigToken,
+    ): T =
+        execute(
+            method = "GET",
+            pathSegments = pathSegments,
+            serializer = serializer,
+            query = query,
+            auth = auth,
+        )
+
     suspend fun <T> post(
         path: String,
         serializer: KSerializer<T>,

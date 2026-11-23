@@ -60,15 +60,17 @@ class AuthApi internal constructor(
         )
     }
 
-    suspend fun checkCodeMatch(code: String): String? =
-        putioOperation(CHECK_CODE_MATCH_ERROR_SPEC) {
+    suspend fun checkCodeMatch(code: String): String? {
+        require(code.isNotBlank()) { "Device code must not be blank" }
+        return putioOperation(CHECK_CODE_MATCH_ERROR_SPEC) {
             transport
                 .get(
-                    path = "/oauth2/oob/code/$code",
+                    pathSegments = listOf("oauth2", "oob", "code", code),
                     serializer = CodeMatchEnvelope.serializer(),
                     auth = PutioAuth.None,
                 ).oauthToken
         }
+    }
 
     suspend fun validateToken(token: String? = null): ValidateTokenResult =
         putioOperation(VALIDATE_TOKEN_ERROR_SPEC) {
