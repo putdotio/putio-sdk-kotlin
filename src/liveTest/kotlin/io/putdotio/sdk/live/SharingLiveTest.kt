@@ -28,6 +28,7 @@ class SharingLiveTest {
     }
 
     @Test
+    @org.junit.jupiter.api.Tag("error-path")
     fun `cloning an owned folder is rejected and an unknown copy id is not found`() {
         runBlocking {
             LiveSupport.newAuthedClient().use { sdk ->

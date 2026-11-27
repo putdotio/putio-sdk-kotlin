@@ -75,12 +75,15 @@ internal object LiveSupport {
 
     fun requireAccessToken(): String = requiredEnv("PUTIO_TOKEN_FIRST_PARTY", "PUTIO_ACCESS_TOKEN", "PUTIO_TOKEN")
 
-    fun newAuthedClient(clientId: String? = runtimeValue("PUTIO_CLIENT_ID")): PutioClient =
+    fun newAuthedClient(
+        clientId: String? = runtimeValue("PUTIO_CLIENT_ID"),
+        clientName: String = "putio-sdk-kotlin live",
+    ): PutioClient =
         PutioClient(
             PutioConfig(
                 accessToken = requireAccessToken(),
                 clientId = clientId,
-                clientName = "putio-sdk-kotlin live",
+                clientName = clientName,
                 baseUrl = env("PUTIO_BASE_URL") ?: "https://api.put.io/v2/",
             ),
         )

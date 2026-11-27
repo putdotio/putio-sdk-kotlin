@@ -46,6 +46,7 @@ class CursorContinuationLiveTest {
     }
 
     @Test
+    @org.junit.jupiter.api.Tag("error-path")
     fun `invalid cursors retain continuation operation context`() {
         runBlocking {
             LiveSupport.newAuthedClient().use { sdk ->
