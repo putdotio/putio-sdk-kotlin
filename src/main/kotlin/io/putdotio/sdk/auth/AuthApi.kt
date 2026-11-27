@@ -114,8 +114,7 @@ public class AuthApi internal constructor(
                 transport.post(
                     path = "/two_factor/verify/totp",
                     serializer = VerifyTotpEnvelope.serializer(),
-                    auth = PutioAuth.None,
-                    query = mapOf("oauth_token" to twoFactorScopedToken),
+                    auth = PutioAuth.Token(twoFactorScopedToken),
                     form = mapOf("code" to code),
                 )
 
