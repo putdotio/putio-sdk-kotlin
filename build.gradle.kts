@@ -6,6 +6,7 @@ import org.gradle.api.tasks.testing.Test
 import org.gradle.testing.jacoco.tasks.JacocoCoverageVerification
 import org.gradle.testing.jacoco.tasks.JacocoReport
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
+import org.jetbrains.kotlin.gradle.dsl.abi.ExperimentalAbiValidation
 import java.math.BigDecimal
 
 plugins {
@@ -42,6 +43,9 @@ spotless {
 kotlin {
     explicitApi()
     jvmToolchain(21)
+
+    @OptIn(ExperimentalAbiValidation::class)
+    abiValidation()
 
     compilerOptions {
         jvmTarget.set(JvmTarget.JVM_1_8)
@@ -141,10 +145,22 @@ tasks.register<Exec>("markdownCheck") {
     commandLine("npx", "--yes", "oxfmt@${oxfmtVersion.get()}", "--check", "**/*.md")
 }
 
+tasks.register("apiCheck") {
+    group = "verification"
+    description = "Verify public Kotlin binary ABI against the tracked dump"
+    dependsOn("checkKotlinAbi")
+}
+
+tasks.register("apiDump") {
+    group = "verification"
+    description = "Regenerate the tracked public Kotlin binary ABI dump"
+    dependsOn("updateKotlinAbi")
+}
+
 tasks.register("verify") {
     group = "verification"
     description = "Run the canonical local verification checks"
-    dependsOn("check", "jar", "jacocoTestCoverageVerification", "markdownCheck")
+    dependsOn("check", "apiCheck", "jar", "jacocoTestCoverageVerification", "markdownCheck")
 }
 
 // Only the release job passes -Pversion; a default SNAPSHOT must never reach Central.
