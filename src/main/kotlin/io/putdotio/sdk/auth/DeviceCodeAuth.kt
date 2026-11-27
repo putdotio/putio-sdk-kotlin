@@ -104,8 +104,15 @@ public class DeviceCodeAuth internal constructor(
                     }
                 }
             emit(DeviceCodeAuthState.Validating)
-            emit(validateAndLoad(token))
+            val result = validateAndLoad(token)
+            if (result is DeviceCodeAuthState.Failed) revoke(token)
+            emit(result)
         }
+
+    // A token the caller never receives would stay as an unused grant on the user's account.
+    private suspend fun revoke(token: String) {
+        sdkCall { auth.logout(token) }
+    }
 
     // Only SDK calls sit inside try blocks; collector exceptions propagate untouched.
     private suspend fun validateAndLoad(token: String): DeviceCodeAuthState {
@@ -174,7 +181,10 @@ public class DeviceCodeAuth internal constructor(
                         }
                     }
                 }
-            if (deadline.hasPassedNow()) return PollOutcome.Terminal(budgetElapsed())
+            if (deadline.hasPassedNow()) {
+                revoke(token)
+                return PollOutcome.Terminal(budgetElapsed())
+            }
             return PollOutcome.Token(token)
         }
     }

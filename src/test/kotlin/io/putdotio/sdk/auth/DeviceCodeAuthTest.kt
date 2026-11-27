@@ -113,7 +113,7 @@ class DeviceCodeAuthTest {
         }
 
     @Test
-    fun `a token that arrives after the deadline is treated as expired`() =
+    fun `a token that arrives after the deadline is revoked and treated as expired`() =
         withServer { server ->
             server.enqueue(json(CODE_ENVELOPE))
             server.enqueue(json("""{"status":"OK","oauth_token":"tok-late"}"""))
@@ -127,7 +127,12 @@ class DeviceCodeAuthTest {
                 DeviceCodeAuthState.Expired(DeviceCodeAuthState.Expired.Reason.BUDGET_ELAPSED),
                 states.last(),
             )
-            assertEquals(2, server.requestCount)
+            assertEquals(3, server.requestCount)
+            server.takeRequest()
+            server.takeRequest()
+            val logout = server.takeRequest()
+            assertEquals("/v2/oauth/grants/logout", logout.target)
+            assertEquals("Token tok-late", logout.headers["Authorization"])
         }
 
     @Test
@@ -389,6 +394,26 @@ class DeviceCodeAuthTest {
             val states = runBlocking { orchestrator.link(fastOptions).toList() }
             val failure = assertIs<DeviceCodeAuthState.Failed>(states.last())
             assertEquals("getInfo", assertIs<PutioOperationException>(failure.error).operation)
+        }
+
+    @Test
+    fun `a failure after the code is approved revokes the issued token`() =
+        withServer { server ->
+            server.enqueue(json(CODE_ENVELOPE))
+            server.enqueue(json("""{"status":"OK","oauth_token":"tok-1"}"""))
+            server.enqueue(json("""{"status":"ERROR","status_code":503,"error_type":"DOWN"}""", 503))
+            server.enqueue(json("""{"status":"OK"}"""))
+
+            val (orchestrator, _) = orchestrator(server)
+            val states = runBlocking { orchestrator.link(fastOptions).toList() }
+
+            assertIs<DeviceCodeAuthState.Failed>(states.last())
+            assertEquals(4, server.requestCount)
+            repeat(3) { server.takeRequest() }
+            val logout = server.takeRequest()
+            assertEquals("/v2/oauth/grants/logout", logout.target)
+            assertEquals("POST", logout.method)
+            assertEquals("Token tok-1", logout.headers["Authorization"])
         }
 
     @Test
