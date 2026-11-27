@@ -65,6 +65,18 @@ class ConfigGrantsRoutesLiveTest {
                 val request = sdk.grants.buildIconRequest(assertNotNull(grant).id)
                 assertFalse(request.url.contains("oauth_token"))
                 assertEquals(200, iconStatus(request.url, request.headers))
+            }
+        }
+    }
+
+    @Test
+    @org.junit.jupiter.api.Tag("error-path")
+    fun `app icon rejects unauthenticated requests with 401`() {
+        runBlocking {
+            LiveSupport.newAuthedClient().use { sdk ->
+                val grant = sdk.grants.list().firstOrNull { it.hasIcon == true }
+                assumeTrue(grant != null, "No granted app with an icon for icon live coverage")
+                val request = sdk.grants.buildIconRequest(assertNotNull(grant).id)
                 assertEquals(401, iconStatus(request.url, emptyMap()))
             }
         }

@@ -107,11 +107,24 @@ tasks.named<JacocoCoverageVerification>("jacocoTestCoverageVerification") {
 }
 
 tasks.register<Test>("liveTest") {
-    description = "Run opt-in live SDK verification against the real put.io API"
+    description = "Run safe live SDK verification against the real put.io API (excludes error-path probes)"
     group = "verification"
     testClassesDirs = liveTestSourceSet.output.classesDirs
     classpath = liveTestSourceSet.runtimeClasspath
-    useJUnitPlatform()
+    useJUnitPlatform {
+        excludeTags("error-path")
+    }
+    shouldRunAfter(tasks.test)
+}
+
+tasks.register<Test>("liveErrorPathTest") {
+    description = "Run opt-in live SDK probes that intentionally trigger API error responses"
+    group = "verification"
+    testClassesDirs = liveTestSourceSet.output.classesDirs
+    classpath = liveTestSourceSet.runtimeClasspath
+    useJUnitPlatform {
+        includeTags("error-path")
+    }
     shouldRunAfter(tasks.test)
 }
 

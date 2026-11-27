@@ -43,6 +43,7 @@ class TransfersLiveTest {
     }
 
     @Test
+    @org.junit.jupiter.api.Tag("error-path")
     fun `transfers oversized pagination yields typed live error`() {
         runBlocking {
             LiveSupport.newAuthedClient().use { sdk ->

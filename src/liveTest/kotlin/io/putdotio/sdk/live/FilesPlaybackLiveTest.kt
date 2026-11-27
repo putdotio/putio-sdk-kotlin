@@ -198,7 +198,30 @@ class FilesPlaybackLiveTest {
 
                 for (request in requests) {
                     assertTrue(request.url.toHttpUrl().queryParameter("oauth_token") == null)
-                    assertEquals(200 to 401, http.statusOf(request.url, request.headers) to http.statusOf(request.url, emptyMap()))
+                    assertEquals(200, http.statusOf(request.url, request.headers))
+                }
+            }
+        }
+    }
+
+    @Test
+    @org.junit.jupiter.api.Tag("error-path")
+    fun `media requests reject unauthenticated calls with 401`() {
+        runBlocking {
+            LiveSupport.newAuthedClient().use { sdk ->
+                val fileId = LiveSupport.requirePlaybackFixtureId()
+                val http = OkHttpClient()
+                val downloadToken = assertNotNull(sdk.account.getInfo(AccountInfoQuery(downloadToken = true)).downloadToken)
+                val requests =
+                    listOf(
+                        sdk.files.buildDownloadRequest(fileId, downloadToken),
+                        sdk.files.buildOriginalStreamRequest(fileId, downloadToken),
+                        sdk.files.buildMp4StreamRequest(fileId, downloadToken),
+                        sdk.files.buildHlsStreamRequest(fileId, downloadToken),
+                    )
+
+                for (request in requests) {
+                    assertEquals(401, http.statusOf(request.url, emptyMap()))
                 }
             }
         }
@@ -223,7 +246,30 @@ class FilesPlaybackLiveTest {
 
                 for (url in urls) {
                     assertTrue(url.toHttpUrl().queryParameter("oauth_token") == null)
-                    assertEquals(200 to 401, http.statusOf(url, header) to http.statusOf(url, emptyMap()))
+                    assertEquals(200, http.statusOf(url, header))
+                }
+            }
+        }
+    }
+
+    @Test
+    @org.junit.jupiter.api.Tag("error-path")
+    fun `token-free media urls reject unauthenticated calls with 401`() {
+        runBlocking {
+            LiveSupport.newAuthedClient().use { sdk ->
+                val fileId = LiveSupport.requirePlaybackFixtureId()
+                val http = OkHttpClient()
+                val urls =
+                    listOf(
+                        sdk.files.buildDownloadRequestUrl(fileId),
+                        sdk.files.buildOriginalStreamRequestUrl(fileId),
+                        sdk.files.buildMp4StreamRequestUrl(fileId),
+                        sdk.files.buildHlsStreamRequestUrl(fileId),
+                        sdk.files.buildHlsStreamRequestUrl(fileId, listOf("en"), HLS_ALL_SUBTITLES, original = true),
+                    )
+
+                for (url in urls) {
+                    assertEquals(401, http.statusOf(url, emptyMap()))
                 }
             }
         }

@@ -7,9 +7,10 @@ Install a Java `21` runtime and Node `^20.19.0` or `>=22.12.0`.
 ## Checks
 
 ```bash
-./gradlew verify   # local and CI gate
-./gradlew test     # unit suite only
-./gradlew liveTest # opt-in, real put.io API; excluded from verify
+./gradlew verify            # local and CI gate
+./gradlew test              # unit suite only
+./gradlew liveTest          # opt-in, real put.io API; excludes error-path probes
+./gradlew liveErrorPathTest # opt-in live tests that intentionally trigger 4xx responses
 ```
 
 - `./gradlew spotlessApply` fixes ktlint findings.

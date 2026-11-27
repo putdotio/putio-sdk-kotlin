@@ -5,6 +5,7 @@ import io.putdotio.sdk.errors.PutioOperationException
 import io.putdotio.sdk.files.FileUploadInput
 import io.putdotio.sdk.files.FileUploadResult
 import kotlinx.coroutines.runBlocking
+import org.junit.jupiter.api.Tag
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
@@ -12,7 +13,7 @@ import kotlin.test.assertIs
 
 class FilesUploadLiveTest {
     @Test
-    fun `upload saves a file in a disposable folder and requireTorrent rejects non-torrents`() {
+    fun `upload saves a file in a disposable folder`() {
         runBlocking {
             LiveSupport.newAuthedClient().use { sdk ->
                 val folder = sdk.files.createFolder(name = LiveSupport.uniqueName("putio-kotlin-live"), parentId = 0)
@@ -26,7 +27,28 @@ class FilesUploadLiveTest {
                     assertEquals("Sample notes.txt", file.name)
                     assertEquals(folder.id, file.parentId)
                     assertEquals(content.size.toLong(), file.size)
+                    assertEquals(
+                        listOf(file.id),
+                        sdk.files
+                            .list(parentId = folder.id)
+                            .files
+                            .map { it.id },
+                    )
+                } finally {
+                    sdk.files.delete(fileIds = listOf(folder.id), skipTrash = true)
+                }
+            }
+        }
+    }
 
+    @Test
+    @Tag("error-path")
+    fun `upload with requireTorrent rejects non-torrents`() {
+        runBlocking {
+            LiveSupport.newAuthedClient().use { sdk ->
+                val folder = sdk.files.createFolder(name = LiveSupport.uniqueName("putio-kotlin-live"), parentId = 0)
+                try {
+                    val content = "putio-sdk-kotlin live upload".toByteArray()
                     val rejected =
                         assertFailsWith<PutioOperationException> {
                             sdk.files.upload(
@@ -39,13 +61,6 @@ class FilesUploadLiveTest {
                             )
                         }
                     assertEquals("NotTorrent", assertIs<PutioApiException>(rejected.underlyingError).errorType)
-                    assertEquals(
-                        listOf(file.id),
-                        sdk.files
-                            .list(parentId = folder.id)
-                            .files
-                            .map { it.id },
-                    )
                 } finally {
                     sdk.files.delete(fileIds = listOf(folder.id), skipTrash = true)
                 }
