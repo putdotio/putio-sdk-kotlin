@@ -15,13 +15,9 @@ class DeviceLinkLiveTest {
         runBlocking {
             val clientId = LiveSupport.requireClientId()
             val appId = clientId.toLong()
-            LiveSupport.newAuthedClient(clientId = clientId).use { sdk ->
+            val clientName = LiveSupport.uniqueName("putio-kotlin-device-link")
+            LiveSupport.newAuthedClient(clientId = clientId, clientName = clientName).use { sdk ->
                 val grantedBefore = sdk.isGranted(appId)
-                val clientIdsBefore =
-                    sdk.grants
-                        .clients()
-                        .filter { it.appId == appId }
-                        .mapTo(mutableSetOf()) { it.id }
                 var token: String? = null
                 var linkedClientId: Long? = null
                 val code = sdk.auth.getCode().code
@@ -44,7 +40,7 @@ class DeviceLinkLiveTest {
                     assertTrue(sdk.grants.clients().none { it.id == linkedId })
                     assertFalse(runCatching { sdk.auth.validateToken(issued).result }.getOrDefault(false))
                 } finally {
-                    revokeLinkedClient(sdk, appId, code, token, linkedClientId, clientIdsBefore)
+                    revokeLinkedClient(sdk, appId, clientName, code, token, linkedClientId)
                 }
                 assertEquals(grantedBefore, sdk.isGranted(appId))
             }
@@ -56,13 +52,9 @@ class DeviceLinkLiveTest {
         runBlocking {
             val clientId = LiveSupport.requireClientId()
             val appId = clientId.toLong()
-            LiveSupport.newAuthedClient(clientId = clientId).use { sdk ->
+            val clientName = LiveSupport.uniqueName("putio-kotlin-device-link")
+            LiveSupport.newAuthedClient(clientId = clientId, clientName = clientName).use { sdk ->
                 val grantedBefore = sdk.isGranted(appId)
-                val clientIdsBefore =
-                    sdk.grants
-                        .clients()
-                        .filter { it.appId == appId }
-                        .mapTo(mutableSetOf()) { it.id }
                 var token: String? = null
                 var linkedClientId: Long? = null
                 val code = sdk.auth.getCode().code
@@ -79,7 +71,7 @@ class DeviceLinkLiveTest {
                     assertFalse(runCatching { sdk.auth.validateToken(issued).result }.getOrDefault(false))
                     assertTrue(sdk.auth.validateToken().result)
                 } finally {
-                    revokeLinkedClient(sdk, appId, code, token, linkedClientId, clientIdsBefore)
+                    revokeLinkedClient(sdk, appId, clientName, code, token, linkedClientId)
                 }
                 assertEquals(grantedBefore, sdk.isGranted(appId))
             }
@@ -89,10 +81,10 @@ class DeviceLinkLiveTest {
     private suspend fun revokeLinkedClient(
         sdk: PutioClient,
         appId: Long,
+        clientName: String,
         code: String,
         token: String?,
         linkedClientId: Long?,
-        clientIdsBefore: Set<Long>,
     ) {
         val issued = token ?: runCatching { sdk.auth.checkCodeMatch(code) }.getOrNull()
         val resolvedId =
@@ -103,7 +95,7 @@ class DeviceLinkLiveTest {
             if (resolvedId != null) {
                 currentClients.filter { it.id == resolvedId && it.appId == appId }.map { it.id }
             } else {
-                currentClients.filter { it.appId == appId && it.id !in clientIdsBefore }.map { it.id }
+                currentClients.filter { it.appId == appId && it.clientName == clientName }.map { it.id }
             }
         idsToRevoke.forEach { id ->
             runCatching { sdk.grants.revokeClient(id) }
