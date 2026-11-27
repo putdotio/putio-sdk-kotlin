@@ -81,5 +81,5 @@ class FileEnvelopeValidationTest {
         }
     }
 
-    private val fileJson = """{"id":9,"name":"Folder","parent_id":0,"file_type":"FOLDER","created_at":"2026-09-06"}"""
+    private val fileJson = """{"id":9,"name":"Folder","size":0,"parent_id":0,"file_type":"FOLDER","created_at":"2026-09-06"}"""
 }

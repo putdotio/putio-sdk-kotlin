@@ -61,7 +61,7 @@ class FilesApiTest {
 
             val request = server.takeRequest()
             assertEquals(
-                "/v2/files/list?parent_id=0&mp4_status_parent=1&stream_url_parent=1&mp4_stream_url_parent=1&video_metadata_parent=1",
+                "/v2/files/list?parent_id=0&mp4_status_parent=1&video_metadata_parent=1",
                 request.target,
             )
         }
@@ -145,6 +145,8 @@ class FilesApiTest {
                                 sortBy = "NAME_ASC",
                                 mp4Status = true,
                                 videoMetadata = true,
+                                streamUrlParent = true,
+                                mp4StreamUrlParent = true,
                             ),
                     )
                 }
@@ -410,6 +412,7 @@ class FilesApiTest {
                             {
                               "id": 1,
                               "name": "Clips",
+                              "size": 0,
                               "created_at": "2026-04-20T10:00:00Z",
                               "file_type": "FOLDER",
                               "content_type": "application/x-directory"
@@ -417,6 +420,7 @@ class FilesApiTest {
                             {
                               "id": 2,
                               "name": "Movie.mkv",
+                              "size": 1024,
                               "created_at": "2026-04-20T10:00:00Z",
                               "file_type": "VIDEO",
                               "content_type": "video/x-matroska"
@@ -424,6 +428,7 @@ class FilesApiTest {
                             {
                               "id": 3,
                               "name": "Unknown",
+                              "size": 128,
                               "created_at": "2026-04-20T10:00:00Z",
                               "file_type": "FILE",
                               "content_type": null
@@ -431,6 +436,7 @@ class FilesApiTest {
                             {
                               "id": 4,
                               "name": "Legacy",
+                              "size": 64,
                               "created_at": "2026-04-20T10:00:00Z",
                               "file_type": "FILE"
                             }
@@ -1223,6 +1229,7 @@ class FilesApiTest {
             PutioFile(
                 id = 11,
                 name = "Video.mkv",
+                size = 0,
                 createdAt = "2026-04-20T10:00:00Z",
                 fileType = PutioFileType.VIDEO,
             )
@@ -1236,6 +1243,7 @@ class FilesApiTest {
             PutioFile(
                 id = 13,
                 name = "Folder",
+                size = 0,
                 createdAt = "2026-04-20T10:00:00Z",
                 fileType = PutioFileType.FOLDER,
             )

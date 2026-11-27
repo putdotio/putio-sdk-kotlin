@@ -143,7 +143,7 @@ class PutioTransportTest {
         }
 
     @Test
-    fun `default json coerces explicit nulls on defaulted fields and keeps required fields strict`() =
+    fun `default json coerces explicit nulls on defaulted fields and rejects nulls on required fields`() =
         withServer { server ->
             server.enqueue(
                 MockResponse
@@ -156,12 +156,12 @@ class PutioTransportTest {
                               "id": 1,
                               "name": "x",
                               "type": null,
-                              "status": null,
-                              "save_parent_id": null,
+                              "status": "COMPLETED",
+                              "save_parent_id": 7,
                               "source": null,
                               "links": null,
                               "is_private": null,
-                              "created_at": null
+                              "created_at": "2026-09-06"
                             }
                           ],
                           "status": "OK"
@@ -178,7 +178,7 @@ class PutioTransportTest {
                           "file": {
                             "id": 9,
                             "name": "Folder",
-                            "size": null,
+                            "size": 1024,
                             "created_at": "2026-09-06",
                             "file_type": "FOLDER",
                             "folder_type": null,
@@ -189,17 +189,23 @@ class PutioTransportTest {
                         """.trimIndent(),
                     ).build(),
             )
+            val rejectedTransferPayloads =
+                listOf(
+                    """{"transfers":[{"id":1,"name":null,"status":"COMPLETED","save_parent_id":0,"created_at":"2026-09-06"}],"status":"OK"}""",
+                    """{"transfers":[{"id":1,"name":"x","status":null,"save_parent_id":0,"created_at":"2026-09-06"}],"status":"OK"}""",
+                    """{"transfers":[{"id":1,"name":"x","status":"COMPLETED","save_parent_id":null,"created_at":"2026-09-06"}],"status":"OK"}""",
+                    """{"transfers":[{"id":1,"name":"x","status":"COMPLETED","save_parent_id":0,"created_at":null}],"status":"OK"}""",
+                    """{"transfers":[],"status":null}""",
+                )
+            rejectedTransferPayloads.forEach { body ->
+                server.enqueue(MockResponse.Builder().body(body).build())
+            }
             server.enqueue(
                 MockResponse
                     .Builder()
-                    .body("""{"transfers":[{"id":1,"name":null,"status":"COMPLETED"}],"status":"OK"}""")
-                    .build(),
-            )
-            server.enqueue(
-                MockResponse
-                    .Builder()
-                    .body("""{"transfers":[],"status":null}""")
-                    .build(),
+                    .body(
+                        """{"file":{"id":9,"name":"Folder","size":null,"created_at":"2026-09-06","file_type":"FOLDER"},"status":"OK"}""",
+                    ).build(),
             )
 
             runBlocking {
@@ -215,29 +221,25 @@ class PutioTransportTest {
                             .transfers
                             .single()
                     assertEquals(TransferType.NOT_AVAILABLE, transfer.type)
-                    assertEquals(TransferStatus.WAITING, transfer.status)
-                    assertEquals(0L, transfer.saveParentId)
+                    assertEquals(TransferStatus.COMPLETED, transfer.status)
+                    assertEquals(7L, transfer.saveParentId)
                     assertEquals("", transfer.source)
                     assertEquals(emptyList(), transfer.links)
                     assertEquals(false, transfer.isPrivate)
-                    assertEquals("", transfer.createdAt)
+                    assertEquals("2026-09-06", transfer.createdAt)
 
                     val file = sdk.files.get(9)
-                    assertEquals(0L, file.size)
+                    assertEquals(1024L, file.size)
                     assertEquals(PutioFolderType.REGULAR, file.folderType)
                     assertEquals(false, file.isShared)
 
-                    val missingTransferName =
-                        assertFailsWith<PutioOperationException> {
-                            sdk.transfers.list()
-                        }
-                    assertIs<PutioSerializationException>(missingTransferName.underlyingError)
+                    repeat(rejectedTransferPayloads.size) {
+                        val failure = assertFailsWith<PutioOperationException> { sdk.transfers.list() }
+                        assertIs<PutioSerializationException>(failure.underlyingError)
+                    }
 
-                    val missingStatus =
-                        assertFailsWith<PutioOperationException> {
-                            sdk.transfers.list()
-                        }
-                    assertIs<PutioSerializationException>(missingStatus.underlyingError)
+                    val nullFileSize = assertFailsWith<PutioOperationException> { sdk.files.get(9) }
+                    assertIs<PutioSerializationException>(nullFileSize.underlyingError)
                 }
             }
         }

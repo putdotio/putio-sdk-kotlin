@@ -177,7 +177,7 @@ public data class PutioFile(
     public val name: String,
     public val icon: String? = null,
     @SerialName("parent_id") public val parentId: Long? = null,
-    public val size: Long = 0,
+    public val size: Long,
     @SerialName("created_at") public val createdAt: String,
     @SerialName("updated_at") public val updatedAt: String? = null,
     @SerialName("file_type") public val fileType: PutioFileType,
@@ -282,14 +282,18 @@ public data class FilesListQuery(
     public val mp4Status: Boolean = false,
     /** Include `video_metadata` (duration, codec, dimensions) on each listed child. */
     public val videoMetadata: Boolean = false,
+    /** Ask the API to sign `stream_url` on the listed parent file. */
+    public val streamUrlParent: Boolean = false,
+    /** Ask the API to sign `mp4_stream_url` on the listed parent file. */
+    public val mp4StreamUrlParent: Boolean = false,
 )
 
 internal fun FilesListQuery.toQueryMap(parentId: Long): Map<String, String> =
     buildMap {
         put("parent_id", parentId.toString())
         put("mp4_status_parent", "1")
-        put("stream_url_parent", "1")
-        put("mp4_stream_url_parent", "1")
+        if (streamUrlParent) put("stream_url_parent", "1")
+        if (mp4StreamUrlParent) put("mp4_stream_url_parent", "1")
         put("video_metadata_parent", "1")
         if (perPage != null) put("per_page", perPage.toString())
         if (total) put("total", "1")
