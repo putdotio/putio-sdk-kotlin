@@ -217,7 +217,7 @@ class AuthApiTest {
         }
 
     @Test
-    fun `verifyTotp sends scoped token query and code form without configured auth`() =
+    fun `verifyTotp sends scoped token header and code form without configured auth`() =
         withServer { server ->
             server.enqueue(
                 MockResponse
@@ -250,9 +250,9 @@ class AuthApiTest {
             }
 
             val request = server.takeRequest()
-            assertEquals("/v2/two_factor/verify/totp?oauth_token=two-factor-token", request.target)
+            assertEquals("/v2/two_factor/verify/totp", request.target)
             assertEquals("code=123456", request.body!!.utf8())
-            assertEquals(null, request.headers["Authorization"])
+            assertEquals("Token two-factor-token", request.headers["Authorization"])
         }
 
     @Test
