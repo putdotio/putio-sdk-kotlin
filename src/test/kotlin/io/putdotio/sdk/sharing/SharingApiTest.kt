@@ -489,7 +489,9 @@ class SharingApiTest {
         sharedWith: String?,
     ): String {
         val sharedWithField = sharedWith?.let { ""","shared_with":$it""" }.orEmpty()
-        return """{"id":$id,"name":"Shared $id","created_at":"2026-09-01T10:00:00","file_type":"FOLDER","is_shared":true$sharedWithField}"""
+        val fields =
+            """{"id":$id,"name":"Shared $id","size":0,"created_at":"2026-09-01T10:00:00","file_type":"FOLDER","is_shared":true"""
+        return "$fields$sharedWithField}"
     }
 
     private fun publicShareJson(id: Long): String =
