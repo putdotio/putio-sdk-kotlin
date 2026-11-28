@@ -10,10 +10,6 @@
   </p>
 
   <p>
-    Domain-first, coroutine-friendly, and parsed at the boundary.
-  </p>
-
-  <p>
     <a href="https://github.com/putdotio/putio-sdk-kotlin/actions/workflows/ci.yml?query=branch%3Amain" style="text-decoration:none;"><img src="https://img.shields.io/github/actions/workflow/status/putdotio/putio-sdk-kotlin/ci.yml?branch=main&style=flat&label=ci&colorA=000000&colorB=000000" alt="CI"></a>
     <a href="https://github.com/putdotio/putio-sdk-kotlin/blob/main/LICENSE" style="text-decoration:none;"><img src="https://img.shields.io/github/license/putdotio/putio-sdk-kotlin?style=flat&colorA=000000&colorB=000000" alt="license"></a>
   </p>
@@ -60,9 +56,10 @@ The surface is smaller than [`putio-sdk-typescript`](https://github.com/putdotio
 
 ## Android Consumers
 
-The SDK emits Java 8 bytecode and leaves the minimum SDK to the consumer. It
-needs no SDK-specific R8 keep rules; putio-android builds minified releases at
-minSdk 26 against it.
+The SDK emits Java 8 bytecode, leaves the minimum SDK to the consumer, and needs
+no SDK-specific R8 keep rules.
+[putio-android](https://github.com/putdotio/putio-android) builds minified
+releases against it.
 
 OkHttp runs each request and `Dispatchers.Default` decodes its response, so
 calls from the main thread do no network or decoding work there. The SDK depends on
@@ -71,9 +68,11 @@ dispatcher must add the Android dispatcher:
 
 ```kotlin
 dependencies {
-    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.11.0")
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:<version>")
 }
 ```
+
+Match the `kotlinx-coroutines-core` version in [build.gradle.kts](./build.gradle.kts).
 
 Pass an `OkHttpClient` to add interceptors, caching, or other app policy:
 
@@ -89,16 +88,9 @@ val sdk = PutioClient(
 )
 ```
 
-`PutioClient.close()` does not close an injected client's cache, dispatcher,
-or connection pool. It closes only a client it created, and creates that
-default `OkHttpClient` lazily on the first HTTP request so pure URL builders
-allocate none.
-
-## File Types
-
-`PutioFile.contentType` is the MIME type put.io detected, such as
-`video/x-matroska`; folders report `application/x-directory`. It is `null`
-when the API sends none, so keep a fallback such as the file extension.
+`PutioClient.close()` closes only a default `OkHttpClient` it created, leaving
+any injected client open. It creates the default client lazily on the first
+HTTP request, so URL builders allocate none.
 
 ## Media URLs
 
@@ -141,34 +133,10 @@ matching `*RequestUrl` builder, which returns the same URL, and sends
 val url = sdk.files.buildDownloadRequestUrl(fileId = file.id)
 ```
 
-## Access Token
-
-`setAccessToken`, `clearAccessToken` and `compareAndSetAccessToken` are atomic.
-Use `compareAndSetAccessToken(expected = rejected, token = null)` to sign out
-after a 401 without clearing a token a concurrent sign-in just set. Pass a
-specific token to `auth.logout(token)` to revoke it without altering
-`PutioConfig.accessToken`; omit `token` to revoke the configured one.
-
-## Logged-in Apps
-
-`grants.list()` returns the apps signed in to the account; `grants.clients()`
-returns each session, with its `appId`, `lastUsedAt` and whether it is the
-calling one (`active`). `grants.revoke(appId)` ends every session of that app;
-`grants.revokeClient(id)` ends one session.
-
-An app's icon takes the access token, not the download token; put.io serves
-it only when its grant reports `hasIcon`. The request sends the token in its
-headers, so its URL is token-free:
-
-```kotlin
-val icon = sdk.grants.buildIconRequest(appId = grant.id)
-// icon.url, icon.headers
-```
-
-## Original Video
+## Playback
 
 `resolvePlayback` returns put.io's converted stream for video unless the app
-accepts the original. An `OriginalVideoDecision` gets the file's `media_info`,
+accepts the original. An `OriginalVideoDecision` gets the file's `mediaInfo`,
 or `null` when put.io has not probed it:
 
 ```kotlin
@@ -187,55 +155,27 @@ val request = PlaybackRequest(
 
 Video streams expose `bitDepth`, `isHdr`, and `dolbyVisionProfile`. For default
 audio, use the first audio stream with `isDefault == true`, falling back to
-the first audio stream. Missing values are `null`. An explicit `false` remains
-`false`.
+the first audio stream.
 
 An accepted original follows the preference: HLS plays
-`hls/media.m3u8?original=1`, MP4 plays `/files/{id}/stream`. The source's
-`kind` is `ORIGINAL` either way; its `format` says how to load it.
+`/files/{id}/hls/media.m3u8` (with `original=1`), and MP4 plays
+`/files/{id}/stream`. The source's `kind` is `ORIGINAL` either way; its
+`format` says how to load it.
 
 MP4 never falls back to HLS: a video with no accepted original, no converted
-MP4 and nothing to convert resolves as `Unsupported`.
+MP4, and nothing to convert resolves as `Unsupported`.
 
 Progressive sources carry sidecar subtitles as `PlaybackSubtitles.Sidecar`.
-Mark the track whose `key` matches `defaultKey` as the default. When
+Mark the track whose `key` matches `defaultKey` as the default; when
 `defaultKey` is `null`, put.io named no default, so mark none. put.io ranks
 subtitles found beside the file (source `folder`) first, so the default can be
-a track outside the requested languages.
+a track outside the requested languages. See
+[PlaybackModels.kt](./src/main/kotlin/io/putdotio/sdk/files/PlaybackModels.kt)
+for full playback model KDoc.
 
-## Watch Status
+## Authentication
 
-`files.setWatchStatus` marks a selection watched or unwatched in one request:
-file ids, or a list or search cursor (first page included) minus `excludeIds`.
-
-```kotlin
-sdk.files.setWatchStatus(FilesWatchStatusInput(watched = true, ids = listOf(11, 12)))
-sdk.files.setWatchStatus(FilesWatchStatusInput(watched = false, cursor = cursor, excludeIds = listOf(11)))
-```
-
-Watched keeps a saved resume position, and unwatched clears it. put.io skips
-non-media files and answers `FEATURE_DISABLED` while the account's resume
-setting is off.
-
-## Device-Code Linking (TV)
-
-```kotlin
-sdk.deviceCodeAuth.link().collect { state ->
-    when (state) {
-        is DeviceCodeAuthState.AwaitingLink -> showCode(state.code, state.qrCodeUrl)
-        is DeviceCodeAuthState.Linked -> tokenStore.save(state.accessToken)
-        is DeviceCodeAuthState.Expired -> offerNewCode()
-        is DeviceCodeAuthState.Failed -> showError(PutioErrorLocalizer.localize(state.error))
-        DeviceCodeAuthState.Requesting, DeviceCodeAuthState.Validating -> showSpinner()
-    }
-}
-```
-
-One collection is one attempt; collect again for a new code. The SDK owns polling,
-timeout, transient `429` and `5xx` retries (honoring `Retry-After`), and token
-validation; API errors expose `PutioApiException.retryAfterSeconds`.
-
-## Authentication URL Example
+### OAuth Login URL
 
 ```kotlin
 val sdk = PutioClient(
@@ -250,6 +190,37 @@ val loginUrl = sdk.auth.buildLoginUrl(
     state = "login"
 )
 ```
+
+### Device-Code Linking (TV)
+
+```kotlin
+sdk.deviceCodeAuth.link().collect { state ->
+    when (state) {
+        is DeviceCodeAuthState.AwaitingLink -> showCode(state.code, state.qrCodeUrl)
+        is DeviceCodeAuthState.Linked -> tokenStore.save(state.accessToken)
+        is DeviceCodeAuthState.Expired -> offerNewCode()
+        is DeviceCodeAuthState.Failed -> showError(PutioErrorLocalizer.localize(state.error))
+        DeviceCodeAuthState.Requesting, DeviceCodeAuthState.Validating -> showSpinner()
+    }
+}
+```
+
+One collection is one attempt; collect again for a new code. The SDK owns
+polling, timeout, transient network, `429`, and `5xx` retries (honoring
+`Retry-After`), and token validation; API errors expose
+`PutioApiException.retryAfterSeconds`.
+
+### Tokens and App Icons
+
+- `setAccessToken`, `clearAccessToken`, and `compareAndSetAccessToken` update
+  the access token atomically; see
+  [PutioClient.kt](./src/main/kotlin/io/putdotio/sdk/PutioClient.kt). Pass a
+  token to `auth.logout(token)` to revoke it without changing
+  `PutioConfig.accessToken`, or omit it to revoke the configured one.
+- `grants.buildIconRequest(appId)` authenticates with `PutioConfig.accessToken`
+  in headers so its URL is token-free, and put.io serves an icon only when the
+  grant reports `hasIcon == true`; see
+  [GrantsApi.kt](./src/main/kotlin/io/putdotio/sdk/grants/GrantsApi.kt).
 
 ## Docs
 

@@ -121,9 +121,9 @@ public sealed interface PlaybackSubtitles {
     public data object Embedded : PlaybackSubtitles
 
     /**
-     * [defaultKey] is the [PlaybackSubtitle.key] of the track put.io names as the list's default, the
-     * first of [tracks]; null when the list names none of [tracks]. put.io ranks subtitles found
-     * beside the file (source `folder`, often language `und`) ahead of the tracks that match
+     * [defaultKey] is the [PlaybackSubtitle.key] of the track put.io names as the list's default;
+     * null when the list names none of [tracks]. put.io ranks subtitles found beside the file
+     * (source `folder`, often language `und`) ahead of the tracks that match
      * [PlaybackRequest.subtitleLanguages] or the account's subtitle languages, so the default can
      * be a track in none of those languages.
      */

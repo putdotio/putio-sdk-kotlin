@@ -8,7 +8,7 @@ import java.util.UUID
 
 internal object LiveSupport {
     private val envFileValues: Map<String, String> by lazy {
-        listOf(".env.local", ".env")
+        listOf(".env", ".env.local")
             .fold(emptyMap()) { values, path -> values + loadEnvFile(path) }
     }
 

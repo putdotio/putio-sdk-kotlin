@@ -1,9 +1,8 @@
 ## Summary
 
-<!-- One sentence on the outcome, then one visual aid: a screenshot or short
-recording for UI (`gh pr create --attach ./file.png`, never committed), a
+<!-- One sentence on the outcome, then one visual aid when helpful: a
 Mermaid diagram for a flow, a table for numbers, or a short code sample for an
-API. Add one-line bullets only for risks the aid doesn't show, such as auth,
+API. Add one-line bullets only for risks the aid does not show, such as auth,
 request or response contracts, or publishing. -->
 
 ## Verification
