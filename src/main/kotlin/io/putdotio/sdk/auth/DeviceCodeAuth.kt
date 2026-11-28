@@ -6,9 +6,11 @@ import io.putdotio.sdk.errors.PutioApiException
 import io.putdotio.sdk.errors.PutioException
 import io.putdotio.sdk.errors.PutioOperationException
 import io.putdotio.sdk.errors.PutioTransportException
+import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.minutes
@@ -68,7 +70,8 @@ public data class DeviceCodeAuthOptions(
  * Orchestrates the device-code flow:
  * request a code, poll the match endpoint, then validate the token and load the
  * account. Each collection is one attempt; collect again to get a new code.
- * Cancelling the collector stops polling immediately.
+ * Cancelling the collector stops polling immediately. A token issued but never
+ * delivered in [DeviceCodeAuthState.Linked] is revoked, even after cancellation.
  */
 public class DeviceCodeAuth internal constructor(
     private val auth: AuthApi,
@@ -103,15 +106,21 @@ public class DeviceCodeAuth internal constructor(
                         return@flow
                     }
                 }
-            emit(DeviceCodeAuthState.Validating)
-            val result = validateAndLoad(token)
-            if (result is DeviceCodeAuthState.Failed) revoke(token)
-            emit(result)
+            var tokenDropped = true
+            try {
+                emit(DeviceCodeAuthState.Validating)
+                val result = validateAndLoad(token)
+                tokenDropped = result is DeviceCodeAuthState.Failed
+                emit(result)
+            } finally {
+                if (tokenDropped) revoke(token)
+            }
         }
 
     // A token the caller never receives would stay as an unused grant on the user's account.
+    // The revoke outlives cancellation, which is often why the caller never receives the token.
     private suspend fun revoke(token: String) {
-        sdkCall { auth.logout(token) }
+        withContext(NonCancellable) { sdkCall { auth.logout(token) } }
     }
 
     // Only SDK calls sit inside try blocks; collector exceptions propagate untouched.

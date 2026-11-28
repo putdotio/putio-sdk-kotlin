@@ -8,6 +8,7 @@ import io.putdotio.sdk.errors.PutioConfigurationException
 import io.putdotio.sdk.errors.PutioOperationException
 import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
@@ -227,6 +228,67 @@ class DeviceCodeAuthTest {
             }
             assertIs<DeviceCodeAuthState.AwaitingLink>(seen.last())
             assertEquals(2, seen.size)
+        }
+
+    @Test
+    fun `cancelling the collector while the issued token is validated revokes it`() =
+        withServer { server ->
+            server.enqueue(json(CODE_ENVELOPE))
+            server.enqueue(json("""{"status":"OK","oauth_token":"tok-1"}"""))
+            server.enqueue(
+                json(
+                    """{"status":"OK","result":true,"user_id":7}""",
+                ).newBuilder().headersDelay(30, TimeUnit.SECONDS).build(),
+            )
+            server.enqueue(json("""{"status":"OK"}"""))
+            val seen = mutableListOf<DeviceCodeAuthState>()
+            val (orchestrator, _) = orchestrator(server)
+            runBlocking {
+                val job = launch { orchestrator.link(fastOptions).collect { seen += it } }
+                withTimeout(5.seconds) {
+                    while (server.requestCount < 3) yield()
+                }
+                job.cancelAndJoin()
+            }
+            assertEquals(DeviceCodeAuthState.Validating, seen.last())
+            assertEquals(4, server.requestCount)
+            repeat(3) { server.takeRequest() }
+            val logout = server.takeRequest()
+            assertEquals("/v2/oauth/grants/logout", logout.target)
+            assertEquals("Token tok-1", logout.headers["Authorization"])
+        }
+
+    @Test
+    fun `a collector that stops at validating revokes the issued token`() =
+        withServer { server ->
+            server.enqueue(json(CODE_ENVELOPE))
+            server.enqueue(json("""{"status":"OK","oauth_token":"tok-1"}"""))
+            server.enqueue(json("""{"status":"OK"}"""))
+            val (orchestrator, _) = orchestrator(server)
+
+            val state = runBlocking { orchestrator.link(fastOptions).first { it == DeviceCodeAuthState.Validating } }
+
+            assertEquals(DeviceCodeAuthState.Validating, state)
+            assertEquals(3, server.requestCount)
+            repeat(2) { server.takeRequest() }
+            val logout = server.takeRequest()
+            assertEquals("/v2/oauth/grants/logout", logout.target)
+            assertEquals("Token tok-1", logout.headers["Authorization"])
+        }
+
+    @Test
+    fun `a linked token is not revoked when the collector stops after receiving it`() =
+        withServer { server ->
+            server.enqueue(json(CODE_ENVELOPE))
+            server.enqueue(json("""{"status":"OK","oauth_token":"tok-1"}"""))
+            server.enqueue(json("""{"status":"OK","result":true,"user_id":7}"""))
+            server.enqueue(json(ACCOUNT_ENVELOPE))
+            val (orchestrator, _) = orchestrator(server)
+
+            val linked = runBlocking { orchestrator.link(fastOptions).first { it is DeviceCodeAuthState.Linked } }
+
+            assertIs<DeviceCodeAuthState.Linked>(linked)
+            assertEquals(4, server.requestCount)
         }
 
     @Test
