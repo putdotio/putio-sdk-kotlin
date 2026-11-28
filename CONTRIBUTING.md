@@ -59,6 +59,6 @@ They must never:
   gh workflow run ci.yml --repo putdotio/putio-sdk-kotlin --ref main -f recover_version=X.Y.Z
   ```
 
-- Keep the `release` environment's deployment rule limited to `main`, and the "Protect v\* release tags" ruleset limited to org admins and the `putio-ci` App. The release job runs `main`'s build scripts with publishing credentials.
-- The put.io 1Password item `frontend/putio-android-maven-sonatype` holds the Central token and signing key; `put.io/github-putio-ci-app` holds the `putio-ci` App key. `SIGNING_KEY_ID` is the key id's last eight hex characters, and `SIGNING_KEY` is `gpg --armor --export-secret-keys <id>`.
+- Keep the `release` environment's deployment rule limited to `main`, and the "Protect v\* release tags" ruleset limited to org admins and the release GitHub App. The release job runs `main`'s build scripts with publishing credentials.
+- `SIGNING_KEY_ID` is the PGP key ID's last eight hex characters, and `SIGNING_KEY` is `gpg --armor --export-secret-keys <id>`.
 - When rotating the signing key, publish the public key to `keyserver.ubuntu.com`, or Central rejects the signature.
