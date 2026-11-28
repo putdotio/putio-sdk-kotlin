@@ -65,7 +65,7 @@ public data class DeviceCodeAuthOptions(
 }
 
 /**
- * Orchestrates the device-code flow from the auth-and-device-linking contract:
+ * Orchestrates the device-code flow:
  * request a code, poll the match endpoint, then validate the token and load the
  * account. Each collection is one attempt; collect again to get a new code.
  * Cancelling the collector stops polling immediately.
