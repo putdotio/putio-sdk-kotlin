@@ -27,10 +27,8 @@ environment first, then `.env.local` and `.env`; aliases and the optional
 `PUTIO_PLAYBACK_FIXTURE_ID` must be an owned, converted video with sidecar
 subtitles in the dedicated profile.
 
-Copy `.env.example` to `.env.local` to use your own credentials. Maintainers
-point `PUTIO_SDK_KOTLIN_SOPS_FILE` at the SOPS ciphertext and run
-`make secrets-setup`, which needs SOPS 3.10+ and `jq` and writes an owner-only
-`.env.local`. Run `make secrets-clean` before removing a worktree.
+Pass credentials through the environment or copy `.env.example` to the
+gitignored `.env.local` before running `./gradlew liveTest`.
 
 ## Live safety rules
 

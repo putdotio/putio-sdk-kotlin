@@ -11,7 +11,6 @@
 - `./gradlew verify` is the local and CI gate; [CONTRIBUTING.md](./CONTRIBUTING.md#checks) lists the other check and fix commands.
 - `./gradlew markdownCheck`: oxfmt Markdown check, part of `verify`; needs Node.
 - `./gradlew publishToMavenLocal -Pversion=X.Y.Z`: local publish dry run
-- `make secrets-setup` writes the ignored live-test `.env.local` when it is missing or stale ([setup](./CONTRIBUTING.md#live-environment)); run `make secrets-clean` before removing a worktree.
 
 ## Rules
 
